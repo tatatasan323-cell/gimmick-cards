@@ -89,6 +89,9 @@ svg{display:block}
 .row.msg dd{font-size:17px;padding:12px 14px;background:rgba(255,255,255,.07);border-left:4px solid var(--orange);border-radius:6px 12px 12px 6px;font-style:italic}
 .acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px 0 4px}
 .acts a,.acts button{padding:9px 16px;border-radius:999px;font-size:14px;font-weight:700;color:var(--cream);text-decoration:none;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.35)}
+.reply{flex-basis:100%;display:grid;gap:8px;justify-items:center;margin-top:8px;padding-top:12px;border-top:1px dashed rgba(255,244,214,.25)}
+.reply>p:first-child{font-size:13px;font-weight:800;color:var(--orange2);letter-spacing:.06em}
+.reply .ra{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .acts .hint2{flex-basis:100%;text-align:center;font-size:12px;line-height:1.6;opacity:.75;margin-top:2px;white-space:pre-line}
 .make{display:grid;gap:10px;justify-items:center;margin-top:18px}
 .linkbtn{font-size:13px;color:var(--orange2);text-decoration:underline;text-underline-offset:3px;padding:6px}
@@ -185,6 +188,8 @@ svg{display:block}
 #editor input,#editor textarea{display:block;width:100%;min-width:0;margin-top:4px;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.09);color:#fff;font:inherit;font-size:16px;font-weight:400}
 #editor input::placeholder,#editor textarea::placeholder{color:rgba(255,244,214,.38)}
 #editor input[type="date"],#editor input[type="time"]{color-scheme:dark}
+#editor .chk{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--cream);margin-top:14px}
+#editor .chk input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--orange)}
 #editor .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .edbtns{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px}
 #edResult{margin-top:18px;padding:14px;border-radius:14px;background:rgba(123,224,74,.1);border:1px solid rgba(123,224,74,.45)}
@@ -546,6 +551,7 @@ html[data-style="dot"] .f2{opacity:0}}
     <div class="two b">
       <label>差出人<input name="f" maxlength="24" placeholder="例：ゆうこ"></label>
       <label>服装・持ち物<input name="dc" maxlength="40" placeholder="例：仮装でお越しください"></label>
+      <label class="chk"><input type="checkbox" name="rp"><span>参加のお返事を、LINEでもらう</span></label>
     </div>
     <div class="edbtns">
       <button type="button" id="edSample" class="chip ghost">例を入れる</button>
@@ -2743,7 +2749,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   //    入力は「文字」としてだけ扱う。画面には textContent でしか出さない（HTMLとして解釈させない）。
   // ---------------------------------------------------------------------------
   const MAX = { t: 28, to: 24, vn: 40, va: 60, c: 60, m: 200, f: 24, dc: 40 };
-  const KEYS = ['t', 'to', 'd', 's', 'e', 'vn', 'va', 'c', 'm', 'f', 'dc', 'st'];
+  const KEYS = ['t', 'to', 'd', 's', 'e', 'vn', 'va', 'c', 'm', 'f', 'dc', 'rp', 'st'];
   const str = (v, n, keepNl) => {
     if (typeof v !== 'string') return '';
     let s = v.replace(keepNl ? /[\u0000-\u0009\u000b-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g : /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '');
@@ -2756,6 +2762,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     for (const k of KEYS) {
       let v = o[k];
       if (k === 'st') v = v === 'dot' ? 'dot' : '';   // 見た目の指定は、'dot' だけ通す
+      else if (k === 'rp') v = v === '1' ? '1' : '';   // 返事をもらうか：'1' だけ通す
       else if (k === 'd') v = (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && validDate(v)) ? v : '';
       else if (k === 's' || k === 'e') v = (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)) ? v : '';
       else v = str(v, MAX[k], k === 'm');
@@ -2786,7 +2793,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function sampleCard() {
     const now = new Date(); let y = now.getFullYear();
     if (now > new Date(y, 9, 31, 23, 59)) y += 1;
-    return { t: 'Halloween Party', to: 'みんな', d: y + '-10-31', s: '18:00', e: '21:00', vn: 'おばけ屋敷（わが家）', va: '〇〇市△△町1-2-3　駅から歩いて5分', c: 'LINEで連絡してね', m: '仮装して来てね！\nおやつも用意して待ってるよ。', f: 'ゆうこ', dc: '仮装でお越しください' };
+    return { t: 'Halloween Party', to: 'みんな', d: y + '-10-31', s: '18:00', e: '21:00', vn: 'おばけ屋敷（わが家）', va: '〇〇市△△町1-2-3　駅から歩いて5分', c: 'LINEで連絡してね', m: '仮装して来てね！\nおやつも用意して待ってるよ。', f: 'ゆうこ', dc: '仮装でお越しください', rp: '1' };
   }
 
   // ---------------------------------------------------------------------------
@@ -2874,6 +2881,17 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
       });
       acts.appendChild(b);
       acts.appendChild(el('p', 'hint2', 'Android・パソコン：上のボタンを押すと、予定の入った画面が開きます。\niPhone：下のボタンを押したあと、画面に出る「カレンダーに追加」を押します。' + (/Line\//i.test(navigator.userAgent) ? '\nLINEの中では保存できないことがあります。その時は、右上のメニューから「ブラウザで開く」を選んでください。' : '')));
+    }
+    if (c.rp) {   // 参加の返事：LINEの共有画面を、返事の文入りで開く（送り先は、押した人が選ぶ。サーバーには何も送らない）
+      const rep = el('div', 'reply'), ttl = c.t || 'Halloween Party', when = c.d ? dateText(c).split('\n')[0] : '';
+      rep.appendChild(el('p', null, 'ご出欠のお返事'));
+      const ra = el('div', 'ra');
+      [['参加する', '🎃 ' + ttl + '\n参加します！' + (when ? '（' + when + '）' : '')], ['欠席する', ttl + '\nごめんなさい、今回は欠席します。']].forEach(([label, msg]) => {
+        const a = el('a', null, label); a.href = 'https://line.me/R/share?text=' + encodeURIComponent(msg); a.target = '_blank'; a.rel = 'noopener noreferrer'; ra.appendChild(a);
+      });
+      rep.appendChild(ra);
+      rep.appendChild(el('p', 'hint2', 'LINEの画面で、返事を送る相手（この招待状をくれたトーク）を選んで送ってね。'));
+      acts.appendChild(rep);
     }
     // 見本のとき＝「つくる」だけ。リンクから開いたとき＝「自分もつくる」と「書きかえる」。つくった直後（mine）は「書きかえる」だけ
     $('#btnMake').hidden = !!state.mine;
@@ -3143,11 +3161,11 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   // 7. 招待状をつくる・送る
   // ---------------------------------------------------------------------------
   const editor = $('#editor'), edBack = $('#edBack');
-  function fillForm(c) { KEYS.forEach((k) => { const f = editor.elements[k]; if (f) f.value = c[k] || ''; }); }
-  function readForm() { const o = {}; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = f.value; }); return clean(o); }
+  function fillForm(c) { KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || ''; }); }
+  function readForm() { const o = {}; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = k === 'rp' ? (f.checked ? '1' : '') : f.value; }); return clean(o); }
   function openEditor() {
     Snd.unlock(); Snd.play('tap');
-    fillForm(state.sample ? {} : state.card || {});
+    fillForm(state.sample ? { rp: '1' } : state.card || {});
     $('#edResult').hidden = true; $('#edMsg').textContent = '';
     edBack.hidden = false; editor.hidden = false; void editor.offsetWidth; editor.classList.add('open');
     editor.elements.t.focus({ preventScroll: true });
