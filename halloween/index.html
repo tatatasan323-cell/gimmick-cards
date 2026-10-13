@@ -89,7 +89,7 @@ svg{display:block}
 .row.msg dd{font-size:17px;padding:12px 14px;background:rgba(255,255,255,.07);border-left:4px solid var(--orange);border-radius:6px 12px 12px 6px;font-style:italic}
 .acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px 0 4px}
 .acts a,.acts button{padding:9px 16px;border-radius:999px;font-size:14px;font-weight:700;color:var(--cream);text-decoration:none;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.35)}
-.acts .hint2{flex-basis:100%;text-align:center;font-size:12px;line-height:1.6;opacity:.75;margin-top:2px}
+.acts .hint2{flex-basis:100%;text-align:center;font-size:12px;line-height:1.6;opacity:.75;margin-top:2px;white-space:pre-line}
 .make{display:grid;gap:10px;justify-items:center;margin-top:18px}
 .linkbtn{font-size:13px;color:var(--orange2);text-decoration:underline;text-underline-offset:3px;padding:6px}
 .foot{max-width:560px;margin:0 auto;padding:26px 22px calc(40px + env(safe-area-inset-bottom));text-align:center;font-size:13px;color:rgba(255,244,214,.8);line-height:1.7}
@@ -2825,6 +2825,16 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
       'SUMMARY:' + esc(c.t || 'Halloween Party'), 'LOCATION:' + esc([c.vn, c.va].filter(Boolean).join(' ')), 'DESCRIPTION:' + esc(c.m), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   }
 
+  // Googleカレンダーに予定を入れるリンク（ファイルなし。押すと、予定の入った画面が開く）。日時は、検査を通った形（数字・T・/）だけをそのまま入れる
+  function gcalUrl(c) {
+    const d = c.d.replace(/-/g, ''), p2 = (n) => String(n).padStart(2, '0');
+    let dates;
+    if (c.s) dates = d + 'T' + c.s.replace(':', '') + '00/' + d + 'T' + (c.e || c.s).replace(':', '') + '00';
+    else { const [y, m, dd] = c.d.split('-').map(Number), n = new Date(Date.UTC(y, m - 1, dd + 1)); dates = d + '/' + n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()); }
+    const q = (k, v) => k + '=' + encodeURIComponent(v);
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&' + q('text', c.t || 'Halloween Party') + '&dates=' + dates + '&' + q('location', [c.vn, c.va].filter(Boolean).join(' ')) + '&' + q('details', c.m || '');
+  }
+
   function renderCard(c, sample) {
     state.card = c; state.sample = sample;
     const title = c.t || 'Halloween Party', len = Array.from(title).length;
@@ -2856,7 +2866,8 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
       a.target = '_blank'; a.rel = 'noopener noreferrer'; acts.appendChild(a);
     }
     if (c.d) {
-      const b = el('button', null, 'カレンダーに入れる'); b.type = 'button';
+      const g = el('a', null, 'Googleカレンダーに入れる'); g.href = gcalUrl(c); g.target = '_blank'; g.rel = 'noopener noreferrer'; acts.appendChild(g);
+      const b = el('button', null, 'iPhoneのカレンダーに入れる'); b.type = 'button';
       b.addEventListener('click', () => {
         Snd.unlock(); Snd.play('tap');
         if (window.HC_PREVIEW) { toast('この試作版では、カレンダーの書き出しは使えません'); return; }
@@ -2865,7 +2876,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
         toast('カレンダーのファイルを書き出しました');
       });
       acts.appendChild(b);
-      acts.appendChild(el('p', 'hint2', '押すと、予定の小さなファイル（.ics）が保存されます。開くと、カレンダーに入ります。' + (/Line\//i.test(navigator.userAgent) ? 'LINEの中では保存できないことがあります。その時は、右上のメニューから「ブラウザで開く」を選んでください。' : '')));
+      acts.appendChild(el('p', 'hint2', 'Android・パソコン：上のボタンを押すと、予定の入った画面が開きます。\niPhone：下のボタンを押したあと、画面に出る「カレンダーに追加」を押します。' + (/Line\//i.test(navigator.userAgent) ? '\nLINEの中では保存できないことがあります。その時は、右上のメニューから「ブラウザで開く」を選んでください。' : '')));
     }
     // 見本のとき＝「つくる」だけ。リンクから開いたとき＝「自分もつくる」と「書きかえる」。つくった直後（mine）は「書きかえる」だけ
     $('#btnMake').hidden = !!state.mine;
