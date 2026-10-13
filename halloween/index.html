@@ -195,7 +195,7 @@ svg{display:block}
 .sbtn.line{background:#06c755;border-color:#06c755;color:#fff}
 .tiny{font-size:12px;margin-top:8px;min-height:1.4em;opacity:.85}
 
-#toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translate(-50%,40px);opacity:0;z-index:120;padding:10px 18px;border-radius:999px;background:rgba(10,4,32,.92);border:1px solid var(--orange);font-size:14px;font-weight:700;transition:.3s;pointer-events:none}
+#toast{white-space:pre-line;text-align:center;line-height:1.5;max-width:92vw;position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translate(-50%,40px);opacity:0;z-index:120;padding:10px 18px;border-radius:999px;background:rgba(10,4,32,.92);border:1px solid var(--orange);font-size:14px;font-weight:700;transition:.3s;pointer-events:none}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 
 /* ---------- 門・フラッシュ ---------- */
@@ -416,10 +416,10 @@ html[data-style="dot"] .f2{opacity:0}}
   <!-- 右上の音のボタン（どの画面でも） -->
   <div id="bar" role="toolbar" aria-label="音の設定">
     <span id="found" hidden aria-live="polite"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2C7 2 4 6 4 11v9l2.5-2 2.5 2 3-2.5 3 2.5 2.5-2 2.5 2v-9c0-5-3-9-8-9z" fill="#fff"/><circle cx="9.3" cy="10.5" r="1.4" fill="#1a1030"/><circle cx="14.7" cy="10.5" r="1.4" fill="#1a1030"/></svg><b id="foundN">0</b><span>/</span><span id="foundT">8</span></span>
-    <button id="btnSound" class="ibtn" type="button" aria-pressed="true" aria-label="効果音">
+    <button id="btnSound" class="ibtn" type="button" aria-pressed="true" aria-label="音（ギミック音とBGM）">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wv" d="M16 8.5a5 5 0 010 7M18.6 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="xx" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
-    <button id="btnBgm" class="ibtn" type="button" aria-pressed="false" aria-label="BGM">
+    <button id="btnBgm" class="ibtn" type="button" aria-pressed="true" aria-label="BGM">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 18V6l10-2v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="3" fill="currentColor"/><circle cx="16.5" cy="16" r="3" fill="currentColor"/></svg>
     </button>
     <button id="btnStyle" class="ibtn" type="button" aria-pressed="false" aria-label="見た目をきりかえる（なめらか／ドット絵）">
@@ -2739,7 +2739,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   const app = $('#app');
   const NS = 'v1.';
   let curStyle = 'smooth';   // 見た目：smooth（なめらか）／dot（ドット絵）
-  const state = { found: new Set(), done: false, card: null, sample: true, mine: false, sheetId: null, inGarden: false, lastFocus: null, bgmWanted: false, trackChosen: false };
+  const state = { found: new Set(), done: false, card: null, sample: true, mine: false, sheetId: null, inGarden: false, lastFocus: null, bgmWanted: true, trackChosen: false, muteAll: false };
 
   // ---------------------------------------------------------------------------
   // 1. 招待状の中身（入力 → 検査 → リンクの中へ）
@@ -3201,11 +3201,23 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   // ---------------------------------------------------------------------------
   let tt = 0;
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200); }
+  // スピーカーは3段：すべてオン → ギミック音だけオフ（BGMは鳴る）→ すべてオフ → すべてオン。BGMが「なし」の時は、オン⇄オフだけ
   $('#btnSound').addEventListener('click', () => {
-    const on = $('#btnSound').getAttribute('aria-pressed') !== 'true';
-    $('#btnSound').setAttribute('aria-pressed', String(on)); Snd.unlock(); Snd.setEnabled(on);
-    if (on) Snd.play('tap', 0);
-    toast(on ? '効果音：オン　（音が出ない時は、マナーモードを解除してね）' : '効果音：オフ');
+    const btn = $('#btnSound'), sfx = btn.getAttribute('aria-pressed') === 'true';
+    let msg;
+    Snd.unlock();
+    if (sfx) {
+      Snd.setEnabled(false); btn.setAttribute('aria-pressed', 'false');
+      msg = state.bgmWanted ? 'ギミック音：オフ（BGMは、そのまま）\nもう一度押すと、BGMも消えます' : '音：オフ';
+    } else if (state.bgmWanted) {
+      state.bgmWanted = false; state.muteAll = true; Snd.bgm(false); $('#btnBgm').setAttribute('aria-pressed', 'false');
+      msg = '音をすべてオフ\nもう一度押すと、オンにもどります';
+    } else {
+      Snd.setEnabled(true); btn.setAttribute('aria-pressed', 'true'); Snd.play('tap', 0);
+      if (state.muteAll) { state.muteAll = false; state.bgmWanted = true; Snd.bgm(true); $('#btnBgm').setAttribute('aria-pressed', 'true'); }
+      msg = '音：オン\n（音が出ない時は、マナーモードを解除してね）';
+    }
+    toast(msg);
   });
   // BGM：♪ を押すと、曲をえらぶメニューが出る（なし／ワルツ／マーチ／ゆめ）
   const bgmMenu = $('#bgmMenu');
@@ -3223,7 +3235,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function chooseBgm(id) {
     Snd.unlock();
     if (!id) { state.bgmWanted = false; Snd.bgm(false); toast('BGM：なし'); }
-    else { Snd.setTrack(id); state.trackChosen = true; state.bgmWanted = true; Snd.bgm(true); toast('BGM：' + Snd.tracks.filter((t) => t.id === id)[0].name); }
+    else { Snd.setTrack(id); state.trackChosen = true; state.muteAll = false; state.bgmWanted = true; Snd.bgm(true); toast('BGM：' + Snd.tracks.filter((t) => t.id === id)[0].name); }
     $('#btnBgm').setAttribute('aria-pressed', String(state.bgmWanted));
     closeBgmMenu();
   }
@@ -3276,6 +3288,8 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   // ---------------------------------------------------------------------------
   // 起動
   // ---------------------------------------------------------------------------
+  // BGMは、はじめから「入」。ただし、ブラウザの決まりで、音は最初のタップまで鳴らせないので、最初のタップで鳴りはじめる
+  document.addEventListener('click', function first() { document.removeEventListener('click', first, true); if (state.bgmWanted) { Snd.unlock(); Snd.bgm(true); } }, true);
   const c0 = Card.fromHash(location.hash);   // 送った人が選んだ見た目で、最初から開く
   if (c0 && c0.st && STYLE_NAMES[c0.st]) { useStyle(c0.st); curStyle = c0.st; }
   document.documentElement.dataset.style = curStyle; $('#btnStyle').setAttribute('aria-pressed', String(curStyle === 'dot'));
