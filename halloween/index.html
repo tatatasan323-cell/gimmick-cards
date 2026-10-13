@@ -1218,9 +1218,9 @@ const SndSmooth = (() => {
     stopAmbient = tr.ambient ? tr.ambient(rig, bgmGain) : null;
     bgmBar = 0; bgmNext = ctx.currentTime + 0.15;
     const pump = () => {
-      while (bgmNext < ctx.currentTime + 1.2) { tr.bar(rig, bgmGain, bgmBar, bgmNext); bgmNext += tr.barSec; bgmBar++; }
+      while (bgmNext < ctx.currentTime + 3.0) { tr.bar(rig, bgmGain, bgmBar, bgmNext); bgmNext += tr.barSec; bgmBar++; }
     };
-    pump(); bgmTimer = setInterval(pump, 300);
+    pump(); bgmTimer = setInterval(pump, 400);   // 先読み3秒：画面の処理で少し遅れても、音が途切れない
   }
   function bgmStop() {
     if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
@@ -1383,23 +1383,20 @@ const Px = (() => {
   const checker = (g, x, y, w, h, c, phase) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (((x + i + y + j + (phase || 0)) & 1) === 0) set(g, x + i, y + j, c); };
   const flipX = (g) => { const o = G(g.w, g.h); for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) o.d[y * g.w + (g.w - 1 - x)] = g.d[y * g.w + x]; return o; };
 
-  // 同じ色が続く所を、四角にまとめて出す（縦にもまとめる）。ぼやけないよう crispEdges
+  // 格子を、1枚の小さな画像（PNG）にして出す。拡大してもぼやけない（pixelated）。
+  // 以前は同じ色の続きを四角（rect）にして並べていたが、庭だけで1万4千個になり、スマホで画面もBGMも途切れた
   function svg(g, o) {
-    o = o || {}; const s = o.s || 5; let out = '', act = new Map();
-    for (let y = 0; y <= g.h; y++) {
-      const next = new Map();
-      if (y < g.h) {
-        let x = 0;
-        while (x < g.w) {
-          const c = g.d[y * g.w + x]; if (!c) { x++; continue; }
-          let x1 = x; while (x1 + 1 < g.w && g.d[y * g.w + x1 + 1] === c) x1++;
-          const key = x + '-' + x1 + '-' + c; next.set(key, act.has(key) ? act.get(key) : y); x = x1 + 1;
-        }
+    o = o || {}; const s = o.s || 5;
+    const cv = document.createElement('canvas'); cv.width = g.w; cv.height = g.h; const x = cv.getContext('2d');
+    for (let y = 0; y < g.h; y++) {
+      let i = 0;
+      while (i < g.w) {
+        const c = g.d[y * g.w + i]; if (!c) { i++; continue; }
+        let j = i; while (j + 1 < g.w && g.d[y * g.w + j + 1] === c) j++;
+        x.fillStyle = PAL[c]; x.fillRect(i, y, j - i + 1, 1); i = j + 1;
       }
-      for (const [key, ys] of act) if (!next.has(key)) { const p = key.split('-').map(Number); out += '<rect x="' + p[0] + '" y="' + ys + '" width="' + (p[1] - p[0] + 1) + '" height="' + (y - ys) + '" fill="' + PAL[p[2]] + '"/>'; }
-      act = next;
     }
-    return '<g shape-rendering="crispEdges" transform="translate(' + (o.x || 0) + ' ' + (o.y || 0) + ') scale(' + s + ')"' + (o.cls ? ' class="' + o.cls + '"' : '') + (o.attr ? ' ' + o.attr : '') + '>' + out + '</g>';
+    return '<g transform="translate(' + (o.x || 0) + ' ' + (o.y || 0) + ')"' + (o.cls ? ' class="' + o.cls + '"' : '') + (o.attr ? ' ' + o.attr : '') + '><image href="' + cv.toDataURL('image/png') + '" width="' + g.w * s + '" height="' + g.h * s + '" style="image-rendering:crisp-edges;image-rendering:pixelated"/></g>';
   }
   // 背景用：画像（data URL）にして出す。<img> を大きく引き伸ばしても、角が立ったまま
   function img(g, cls, alt) {
@@ -1779,8 +1776,8 @@ const SndDot = (() => {
     bgmGain = rig.out(tr.vol); bgmGain.gain.value = 0;
     bgmGain.gain.linearRampToValueAtTime(tr.vol, ctx.currentTime + 0.4);
     bgmBar = 0; bgmNext = ctx.currentTime + 0.15;
-    const pump = () => { while (bgmNext < ctx.currentTime + 1.2) { tr.bar(rig, bgmGain, bgmBar, bgmNext); bgmNext += tr.barSec; bgmBar++; } };
-    pump(); bgmTimer = setInterval(pump, 300);
+    const pump = () => { while (bgmNext < ctx.currentTime + 3.0) { tr.bar(rig, bgmGain, bgmBar, bgmNext); bgmNext += tr.barSec; bgmBar++; } };
+    pump(); bgmTimer = setInterval(pump, 400);   // 先読み3秒：画面の処理で少し遅れても、音が途切れない
   }
   function bgmStop() {
     if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
