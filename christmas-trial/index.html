@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>はちみつぷるぷるワールド</title>
+<meta name="description" content="さわるとぼよん！はちみつ色のぷるぷるたちと遊べます（お試し版）">
+<meta name="theme-color" content="#7a3a10">
+<meta property="og:type" content="website"><meta property="og:title" content="はちみつぷるぷるワールド"><meta property="og:description" content="さわるとぼよん！はちみつ色のぷるぷるたちと遊ぼう（お試し版）">
+<meta property="og:image" content="https://tatatasan323-cell.github.io/gimmick-cards/christmas-trial/og.jpg"><meta property="og:url" content="https://tatatasan323-cell.github.io/gimmick-cards/christmas-trial/"><meta name="twitter:card" content="summary_large_image">
+<style>
+html,body{margin:0;height:100%;background:#7a3a10;overflow:hidden;font-family:"Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.tx{position:fixed;left:0;right:0;text-align:center;color:#fff7e0;text-shadow:0 2px 10px rgba(120,50,0,.7);pointer-events:none}
+#top{top:calc(18px + env(safe-area-inset-top));font-size:26px;font-weight:800;letter-spacing:.1em}
+#top small{display:block;margin-top:4px;font-size:13px;font-weight:700;letter-spacing:.2em;opacity:.85}
+#hint{bottom:calc(46px + env(safe-area-inset-bottom));font-size:18px;font-weight:800;letter-spacing:.08em;transition:opacity .8s}
+#hint small{display:block;margin-top:6px;font-size:12px;font-weight:700;letter-spacing:.04em;opacity:.9}
+#credit{bottom:calc(8px + env(safe-area-inset-bottom));font-size:10px;letter-spacing:.06em;line-height:1.5;opacity:.7}
+#load{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#7a3a10;color:#fff7e0;font-weight:800;font-size:18px;letter-spacing:.08em;text-align:center;padding:0 24px}
+#load small{font-size:13px;font-weight:700;letter-spacing:.03em;opacity:.9;line-height:1.6}
+#fps{position:fixed;left:8px;top:8px;color:#fff;font:12px monospace}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
+</head><body>
+<canvas id="c"></canvas>
+<div class="tx" id="top">はちみつぷるぷる<small>お 試 し 版</small></div>
+<div class="tx" id="hint">さわってみてね<small>おしたまま → ぐにゅ　はなす → ぼよん！<br>♪音が出ます（マナーモードだと無音）</small></div>
+<div class="tx" id="credit">制作：AI内製化工房 MITA<br>ご利用は自己責任で。無断配布・改ざんを禁止します</div>
+<div id="load"><span id="loadT">よみこみ中…</span><small id="slow" hidden>なかなか開かない時は、SafariかChromeで開いてね</small></div>
+<div id="fps" hidden></div>
+<script>setTimeout(function () { if (!window.__ok) document.getElementById('slow').hidden = false; }, 9000);</script>
+<script type="module">
+// はちみつぷよぷよワールド：すべてが、はちみつ色のぷるぷるのゲル。スマホで動くよう、透過パス（transmission）は使わず、フレネルの内側の光とつやで、とろりを作る
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+const q = new URLSearchParams(location.search);
+const STILL = q.has('still');                       // 撮影用：時刻を止めて、1コマ描く
+const cvs = document.getElementById('c');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, preserveDrawingBuffer: STILL, powerPreference: 'high-performance' }); }
+catch (e) { document.getElementById('loadT').textContent = 'この画面では動きませんでした'; document.getElementById('slow').hidden = false; throw e; }
+let DPR = Math.min(devicePixelRatio || 1, q.has('dpr') ? +q.get('dpr') : 2);
+renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
+let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, rr = (a, b) => a + rnd() * (b - a);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#f09a2c'); scene.fog = new THREE.Fog('#e88a1c', 15, 44);
+
+// ---------- 環境の光：やわらかい窓（ソフトボックス）をいくつか。つやの長い映りの素 ----------
+{
+  const env = new THREE.Scene();
+  const sph = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, uniforms: {}, vertexShader: 'varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader: 'varying vec3 p;void main(){float h=normalize(p).y;vec3 top=vec3(1.0,.86,.7),mid=vec3(.95,.55,.18),bot=vec3(.35,.14,.04);vec3 c=h>0.?mix(mid,top,smoothstep(0.,.8,h)):mix(mid,bot,smoothstep(0.,-.6,h));gl_FragColor=vec4(c,1.);}' }));
+  env.add(sph);
+  const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
+  box(14, 9, -14, 10, 8, '#fff4dc', 5); box(5, 12, 16, 5, 4, '#ffc3e0', 3.2); box(18, 3, 0, 16, -4, '#ffe9b0', 3); box(10, 4, 3, 7, 18, '#ffffff', 2.4);
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.03).texture; scene.environmentIntensity = 0.85;
+}
+
+// ---------- ぷるぷるのゲル材質（質感は、材質の式に足す：内側のやわらかい光・縁の光・つぶれの波） ----------
+const timeU = { value: 0 };
+function gel(hex, o = {}) {
+  const m = new THREE.MeshPhysicalMaterial({ color: hex, roughness: o.rough ?? 0.1, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.6, sheenColor: new THREE.Color(o.sheen || '#fff0c0'), sheenRoughness: 0.3, specularIntensity: 1, envMapIntensity: o.env ?? 1.5 });
+  const U = { uWob: { value: 0 }, uGlow: { value: new THREE.Color(o.glow || hex) }, uGl: { value: o.gl ?? 0.9 } };
+  m.userData.U = U;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uT = timeU; sh.uniforms.uWob = U.uWob; sh.uniforms.uGlow = U.uGlow; sh.uniforms.uGl = U.uGl;
+    sh.vertexShader = 'uniform float uT;uniform float uWob;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normal * sin(dot(position, vec3(5.1, 7.3, 4.7)) + uT * 15.0) * uWob * 0.06;');
+    sh.fragmentShader = 'uniform vec3 uGlow;uniform float uGl;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\n { vec3 Vn = normalize(vViewPosition); float nv = clamp(dot(normalize(normal), Vn), 0.0, 1.0); float rim = pow(1.0 - nv, 2.2); float core = pow(nv, 1.6);\n float low = clamp(0.5 - vNormal.y * 0.5, 0.0, 1.0); totalEmissiveRadiance += uGlow * uGl * (0.10 * core + 0.75 * rim + 0.28 * low * (1.0 - rim)); }');
+  };
+  return m;
+}
+const HONEY = '#ff8a00', AMBER = '#ffa414', PEACH = '#ff9a78', PINK = '#ff5fa2', MINT = '#2fd68a', BERRY = '#ff3a62', CREAM = '#ffd36a', LILAC = '#a96bff';
+
+// ---------- 地面：はちみつの海（ゆるい波＋つや） ----------
+const gMat = new THREE.MeshPhysicalMaterial({ color: '#b85c00', roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.25, emissive: new THREE.Color('#7a3600'), emissiveIntensity: 0.42, transparent: true, opacity: 0.8 });
+gMat.onBeforeCompile = (sh) => { sh.uniforms.uT = timeU; sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed.z += 0.16 * sin(position.x * 0.55 + uT * 0.8) * cos(position.y * 0.45 + uT * 0.6) + 0.05 * sin(position.x * 1.7 - position.y * 1.3 + uT * 1.6);'); };
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(70, 50, 140, 100), gMat); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const gy = (x, z) => 0;     // 置き物は、はちみつの面に、すこし沈める
+
+// ---------- 影（床にぼんやり） ----------
+const shTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 4, 64, 64, 62); gr.addColorStop(0, 'rgba(90,30,0,.55)'); gr.addColorStop(1, 'rgba(90,30,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const shadow = (r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2.8, r * 2.8), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.02; return m; };
+
+// ---------- ぷよ（ゲルの子）：ぷるぷる・ぴょん・さわるとぼよん ----------
+const blobs = [], bodyToBlob = new Map();
+function blobGeo() { const g = new THREE.SphereGeometry(1, 56, 40), p = g.attributes.position; for (let i = 0; i < p.count; i++) { let y = p.getY(i); if (y < -0.62) y = -0.62 + (y + 0.62) * 0.18; p.setY(i, y); } g.computeVertexNormals(); return g; }
+const BG = blobGeo();
+const darkMat = new THREE.MeshStandardMaterial({ color: '#3a1604', roughness: 0.25 }), whiteMat = new THREE.MeshBasicMaterial({ color: '#fff' }), blushMat = new THREE.MeshBasicMaterial({ color: '#ff4a4a', transparent: true, opacity: 0.5, depthWrite: false });
+function puyo(x, z, r, hex, o = {}) {
+  const grp = new THREE.Group(); grp.position.set(x, 0, z);
+  const mat = gel(hex, o), body = new THREE.Mesh(BG, mat); body.scale.setScalar(r); body.position.y = r * 0.62 - 0.05; grp.add(body);
+  const face = new THREE.Group(); face.position.copy(body.position); face.scale.setScalar(r); grp.add(face);
+  const eye = (sx) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 14), darkMat); e.scale.set(0.85, 1.3, 0.55); e.position.set(sx * 0.3, 0.12, 0.93); e.lookAt(e.position.clone().multiplyScalar(2)); const h = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), whiteMat); h.position.set(0.02, 0.04, 0.05); e.add(h); face.add(e); const b = new THREE.Mesh(new THREE.CircleGeometry(0.15, 20), blushMat); b.position.set(sx * 0.55, -0.05, 0.8); b.lookAt(b.position.clone().multiplyScalar(2)); face.add(b); };
+  eye(-1); eye(1);
+  const mo = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.026, 8, 18, Math.PI), darkMat); mo.position.set(0, -0.02, 0.985); mo.rotation.z = Math.PI; mo.scale.set(1, 0.9, 0.6); face.add(mo);
+  const sh = shadow(r); grp.add(sh);
+  scene.add(grp);
+  const b = { grp, body, face, mat, shadow: sh, r, held: 0, s: 0, v: 0, hop: 0, hv: 0, t0: rnd() * 10, tilt: o.tilt || 0, base: o.hopRate ?? 0.25, nextHop: rr(0.5, 4) };
+  if (o.cap) { const cap = new THREE.Mesh(capGeo(rr(0, 6)), gel('#ff8a00', { glow: '#ff5e00', env: 1.8, gl: 0.55 })); body.add(cap); b.cap = cap; }
+  bodyToBlob.set(body, b); blobs.push(b); return b;
+}
+// はちみつのとろり（ぷよの頭にかかる、垂れた縁つきの膜）
+function capGeo(seed0) {
+  const g = new THREE.SphereGeometry(1, 56, 36, 0, Math.PI * 2, 0, 0.85), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = Math.acos(Math.max(-1, Math.min(1, y))), ph = Math.atan2(z, x);
+    const w = THREE.MathUtils.smoothstep(t, 0.3, 0.85), d = Math.pow(0.5 + 0.5 * Math.sin(ph * 5 + seed0) * Math.cos(ph * 2 + seed0 * 0.7), 2) * 0.5 + 0.06, t2 = Math.min(2.5, t + w * d * 0.95), r = 1.03 + 0.012 * w;
+    p.setXYZ(i, Math.sin(t2) * Math.cos(ph) * r, Math.cos(t2) * r, Math.sin(t2) * Math.sin(ph) * r); }
+  g.computeVertexNormals(); return g;
+}
+// 登場：おおきな2人（恋人）、ちいさな子たち（家族）、ツリー、プレゼント
+const loverA = puyo(-1.5, 1.2, 1.3, '#ff7a1a', { tilt: 0.1, glow: '#ff6a00', sheen: '#ffe28a', cap: true });
+const loverB = puyo(1.0, 1.35, 1.15, PINK, { tilt: -0.12, glow: '#ff3f8e', sheen: '#ffd0e6', cap: true });
+puyo(-3.4, 0.2, 0.7, MINT, { glow: '#18c66e', cap: true }); puyo(3.1, 0.4, 0.78, LILAC, { glow: '#8d54ff', cap: true }); puyo(0.0, 3.3, 0.5, AMBER, { glow: '#ff9a00' }); puyo(-1.5, 3.1, 0.44, CREAM, { glow: '#ffcf70' }); puyo(1.9, 3.0, 0.48, BERRY, { glow: '#ff2d55' });
+
+// ツリー：ゲルを重ねて、星と、はちみつのしずく
+const tree = new THREE.Group(); tree.position.set(-0.6, 0, -3.2); scene.add(tree);
+[[1.55, 0], [1.25, 1.35], [0.95, 2.45], [0.62, 3.3]].forEach(([r, y], i) => { const m = new THREE.Mesh(BG, gel(i % 2 ? '#35d684' : '#2fc06e', { glow: '#12a85a' })); m.scale.set(r, r * 0.78, r); m.position.y = y + r * 0.45; tree.add(m); const b = { grp: m, body: m, face: null, mat: m.material, shadow: null, r, held: 0, s: 0, v: 0, hop: 0, hv: 0, t0: i, tilt: 0, base: 0, nextHop: 99, isTree: true, sy: r * 0.78, sx: r }; bodyToBlob.set(m, b); blobs.push(b); });
+const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb800', emissiveIntensity: 2.2, roughness: 0.2 })); star.scale.set(1, 1, 0.45); star.position.y = 4.15; tree.add(star);
+tree.add(shadow(1.9));
+
+// はちみつのしずく（ツリー・ちかくのキャンディケイン）：上から垂れて、ぽとり、をくり返す
+const drops = []; const dropMat = gel('#ffa11a', { glow: '#ff8a00', env: 1.9 });
+function drip(parent, x, y0, z, len, ph) { const strand = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 1, 10), dropMat); parent.add(strand); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), dropMat); parent.add(ball); drops.push({ strand, ball, x, y0, z, len, ph }); }
+[[0.9, 3.1, 0.85, 0.2, 0], [-0.8, 3.0, 1.0, 0.5, 2.2], [0.2, 2.1, 1.35, 0.7, 4.1], [-1.1, 1.8, 0.9, 0.9, 1.3], [1.2, 1.0, 1.1, 0.8, 3.3]].forEach((d) => drip(tree, d[0], d[1], d[2], d[3] + 0.2, d[4]));
+// キャンディケイン
+const cmap = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#fff3d6'; g.fillRect(0, 0, 64, 256); g.fillStyle = '#e8102e'; for (let i = -2; i < 10; i++) { g.beginPath(); g.moveTo(0, i * 32 + 18); g.lineTo(64, i * 32 - 10); g.lineTo(64, i * 32 + 10); g.lineTo(0, i * 32 + 38); g.fill(); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 2); return t; })();
+function cane(x, z, s, ry) { const pts = []; for (let i = 0; i <= 8; i++) pts.push(new THREE.Vector3(0, i * 0.3, 0)); for (let i = 1; i <= 14; i++) { const a = i / 14 * Math.PI; pts.push(new THREE.Vector3((1 - Math.cos(a)) * 0.55, 2.4 + Math.sin(a) * 0.55, 0)); }
+  const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.17, 16), new THREE.MeshPhysicalMaterial({ map: cmap, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.4 })); m.scale.setScalar(s); m.position.set(x, -0.05, z); m.rotation.y = ry; scene.add(m); }
+cane(-5.4, -1.2, 1.5, 0.3); cane(5.2, -1.8, 1.2, -0.6); cane(4.0, 1.8, 0.7, -0.2); cane(-4.6, 2.6, 0.62, 0.5);
+// プレゼント（ゲルの箱）
+const rb = new RoundedBoxGeometry(1, 1, 1, 6, 0.18);
+[[2.9, 3.8, 0.9, PINK, '#ff3f8e', 0.3], [-3.3, 3.9, 0.8, MINT, '#18c66e', -0.4], [3.9, 3.2, 0.6, LILAC, '#8d54ff', 0.2]].forEach(([x, z, s, col, glow, ry]) => { const m = new THREE.Mesh(rb, gel(col, { glow })); m.scale.setScalar(s); m.position.set(x, s * 0.5, z); m.rotation.y = ry; scene.add(m); const rib = new THREE.Mesh(rb, dropMat); rib.scale.set(s * 1.02, s * 1.02, s * 0.18); rib.position.copy(m.position); rib.rotation.y = ry; scene.add(rib); const rib2 = rib.clone(); rib2.rotation.y = ry + Math.PI / 2; scene.add(rib2); const sh2 = shadow(s * 0.9); sh2.position.set(x, 0.02, z); scene.add(sh2); });
+// 遠くの丘（マシュマロ・ホイップ・はちみつ）
+[[-11, -14, 6, '#ffd9a0'], [4, -17, 8, '#ffc27a'], [14, -13, 5, '#ffe3b5'], [-3, -22, 10, '#ffcf90']].forEach(([x, z, r, c]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 20), new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, emissive: new THREE.Color(c).multiplyScalar(0.25) })); m.position.set(x, -r * 0.42, z); scene.add(m); });
+// 太陽のにじみ（加算の光）
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 2, 128, 128, 126); gr.addColorStop(0, 'rgba(255,236,190,.95)'); gr.addColorStop(0.25, 'rgba(255,190,90,.5)'); gr.addColorStop(1, 'rgba(255,140,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true })); sun.scale.set(30, 30, 1); sun.position.set(5, 7, -24); scene.add(sun);
+// 舞う砂糖の粉（雪）と、ぼんやりしたキラキラ
+const NS = 260, sp = new Float32Array(NS * 3), sv = [];
+for (let i = 0; i < NS; i++) { sp[i * 3] = rr(-12, 12); sp[i * 3 + 1] = rr(0, 9); sp[i * 3 + 2] = rr(-8, 8); sv.push([rr(0.15, 0.5), rr(0, 6), rr(0.3, 1.0)]); }
+const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+const snow = new THREE.Points(sg, new THREE.PointsMaterial({ map: glowTex, size: 0.32, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: '#fff2cf', opacity: 0.85 })); scene.add(snow);
+
+// ---------- はちみつの面への映り込み：上下を反転した写しを、面の下に置く（影の円は除く）。動くものは毎コマ、同じ姿にそろえる ----------
+const mirror = new THREE.Group(); mirror.scale.y = -1; scene.add(mirror);
+const mirrorPairs = [];
+scene.children.slice().forEach((o) => { if (o === mirror || o === ground || o === sun || o === snow || o.isLight || o.isSprite || o.isPoints) return; if (o.geometry && o.geometry.type === 'PlaneGeometry') return; if (o.geometry && o.geometry.type === 'SphereGeometry' && o.position.z < -10) return;
+  const c = o.clone(true); c.traverse((n) => { if (n.geometry && n.geometry.type === 'PlaneGeometry' && n.material && n.material.map === shTex) n.visible = false; }); mirror.add(c); mirrorPairs.push([o, c]); });
+function syncMirror() { for (const [o, c] of mirrorPairs) { c.position.copy(o.position); c.rotation.copy(o.rotation); c.scale.copy(o.scale); if (o.isGroup && o.children.length === c.children.length) o.children.forEach((k, i) => { const m = c.children[i]; m.position.copy(k.position); m.rotation.copy(k.rotation); m.scale.copy(k.scale); if (k.children.length && k.children.length === m.children.length) k.children.forEach((kk, j) => { m.children[j].position.copy(kk.position); m.children[j].rotation.copy(kk.rotation); m.children[j].scale.copy(kk.scale); }); }); } }
+// ---------- 光 ----------
+const key = new THREE.DirectionalLight('#ffe2b0', 2.4); key.position.set(-5, 9, 7); scene.add(key);
+const rim = new THREE.PointLight('#ff9ad0', 40, 26, 2); rim.position.set(6, 3, -4); scene.add(rim);
+scene.add(new THREE.HemisphereLight('#ffe8c4', '#b86a14', 0.65));
+
+// ---------- カメラ（縦長なら、ひいて、全体を見せる） ----------
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 120);
+let yaw = 0, pitch = 0, tYaw = 0, tPitch = 0;
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w / h < 0.8 ? 50 : 40; cam.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+function placeCam() { const asp = cam.aspect, d = asp < 0.8 ? 15.5 : 10.2; cam.position.set(Math.sin(yaw) * d, 2.6 + pitch * 3, Math.cos(yaw) * d); cam.lookAt(0, asp < 0.8 ? 3.3 : 1.6, 0); }
+
+// ---------- 音：ぷるん（さわった時） ----------
+let ac = null;
+function sound(pitch, vol = 1) { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state !== 'running') ac.resume(); const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter(), l = ac.createOscillator(), lg = ac.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(pitch * 1.5, t); o.frequency.exponentialRampToValueAtTime(pitch * 0.7, t + 0.28); l.frequency.value = 22; lg.gain.value = pitch * 0.06; l.connect(lg); lg.connect(o.frequency); f.type = 'lowpass'; f.frequency.value = 1400; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28 * vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42); o.connect(f); f.connect(g); g.connect(ac.destination); o.start(t); l.start(t); o.stop(t + 0.45); l.stop(t + 0.45); } catch (e) { /* 音が出なくても遊べる */ } }
+
+// ---------- さわる ----------
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); const hearts = [];
+function poke(b, str = 1) { b.v += 7 * str; b.hv = 4.2 * str; sound(300 + (b.r < 0.7 ? 260 : 0) + rnd() * 90, Math.min(1.3, 0.7 + str * 0.4)); navigator.vibrate?.(10);
+  for (let i = 0; i < 5; i++) hearts.push({ x: b.grp.position.x + rr(-0.4, 0.4), y: (b.grp.position.y || 0) + b.r * 1.6, z: b.grp.position.z + rr(-0.3, 0.3), t: -i * 0.08, c: rnd() < 0.5 ? '#ff6fa8' : '#ffd24d' }); }
+function pick(e) { const r = cvs.getBoundingClientRect(); ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, cam); const hit = ray.intersectObjects(blobs.map((b) => b.body), false)[0]; return hit ? bodyToBlob.get(hit.object) : null; }
+const holds = new Map();      // 指ごとの状態：ぷよをおしている／背景をなぞって視点を動かしている
+cvs.addEventListener('pointerdown', (e) => {
+  const b = pick(e); holds.set(e.pointerId, { b, x: e.clientX, y: e.clientY, yaw: tYaw, pitch: tPitch, moved: false, t: T });
+  cvs.setPointerCapture(e.pointerId); document.getElementById('hint').style.opacity = 0;
+  if (b) { b.held++; sound(190, 0.5); }
+});
+cvs.addEventListener('pointermove', (e) => { const h = holds.get(e.pointerId); if (!h || h.b) return; const dx = e.clientX - h.x, dy = e.clientY - h.y; if (Math.hypot(dx, dy) > 6) h.moved = true; if (h.moved) { tYaw = Math.max(-0.5, Math.min(0.5, h.yaw - dx * 0.004)); tPitch = Math.max(-0.1, Math.min(0.35, h.pitch + dy * 0.002)); } });
+function release(e) { const h = holds.get(e.pointerId); if (!h) return; holds.delete(e.pointerId);
+  if (h.b) { h.b.held--; poke(h.b, Math.min(1.5, 0.7 + (T - h.t) * 1.2)); }
+  else if (!h.moved && e.type === 'pointerup') { const hs = blobs.filter((b) => !b.isTree); poke(hs[(Math.random() * hs.length) | 0], 0.6); } }
+cvs.addEventListener('pointerup', release); cvs.addEventListener('pointercancel', release);
+cvs.addEventListener('contextmenu', (e) => e.preventDefault());
+const heartGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, -0.5); s.bezierCurveTo(-0.9, 0.1, -0.5, 0.8, 0, 0.35); s.bezierCurveTo(0.5, 0.8, 0.9, 0.1, 0, -0.5); return new THREE.ShapeGeometry(s); })();
+const heartMeshes = Array.from({ length: 30 }, () => { const m = new THREE.Mesh(heartGeo, new THREE.MeshBasicMaterial({ color: '#ff6fa8', transparent: true, depthWrite: false })); m.visible = false; m.scale.setScalar(0.28); scene.add(m); return m; });
+
+// ---------- 毎コマ ----------
+const clock = new THREE.Clock(); let T = 0, frames = 0, tf = performance.now();
+function step(dt) {
+  T += dt; timeU.value = T;
+  for (const b of blobs) {
+    // ばね：s＝たてに伸びる量。ぷるぷる（ばね定数・減衰）
+    const k = 150, c = 6.5; b.v += (-k * (b.s - (b.held ? -0.3 : 0)) - c * b.v) * dt; b.s += b.v * dt;
+    b.v += Math.sin(T * 2.2 + b.t0) * 0.04;   // いつもの、ゆらゆら
+    const s = THREE.MathUtils.clamp(b.s, -0.45, 0.55);
+    if (b.isTree) { b.body.scale.set(b.sx * (1 - s * 0.45), b.sy * (1 + s), b.sx * (1 - s * 0.45)); }
+    else {
+      // ぴょん：ときどき跳ぶ。着地でつぶれる
+      b.nextHop -= dt; if (b.base > 0 && b.nextHop < 0 && b.hop <= 0.001) { b.hv = rr(2.2, 3.4); b.nextHop = rr(2.5, 6) / (b.base * 4); }
+      b.hv -= 14 * dt; b.hop += b.hv * dt; if (b.hop < 0) { if (b.hv < -1) b.v -= Math.min(6, -b.hv * 1.3); b.hop = 0; b.hv = 0; }
+      b.grp.position.y = b.hop; b.grp.rotation.z = b.tilt + Math.sin(T * 1.7 + b.t0) * 0.03;
+      b.body.scale.set(b.r * (1 - s * 0.5), b.r * (1 + s), b.r * (1 - s * 0.5)); b.body.position.y = (b.r * (1 + s)) * 0.62 - 0.05;
+      b.face.position.copy(b.body.position); b.face.scale.set(b.r * (1 - s * 0.5), b.r * (1 + s), b.r * (1 - s * 0.5));
+      b.shadow.scale.setScalar(1 - Math.min(0.5, b.hop * 0.25)); b.shadow.material.opacity = 1 - Math.min(0.6, b.hop * 0.3);
+    }
+    const wob = THREE.MathUtils.clamp(Math.abs(b.v) * 0.07 + Math.abs(b.s) * 0.4, 0, 1); b.mat.userData.U.uWob.value = wob; if (b.cap) b.cap.material.userData.U.uWob.value = wob;
+  }
+  // 恋人は、ときどき、同時にぴょん
+  star.rotation.y = T * 1.2; star.position.y = 4.15 + Math.sin(T * 2) * 0.05;
+  for (const d of drops) { const u = ((T * 0.3 + d.ph) % 3) / 3, ext = Math.min(1, u * 2.2) * d.len, fall = Math.max(0, (u - 0.45) / 0.55); const y = d.y0 - ext - fall * fall * 3.2, vis = fall < 0.95; d.strand.visible = d.ball.visible = vis;
+    d.strand.scale.set(1, Math.max(0.01, ext), 1); d.strand.position.set(d.x, d.y0 - ext / 2 - fall * fall * 3.2 * 0, d.z); d.ball.position.set(d.x, y - 0.05, d.z); d.ball.scale.set(1 - fall * 0.2, 1 + fall * 0.9, 1 - fall * 0.2); if (fall > 0) d.strand.visible = false; }
+  const pa = sg.attributes.position; for (let i = 0; i < NS; i++) { let y = pa.getY(i) - sv[i][0] * dt; if (y < 0) y = 9; pa.setY(i, y); pa.setX(i, pa.getX(i) + Math.sin(T * 0.6 + sv[i][1]) * 0.003); } pa.needsUpdate = true;
+  hearts.forEach((h) => { h.t += dt; }); for (let i = hearts.length - 1; i >= 0; i--) if (hearts[i].t > 1.4) hearts.splice(i, 1);
+  heartMeshes.forEach((m, i) => { const h = hearts[i]; if (!h || h.t < 0) { m.visible = false; return; } m.visible = true; m.material.color.set(h.c); m.position.set(h.x, h.y + h.t * 1.6, h.z); m.material.opacity = 1 - h.t / 1.4; m.quaternion.copy(cam.quaternion); m.scale.setScalar(0.26 * (0.6 + Math.min(1, h.t * 4) * 0.6)); });
+  yaw += (tYaw - yaw) * Math.min(1, dt * 6); pitch += (tPitch - pitch) * Math.min(1, dt * 6);
+  if (!STILL && !holds.size && Math.abs(tYaw) < 0.001) { yaw = Math.sin(T * 0.25) * 0.08; }
+  placeCam();
+}
+const fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
+let fAcc = 0, fN = 0, fTot = 0;
+function adapt(raw) {   // 30コマの平均が24ms（約40fps）より遅ければ、解像度を0.5ずつ、1まで下げる。タブを離れた時の長い空白（1秒超）は数えない
+  if (STILL || raw > 1 || ++fTot < 20) return; fAcc += raw; if (++fN < 30) return;
+  const ms = fAcc / fN * 1000; fAcc = 0; fN = 0; if (ms > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); }
+}
+function frame() {
+  const raw = clock.getDelta(); step(Math.min(0.05, raw)); syncMirror(); renderer.render(scene, cam); adapt(raw);
+  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = frames + 'fps ×' + DPR; frames = 0; tf = performance.now(); }
+  if (!STILL) requestAnimationFrame(frame);
+}
+if (STILL) { const t0 = +q.get('still') || 3; for (let i = 0; i < Math.round(t0 * 60); i++) step(1 / 60); if (q.has('poke')) { poke(loverA, 1); poke(loverB, 0.6); for (let i = 0; i < 9; i++) step(1 / 60); } syncMirror(); renderer.render(scene, cam); window.renderDone = true; }
+else { frame(); setTimeout(() => { window.renderDone = true; }, 500); }
+window.__ok = true; document.getElementById('load').remove();
+</script></body></html>
