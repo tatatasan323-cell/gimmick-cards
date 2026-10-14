@@ -152,11 +152,11 @@ svg{display:block}
 .ch .done{display:none}.ch.seen .done{display:block}
 
 /* ---------- 豆知識のシート ---------- */
-#sheetBack,#edBack{position:fixed;inset:0;z-index:70;background:rgba(3,1,12,.62)}
-#sheet,#editor{position:fixed;z-index:80;left:50%;bottom:0;width:min(100vw,560px);transform:translate(-50%,108%);transition:transform .38s cubic-bezier(.2,.9,.2,1);
+#sheetBack,#edBack,#helpBack{position:fixed;inset:0;z-index:70;background:rgba(3,1,12,.62)}
+#sheet,#editor,#help{position:fixed;z-index:80;left:50%;bottom:0;width:min(100vw,560px);transform:translate(-50%,108%);transition:transform .38s cubic-bezier(.2,.9,.2,1);
   background:radial-gradient(420px 160px at 50% 0%,rgba(255,138,31,.2),transparent 70%),linear-gradient(var(--card1),var(--card2));
   border:2px solid var(--orange);border-bottom:0;border-radius:24px 24px 0 0;color:var(--cream);box-shadow:0 -10px 40px rgba(255,138,31,.25)}
-#sheet.open,#editor.open{transform:translate(-50%,0)}
+#sheet.open,#editor.open,#help.open{transform:translate(-50%,0)}
 #sheet{overflow:visible}
 .shscroll{padding:26px 22px calc(20px + env(safe-area-inset-bottom));max-height:84svh;overflow:auto}
 .shbadge{position:absolute;z-index:2;left:50%;top:-64px;width:108px;height:108px;margin-left:-54px;pointer-events:none}
@@ -168,6 +168,58 @@ svg{display:block}
 .sha p{font-size:16px;line-height:1.85}
 .sha .shsrc{margin-top:10px;font-size:11.5px;line-height:1.6;opacity:.7}
 .shbtns{display:flex;justify-content:space-between;gap:10px;margin-top:16px;position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom));padding:12px 0 calc(20px + env(safe-area-inset-bottom));background:linear-gradient(rgba(20,8,44,0),var(--card2) 38%)}
+
+/* ---------- おばけの友だち（表紙） ---------- */
+#friends{position:absolute;inset:0;z-index:1;pointer-events:none}
+.fr{position:absolute;pointer-events:auto;width:calc(var(--w) * 1.15%);transform:translate(-50%,-100%);touch-action:manipulation;animation:frin .7s both}
+.fr[data-pending]{visibility:hidden}
+.fri{display:block;animation:frbob var(--d,5s) ease-in-out infinite;animation-delay:var(--dl,0s)}
+.fri svg{display:block;width:100%;height:auto;overflow:visible}
+.fr.new .fri{animation:frpop .9s cubic-bezier(.2,1.4,.3,1) var(--pd,0s) both,frbob var(--d,5s) ease-in-out 1s infinite}
+.fr.hop .fri{animation:frhop .65s ease-out 1,frbob var(--d,5s) ease-in-out .7s infinite}
+@keyframes frbob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-9px) rotate(1.5deg)}}
+@keyframes frin{from{opacity:0}to{opacity:1}}
+@keyframes frpop{0%{transform:scale(0) rotate(-24deg);opacity:0}60%{transform:scale(1.28) rotate(7deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+@keyframes frhop{0%,100%{transform:translateY(0)}35%{transform:translateY(-26px) scale(1.07)}}
+#friendsMsg{position:absolute;z-index:3;left:4%;top:calc(27svh);max-width:36%;padding:6px 12px;border-radius:14px;background:#fff;color:#d9480f;border:3px solid var(--orange);font-weight:800;font-size:clamp(12.5px,3.6vw,15px);line-height:1.35;box-shadow:0 6px 16px rgba(0,0,0,.35);animation:pop 1.6s ease-in-out infinite;transform-origin:20% 100%}
+#friendsMsg::after{content:"";position:absolute;left:16px;bottom:-11px;border:7px solid transparent;border-top:10px solid var(--orange);border-bottom:0}
+/* ---------- 魔女の家：ミュージックビデオ ---------- */
+.mv{margin-top:14px;display:grid;gap:10px;justify-items:center}
+.mvbox{position:relative;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#07031a;border:2px solid rgba(255,179,71,.55);box-shadow:0 0 22px rgba(255,138,31,.25)}
+.mvbox video{display:block;width:100%;height:100%;object-fit:contain;background:#07031a}
+.mvplay{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:2px;color:#fff;background:rgba(10,4,32,.3);text-shadow:0 2px 6px rgba(0,0,0,.6)}
+.mvplay .tri{position:relative;display:block;width:68px;height:68px;border-radius:50%;background:linear-gradient(#ffc766,#ff7a12);box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.mvplay .tri::after{content:"";position:absolute;left:27px;top:19px;border-left:24px solid #2b0f00;border-top:15px solid transparent;border-bottom:15px solid transparent}
+.mvplay b{font-size:19px;margin-top:6px}
+.mvplay small{font-size:12px;opacity:.85}
+.mvplay:active .tri{transform:scale(.94)}
+#editor .copynote{background:rgba(123,224,74,.12);border:1px solid rgba(123,224,74,.45)}
+
+/* ---------- つかいかた・ルール ---------- */
+#help{padding:16px 18px calc(22px + env(safe-area-inset-bottom));max-height:92svh;overflow:auto;display:block}
+#help[hidden]{display:none !important}
+.hphead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.hphead h3{font-family:var(--comic);font-size:24px;color:var(--orange2)}
+.hptabs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;position:sticky;top:-16px;z-index:2;padding:8px 0;background:linear-gradient(var(--card1) 72%,rgba(42,20,80,0))}
+.hptabs button{padding:11px 6px;border-radius:12px;font-weight:800;font-size:14.5px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.07);touch-action:manipulation}
+.hptabs button[aria-selected="true"]{background:linear-gradient(#ffc766,#ff7a12);color:#2b0f00;border-color:transparent}
+#help h4{font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--orange2);margin:20px 0 10px;padding-bottom:5px;border-bottom:1px dashed rgba(255,179,71,.4)}
+#help .steps{list-style:none;counter-reset:s;display:grid;gap:11px}
+#help .steps li{counter-increment:s;position:relative;padding-left:38px;font-size:15px;line-height:1.75}
+#help .steps li::before{content:counter(s);position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;color:#2b0f00;background:var(--orange2)}
+#help .keys,#help .plain{list-style:none;display:grid;gap:10px}
+#help .keys li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.7}
+#help .keys li>span{min-width:0}
+#help .plain li{position:relative;padding-left:18px;font-size:14.5px;line-height:1.75}
+#help .plain li::before{content:"・";position:absolute;left:2px;color:var(--orange2)}
+#help b{color:#fff;font-weight:800}
+#help .keys b{display:block;color:var(--orange2);font-size:14px;margin-bottom:1px}
+#help .steps .ic{width:26px;height:26px;vertical-align:-7px}
+.hpnote{font-size:12px;line-height:1.6;opacity:.75;margin-top:8px}
+.ic{display:inline-grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:rgba(10,4,32,.55);border:1px solid rgba(255,255,255,.35);color:var(--cream);font-weight:800;font-size:16px;line-height:1}
+.ic svg{width:18px;height:18px}
+#help .xx{display:none}
+#btnHelp .q{font-weight:800;font-size:21px;line-height:1}
 
 /* ---------- 全部見つけた ---------- */
 #finale{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:radial-gradient(600px 500px at 50% 45%,rgba(255,122,18,.45),rgba(5,2,26,.94) 70%);animation:fadein .6s both}
@@ -289,7 +341,7 @@ svg{display:block}
 
 @media (prefers-reduced-motion:reduce){
   #bolt{display:none}
-  .ghostart,.bubble,.down,.hint,.ttl,#fogfront,.a-ember,.a-twk,.a-cloud,.a-wave,.a-wisp,.a-sway,.a-steam,.a-bub,.a-hang,.a-legs,.a-tail,.ch .tapme,.ch .qmark,.finbox h2{animation:none !important}
+  .fri,.fr,#friendsMsg,.ghostart,.bubble,.down,.hint,.ttl,#fogfront,.a-ember,.a-twk,.a-cloud,.a-wave,.a-wisp,.a-sway,.a-steam,.a-bub,.a-hang,.a-legs,.a-tail,.ch .tapme,.ch .qmark,.finbox h2{animation:none !important}
   html{scroll-behavior:auto}
 }
 @media (min-width:700px){
@@ -335,7 +387,18 @@ html[data-style="dot"] .sbtn.line{background:#06c755;box-shadow:inset 3px 3px 0 
 html[data-style="dot"] .invite{border:4px solid #e8b04a;background:#241046;box-shadow:0 0 0 4px #14102a,8px 8px 0 4px #000}
 html[data-style="dot"] .count{background:#ffb347;color:#14102a;border:3px solid #14102a;box-shadow:4px 4px 0 #14102a}
 html[data-style="dot"] .row.msg dd{font-style:normal;background:rgba(255,255,255,.08);border-left:4px solid var(--orange)}
-html[data-style="dot"] #sheet,html[data-style="dot"] #editor{background:#241046;border:4px solid #14102a;border-bottom:0;box-shadow:inset 0 4px 0 #ff8a1f,0 -6px 0 #000}
+html[data-style="dot"] #sheet,html[data-style="dot"] #editor,html[data-style="dot"] #help{background:#241046;border:4px solid #14102a;border-bottom:0;box-shadow:inset 0 4px 0 #ff8a1f,0 -6px 0 #000}
+html[data-style="dot"] .hptabs{background:linear-gradient(#241046 72%,rgba(36,16,70,0))}
+html[data-style="dot"] .hptabs button{border:3px solid #14102a;border-radius:0;background:#2a1450;box-shadow:inset 3px 3px 0 #4a2c7a,3px 3px 0 #000}
+html[data-style="dot"] .hptabs button[aria-selected="true"]{background:#ff8a1f;color:#14102a;box-shadow:inset 4px 4px 0 #ffc766,inset -4px -4px 0 #c93f08,3px 3px 0 #000}
+html[data-style="dot"] .ic{border:3px solid #14102a;background:#2a1450;box-shadow:inset 2px 2px 0 #4a2c7a}
+html[data-style="dot"] .fri{animation-timing-function:steps(2,jump-none)}
+html[data-style="dot"] #friendsMsg{border:4px solid #14102a;border-radius:0;box-shadow:4px 4px 0 #000;animation:none}
+html[data-style="dot"] #friendsMsg::after{display:none}
+html[data-style="dot"] .mvbox{border:4px solid #14102a;border-radius:0;box-shadow:inset 0 0 0 3px #ff8a1f,5px 5px 0 #000}
+html[data-style="dot"] .mvplay .tri{border-radius:0;border:4px solid #14102a;background:#ff8a1f;box-shadow:inset 4px 4px 0 #ffc766,inset -4px -4px 0 #c93f08,4px 4px 0 #000}
+html[data-style="dot"] #editor .copynote{border:3px solid #7be04a;border-radius:0}
+html[data-style="dot"] #help .steps li::before{border-radius:0;border:3px solid #14102a}
 html[data-style="dot"] .sha{border:3px solid #ffb347;background:rgba(255,255,255,.07)}
 html[data-style="dot"] .shbtns{background:linear-gradient(rgba(36,16,70,0),#241046 38%)}
 html[data-style="dot"] #finale{background:rgba(5,2,26,.94)}
@@ -430,6 +493,7 @@ html[data-style="dot"] .f2{opacity:0}}
     <button id="btnStyle" class="ibtn" type="button" aria-pressed="false" aria-label="見た目をきりかえる（なめらか／ドット絵）">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="currentColor"/></svg>
     </button>
+    <button id="btnHelp" class="ibtn" type="button" aria-haspopup="dialog" aria-label="つかいかた・ルール"><span class="q" aria-hidden="true">?</span></button>
     <div id="bgmMenu" role="menu" aria-label="BGMをえらぶ" hidden></div>
   </div>
 
@@ -437,6 +501,8 @@ html[data-style="dot"] .f2{opacity:0}}
   <main id="cover" class="view">
     <section class="hero" id="hero">
       <div class="scene" aria-hidden="true" id="coverScene"></div>
+      <div id="friends"></div>
+      <p id="friendsMsg" hidden>おばけ、ぜんいん集合！</p>
       <h1 class="ttl" id="ttl"><span id="ttlText">Halloween Party</span></h1>
       <div class="ghostwrap">
         <button id="ghostBtn" class="ghostbtn" type="button" aria-label="おばけにタッチすると、おばけの庭に入ります">
@@ -462,14 +528,16 @@ html[data-style="dot"] .f2{opacity:0}}
       <div class="make">
         <button id="btnMake" class="pump" type="button"><span>招待状をつくる</span></button>
         <button id="btnEdit" class="linkbtn" type="button" hidden>この招待状を書きかえる</button>
+        <button id="btnBlank" class="linkbtn" type="button" hidden>白紙から、つくる</button>
       </div>
     </article>
 
     <footer class="foot">
       <p>おばけにタッチすると、庭に入れます。</p>
+      <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
       <details class="terms">
         <summary>ご利用にあたって</summary>
-        <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。第三者への無断配布・複製、およびプログラムの改ざんを禁止します。著作権は作者に帰属します。</p>
+        <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。見つけた豆知識の数とミュージックビデオを見たかどうか（表紙のおばけを増やすための記録）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。第三者への無断配布・複製、およびプログラムの改ざんを禁止します。著作権は作者に帰属します。</p>
       </details>
       <p class="credit">制作：AI内製化工房 MITA</p>
     </footer>
@@ -511,6 +579,13 @@ html[data-style="dot"] .f2{opacity:0}}
       <p id="shAText"></p>
       <p class="shsrc" id="shSrc"></p>
     </div>
+    <div id="shMv" class="mv" hidden>
+      <div class="mvbox">
+        <video id="mvVideo" playsinline preload="none" disablepictureinpicture controlslist="nodownload"></video>
+        <button id="mvPlay" type="button" class="mvplay" aria-label="ミュージックビデオを見る（15秒）"><i class="tri"></i><b>見る</b><small>15秒</small></button>
+      </div>
+      <a id="mvYt" class="chip" href="#" target="_blank" rel="noopener noreferrer" hidden>全編を、YouTubeで見る ›</a>
+    </div>
     <div class="shbtns">
       <button id="shNext" class="chip" type="button" hidden>つぎのおばけへ ›</button>
       <button id="shClose" class="chip ghost" type="button">とじる</button>
@@ -536,6 +611,7 @@ html[data-style="dot"] .f2{opacity:0}}
       <h3 id="edH">招待状をつくる</h3>
       <button type="button" id="edX" class="chip ghost" aria-label="とじる">とじる</button>
     </div>
+    <p class="note copynote" id="edCopyNote" hidden>もらった招待状の内容を、<b>コピー</b>しました。<b>もらった招待状は、そのまま残ります</b>（リンクも変わりません）。差出人とあて名は空にしたので、あなたの名前で書いてね。</p>
     <p class="note">空欄の項目は、招待状に出ません。入力した内容は、リンクの中に入ります（サーバーには保存されません）。LINEなどで送った相手には見えるので、見せたくない情報は入れないでください。</p>
     <label>タイトル<input name="t" maxlength="28" placeholder="Halloween Party"></label>
     <label>あて名<input name="to" maxlength="24" placeholder="例：みんな／ゆうこさん"></label>
@@ -569,9 +645,79 @@ html[data-style="dot"] .f2{opacity:0}}
         <button type="button" id="shCopy" class="sbtn">リンクをコピー</button>
         <button type="button" id="shNative" class="sbtn" hidden>ほかのアプリで送る</button>
       </div>
+      <a id="edOpen" class="linkbtn" href="#" target="_blank" rel="noopener noreferrer" hidden>つくった招待状を、見てみる ›</a>
       <p class="tiny" id="edMsg" aria-live="polite"></p>
     </div>
   </form>
+
+  <!-- つかいかた・ルール -->
+  <div id="helpBack" hidden></div>
+  <section id="help" role="dialog" aria-modal="true" aria-labelledby="hpH" hidden>
+    <div class="hphead">
+      <h3 id="hpH">つかいかた・ルール</h3>
+      <button type="button" id="hpX" class="chip ghost" aria-label="とじる">とじる</button>
+    </div>
+    <div class="hptabs" role="tablist" aria-label="読む人をえらぶ">
+      <button type="button" role="tab" id="tabRecv" aria-controls="hpRecv" aria-selected="true">もらった人</button>
+      <button type="button" role="tab" id="tabMake" aria-controls="hpMake" aria-selected="false">おくる人（つくる人）</button>
+    </div>
+    <div class="hpbody">
+      <div id="hpRecv" role="tabpanel" aria-labelledby="tabRecv">
+        <h4>あそびかた</h4>
+        <ol class="steps">
+          <li><b>表紙のおばけに、タッチ。</b>おばけの庭に入れます。招待状（日にち・場所・ひとこと）は、表紙の下にあります。</li>
+          <li><b>庭では、左右にスワイプ。</b>パソコンは、ドラッグ・マウスのホイール・左右のボタンでも動けます。</li>
+          <li><b>気になるおばけを、タップ。</b>音と動きのあとに、ハロウィンの豆知識が出ます。「こたえを見る」で、答えと出典がわかります。</li>
+          <li><b>豆知識は、全部で<span class="hpn"></span>つ。</b>見つけた数は、右上の <i class="ic" data-ic="found"></i> に出ます。全部見つけると、お祝いの画面が出ます。</li>
+          <li><b>庭のまんなかの「魔女の家」</b>をノックすると、ミュージックビデオ（15秒）が見られます。</li>
+          <li><b>おばけの友だちが、表紙に集まります。</b>豆知識を1つ見るたびに、表紙のおばけが1人ずつ増えます。<b>豆知識を全部見て、ミュージックビデオも見ると、表紙が「おばけ大集合」</b>に。友だちにも、見せてあげてね。</li>
+        </ol>
+        <h4>右上のボタン</h4>
+        <ul class="keys">
+          <li><i class="ic" data-ic="sound"></i><span><b>スピーカー</b>押すたびに、①ギミック音だけ消える（BGMは鳴ったまま）→ ②ぜんぶ消える → ③もとにもどる</span></li>
+          <li><i class="ic" data-ic="bgm"></i><span><b>♪</b>BGMをえらびます（ワルツ・マーチ・ゆめ・なし）</span></li>
+          <li><i class="ic" data-ic="style"></i><span><b>見た目</b>なめらか ⇄ ドット絵。いる場所も、見つけた数も、そのままです</span></li>
+          <li><i class="ic q">?</i><span><b>この説明</b>を開きます</span></li>
+        </ul>
+        <h4>招待状のボタン</h4>
+        <ul class="keys">
+          <li><span><b>地図を開く</b>会場の地図が開きます</span></li>
+          <li><span><b>カレンダーに入れる</b>Android・パソコンは Googleカレンダー。iPhoneは「iPhoneのカレンダーに入れる」を押して、出てくる「カレンダーに追加」を押します</span></li>
+          <li><span><b>参加する／欠席する</b>LINEの画面が開きます。返事を送る相手（この招待状をくれたトーク）を選んで、送ってね</span></li>
+        </ul>
+        <p class="hpnote">出るボタンは、送った人が入れた内容で変わります。</p>
+        <h4>音が出ないとき</h4>
+        <ul class="plain">
+          <li>スマホの「マナーモード（消音）」を、オフにします</li>
+          <li>音量を上げます。ブラウザの決まりで、音は、最初のタップから鳴りはじめます</li>
+          <li>スピーカーのボタンが「消えた」状態になっていないか、見てみます</li>
+        </ul>
+      </div>
+      <div id="hpMake" role="tabpanel" aria-labelledby="tabMake" hidden>
+        <h4>つくりかた（1分）</h4>
+        <ol class="steps">
+          <li><b>表紙の下の「招待状をつくる」</b>を押します。もらった招待状では「自分も招待状をつくる」を押すと、<b>もらった内容がコピー</b>されます。もらった招待状は、そのまま残ります。</li>
+          <li><b>日にち・会場・ひとこと</b>などを入れます。空欄の項目は、招待状に出ません。「例を入れる」で、見本が入ります。</li>
+          <li><b>「リンクをつくる」</b>を押します。</li>
+          <li><b>見た目をえらびます。</b>なめらか／ドット絵。受け取った人は、はじめからその見た目で開きます（あとで切りかえもできます）。</li>
+          <li><b>「LINEで送る」</b>を押して、送る相手をえらんで送信。「リンクをコピー」なら、メールやSNSにも貼れます。</li>
+        </ol>
+        <h4>お返事をもらう</h4>
+        <ul class="plain">
+          <li>「参加のお返事を、LINEでもらう」にチェックすると、招待状に「参加する／欠席する」が付きます</li>
+          <li>返事は、押した人から あなたへの LINE のメッセージで届きます。<b>人数の自動集計は、ありません。</b>届いたメッセージで、数えてね</li>
+        </ul>
+        <h4>ルール・注意</h4>
+        <ul class="plain">
+          <li><b>入力した内容は、リンクの中に入ります。</b>リンクを知っている人には、全部見えます。住所・電話番号など、見せたくないことは、入れないでね</li>
+          <li>サーバーには、保存されません。<b>リンクが、招待状の本体</b>です。送ったトークを、控えとして残しておくと安心です</li>
+          <li>書きかえたいときは、<b>新しいリンクをつくって、送りなおします。</b>前のリンクは、前の内容のまま開きます。（つくった直後なら、「この招待状を書きかえる」で直せます）</li>
+          <li>あつめたおばけの記録は、<b>あなたのスマホの中だけ</b>に残ります（送った人には届きません）。ブラウザのデータを消すと、はじめからになります</li>
+          <li>日にちを入れると、「あと◯日」と、カレンダーのボタンが出ます</li>
+        </ul>
+      </div>
+    </div>
+  </section>
 
   <div id="toast" role="status" aria-live="polite"></div>
 </div>
@@ -2296,7 +2442,42 @@ const ArtSmooth = (() => {
   // 門の真ん中の錠（かぼちゃ）。とびらの絵は横に伸びるので、丸い物は別に置く
   function gateLock() { return `<svg viewBox="-40 -40 80 80"><circle r="36" fill="#ff8a1f" stroke="#0c0716" stroke-width="6"/><ellipse rx="13" ry="33" fill="none" stroke="#a83a06" stroke-width="2" opacity=".6"/><g fill="#ffe27a"><polygon points="-22,-4 -7,-4 -14.5,-18"/><polygon points="7,-4 22,-4 14.5,-18"/><path d="M-22 9Q0 28 22 9L16 6L11 14L5 6L0 15L-5 6L-11 14L-16 6Z"/></g></svg>`; }
 
-  return { ghost, gateLock, coverScene, gardenSky, farLayer, midLayer, nearLayer, gatePanel, badge, X };
+  // ---------- おばけの友だち（表紙にふえていく）viewBox -10 -50 140 200。足もとは y≈138 ----------
+  const FR_BODY = '<path d="M60 10C35 10 19 31 19 62L19 120C19 131 26 136 32 130C37 125 41 136 47 138C53 140 55 130 60 130C65 130 67 140 73 138C79 136 83 125 88 130C94 136 101 131 101 120L101 62C101 31 85 10 60 10Z" fill="url(#gGhost)" stroke="rgba(110,90,200,.35)" stroke-width="2"/>';
+  const FR_NUB = (x, y, r) => `<ellipse cx="${x}" cy="${y}" rx="${r || 8}" ry="${(r || 8) * 0.76}" fill="url(#gGhost)" stroke="rgba(110,90,200,.35)" stroke-width="2"/>`;
+  const FR_CHEEK = '<ellipse cx="33" cy="78" rx="8" ry="5" fill="url(#gCheek)"/><ellipse cx="87" cy="78" rx="8" ry="5" fill="url(#gCheek)"/>';
+  const FR_EYES = (dx, dy) => `<g class="a-blink"><ellipse cx="${46 + (dx || 0)}" cy="${64 + (dy || 0)}" rx="7.5" ry="10" fill="#1a1030"/><ellipse cx="${74 + (dx || 0)}" cy="${64 + (dy || 0)}" rx="7.5" ry="10" fill="#1a1030"/><circle cx="${48.5 + (dx || 0)}" cy="${59.5 + (dy || 0)}" r="2.8" fill="#fff"/><circle cx="${76.5 + (dx || 0)}" cy="${59.5 + (dy || 0)}" r="2.8" fill="#fff"/></g>`;
+  const FR_HAPPY = '<path d="M37 67Q46 54 55 67M65 67Q74 54 83 67" fill="none" stroke="#1a1030" stroke-width="4.2" stroke-linecap="round"/>';
+  const FR_SLEEPY = '<path d="M37 63Q46 72 55 63M65 63Q74 72 83 63" fill="none" stroke="#1a1030" stroke-width="4" stroke-linecap="round"/>';
+  const FR_O = '<ellipse cx="60" cy="81" rx="5" ry="6.5" fill="#1a1030"/><ellipse cx="60" cy="85" rx="3" ry="2.4" fill="#ff7aa8"/>';
+  const FR_SMILE = '<path d="M51 78Q60 90 69 78" fill="none" stroke="#1a1030" stroke-width="3.6" stroke-linecap="round"/>';
+  const FR_BIG = '<path d="M49 76Q60 96 71 76Z" fill="#1a1030"/><path d="M54 87Q60 92 66 87Q60 84 54 87Z" fill="#ff7aa8"/>';
+  const frSvg = (inner, shadowOn) => `<svg viewBox="-10 -50 140 200" aria-hidden="true" overflow="visible"><ellipse cx="60" cy="146" rx="34" ry="5" fill="#000" opacity="${shadowOn === false ? 0 : 0.28}"/>${inner}</svg>`;
+  const FRIENDS = {
+    reader: () => frSvg(FR_BODY + FR_CHEEK + FR_EYES(0, 5) + '<g fill="none" stroke="#6a4a2a" stroke-width="3"><circle cx="46" cy="64" r="12.5"/><circle cx="74" cy="64" r="12.5"/><path d="M58.5 63h3"/></g>' + FR_O.replace('cy="81"', 'cy="84"').replace('cy="85"', 'cy="88"') +
+      '<path d="M22 98L60 107L98 98L98 128L60 137L22 128Z" fill="#fff6e0" stroke="#8a5a2a" stroke-width="2.6" stroke-linejoin="round"/><path d="M60 107V137" stroke="#8a5a2a" stroke-width="2.6"/><path d="M30 109L53 114.5M30 117L53 122.5M30 125L53 130.5M67 114.5L90 109M67 122.5L90 117M67 130.5L90 125" stroke="#c9a46a" stroke-width="2"/>' + FR_NUB(22, 104) + FR_NUB(98, 104)),
+    sleeper: () => frSvg('<g transform="rotate(7 60 140)">' + FR_BODY + FR_CHEEK + FR_SLEEPY + '<ellipse cx="60" cy="82" rx="4" ry="3.4" fill="#1a1030"/>' +
+      '<path d="M22 40C22 12 54 -6 90 8C106 14 114 30 112 46C102 31 92 28 82 30C66 32 40 35 22 40Z" fill="#4a6ad8"/><path d="M18 42Q60 30 102 40L104 50Q60 40 20 52Z" fill="#fff"/><circle cx="112" cy="48" r="9" fill="#fff"/></g>' +
+      '<g fill="none" stroke="#cbbcff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M96 14h10l-10 12h10"/><path d="M108 -8h13l-13 15h13" opacity=".85"/><path d="M118 -28h9l-9 10h9" opacity=".6"/></g>'),
+    witch: () => frSvg(FR_BODY + FR_CHEEK + FR_HAPPY + FR_SMILE.replace('Q60 90', 'Q60 92') +
+      '<ellipse cx="60" cy="27" rx="46" ry="10" fill="#2a1d66"/><path d="M35 26C42 6 52 -16 66 -44C70 -24 80 6 85 26Z" fill="#3c2a82"/><path d="M37 19Q60 27 83 19L85 28Q60 36 35 28Z" fill="#ff8a1f"/><rect x="53" y="20" width="14" height="11" rx="3" fill="#ffd84d"/><rect x="57" y="23" width="6" height="5" rx="1.5" fill="#2a1d66"/>'),
+    candy: () => frSvg(FR_BODY + FR_CHEEK + FR_EYES(0, -1) + FR_BIG + '<path d="M96 116L113 44" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/><circle cx="116" cy="26" r="23" fill="#ff6fa8"/><circle cx="116" cy="26" r="7" fill="none" stroke="#fff" stroke-width="4.4"/><circle cx="116" cy="26" r="15" fill="none" stroke="#fff" stroke-width="4.4" stroke-dasharray="50 44"/>' + FR_NUB(97, 116)),
+    balloon: () => frSvg(FR_BODY + FR_CHEEK + FR_EYES(2, -4) + FR_SMILE + '<path d="M97 116C102 92 106 62 101 22" fill="none" stroke="#e8e2ff" stroke-width="2.4"/><ellipse cx="101" cy="4" rx="23" ry="20" fill="url(#gPump)"/><path d="M101 -16C92 -4 92 12 101 24M101 -16C110 -4 110 12 101 24" fill="none" stroke="#c93f08" stroke-width="2" opacity=".55"/><rect x="98" y="-24" width="6" height="9" rx="2" fill="#5b8a22"/><path d="M90 2l7-3-4-8zM112 2l-7-3 4-8z" fill="#3a1262"/><path d="M90 12Q101 21 112 12" fill="none" stroke="#3a1262" stroke-width="2.6" stroke-linecap="round"/>' + FR_NUB(97, 116)),
+    cool: () => frSvg(FR_BODY + FR_CHEEK + '<g><rect x="29" y="53" width="27" height="19" rx="7" fill="#14102a"/><rect x="64" y="53" width="27" height="19" rx="7" fill="#14102a"/><path d="M56 60h8" stroke="#14102a" stroke-width="3.4"/><path d="M29 59L21 55M91 59L99 55" stroke="#14102a" stroke-width="3.4" stroke-linecap="round"/><path d="M34 58h9M69 58h9" stroke="#8f5cff" stroke-width="2.6" opacity=".75" stroke-linecap="round"/></g><path d="M50 82Q60 90 72 77" fill="none" stroke="#1a1030" stroke-width="3.6" stroke-linecap="round"/>' +
+      '<path d="M96 100C108 96 112 86 109 76" fill="none" stroke="#e8e2ff" stroke-width="13" stroke-linecap="round"/><path d="M96 100C108 96 112 86 109 76" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><rect x="103" y="58" width="9" height="20" rx="4.5" fill="#fff" stroke="rgba(110,90,200,.35)" stroke-width="1.6"/>'),
+    dancer: () => frSvg('<g transform="rotate(-9 60 140)"><path d="M24 90C8 84 5 66 14 52" fill="none" stroke="rgba(110,90,200,.35)" stroke-width="15" stroke-linecap="round"/><path d="M24 90C8 84 5 66 14 52" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round"/><path d="M96 90C112 84 115 66 106 52" fill="none" stroke="rgba(110,90,200,.35)" stroke-width="15" stroke-linecap="round"/><path d="M96 90C112 84 115 66 106 52" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round"/>' + FR_BODY + FR_CHEEK + FR_HAPPY + FR_BIG + '</g>' +
+      '<g fill="#ffd84d"><ellipse cx="108" cy="12" rx="5.5" ry="4.2"/><ellipse cx="124" cy="3" rx="5.5" ry="4.2"/></g><path d="M113 12V-8L129 -12V3" fill="none" stroke="#ffd84d" stroke-width="3.4" stroke-linejoin="round"/>'),
+    peek: () => frSvg(FR_BODY + FR_CHEEK + FR_EYES(4, 2) + '<ellipse cx="60" cy="80" rx="4" ry="3.6" fill="#1a1030"/>' +
+      '<path d="M4 150V104C4 88 18 78 34 78H86C102 78 116 88 116 104V150Z" fill="#2c2450" stroke="#4a3d7a" stroke-width="3"/><path d="M14 104C14 94 22 88 34 88H86" fill="none" stroke="#4a3d7a" stroke-width="2" opacity=".7"/><path d="M52 108h16M60 100v22" stroke="#4a3d7a" stroke-width="4" stroke-linecap="round"/>' + FR_NUB(30, 80, 9) + FR_NUB(90, 80, 9), false),
+    party: () => frSvg(FR_BODY + FR_CHEEK + FR_HAPPY + FR_BIG + '<path d="M60 -30L36 24H84Z" fill="#ff6fa8"/><g fill="#ffd84d"><circle cx="54" cy="4" r="3.4"/><circle cx="66" cy="10" r="3.4"/><circle cx="58" cy="18" r="3.4"/></g><circle cx="60" cy="-32" r="6" fill="#ffd84d"/><path d="M84 88C102 88 106 76 114 80" fill="none" stroke="#ff8a1f" stroke-width="6" stroke-linecap="round"/><circle cx="116" cy="80" r="5" fill="#7be04a"/>' +
+      '<g><circle cx="12" cy="14" r="3" fill="#7be04a"/><circle cx="108" cy="40" r="3" fill="#8f5cff"/><rect x="4" y="44" width="6" height="3" rx="1" fill="#ffd84d" transform="rotate(30 7 45)"/><rect x="114" y="18" width="6" height="3" rx="1" fill="#ff6fa8" transform="rotate(-25 117 19)"/></g>'),
+    baby: () => frSvg('<g transform="translate(14 36) scale(.76)">' + FR_BODY + FR_CHEEK + '<g class="a-blink"><ellipse cx="46" cy="64" rx="9.5" ry="13" fill="#1a1030"/><ellipse cx="74" cy="64" rx="9.5" ry="13" fill="#1a1030"/><circle cx="49" cy="58" r="3.6" fill="#fff"/><circle cx="77" cy="58" r="3.6" fill="#fff"/></g><ellipse cx="60" cy="84" rx="10" ry="7" fill="#ff8a1f"/><circle cx="60" cy="84" r="3.6" fill="#ffd84d"/><path d="M60 11C56 -2 70 -6 74 4" fill="none" stroke="#e8e2ff" stroke-width="6" stroke-linecap="round"/></g>'),
+    scarf: () => frSvg(FR_BODY + FR_CHEEK + FR_HAPPY + FR_SMILE + '<path d="M20 100Q60 118 100 100L100 116Q60 134 20 116Z" fill="#e8264a"/><path d="M80 116L96 152L78 154L68 122Z" fill="#e8264a"/><g stroke="#fff" stroke-width="3.4" stroke-linecap="round"><path d="M34 106L33 120M52 110L51 124M70 110L69 124M88 106L87 120"/><path d="M85 130L91 142"/></g>'),
+    crown: () => frSvg(FR_BODY + FR_CHEEK + FR_EYES(0, 0) + FR_SMILE + '<path d="M30 28L36 -6L50 14L60 -14L70 14L84 -6L90 28Z" fill="#ffd84d" stroke="#c98a00" stroke-width="2.4" stroke-linejoin="round"/><rect x="30" y="24" width="60" height="9" rx="3" fill="#ffc14d" stroke="#c98a00" stroke-width="2"/><circle cx="60" cy="28" r="3.6" fill="#e8264a"/><circle cx="43" cy="28" r="2.6" fill="#7be04a"/><circle cx="77" cy="28" r="2.6" fill="#8f5cff"/><path d="M104 22l3 8 8 3-8 3-3 8-3-8-8-3 8-3zM14 0l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#fff6c4"/>'),
+  };
+  const friend = (k) => (FRIENDS[k] ? FRIENDS[k]() : '');
+
+  return { ghost, gateLock, coverScene, gardenSky, farLayer, midLayer, nearLayer, gatePanel, badge, X, friend };
 })();
 
 /* ===== 絵（ドット絵版）：すべて自分で描いたドット絵。外部の画像は使わない =====
@@ -2724,7 +2905,80 @@ const ArtDot = (() => {
     put('#finH', 'HAPPY HALLOWEEN!', C.orgL, C.org, C.d2, C.orgD);
     if (!resizeBound) { resizeBound = true; window.addEventListener('resize', () => document.querySelectorAll('.pxtext').forEach(fitSvg)); }
   }
-  return { ghost, gateLock, coverScene, gardenSky, farLayer, midLayer, nearLayer, gatePanel, badge, X, setTitle, init, eyeStep: 5 };
+  // ============ おばけの友だち（表紙にふえていく）28×36（1ドット＝5）。足もとは y≈135 ============
+  function frBodyPx() {
+    const g = G(28, 36);
+    ell(g, 14, 18, 9.5, 10, C.white); rect(g, 4, 18, 20, 14, C.white);
+    for (let x = 4; x < 24; x++) { const h = Math.round(2.6 * Math.abs(Math.sin(Math.PI * (x - 4 + 0.5) / 6.7))); rect(g, x, 32, 1, h, C.white); }
+    for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+      if (g.d[y * g.w + x] !== C.white) continue;
+      let c = C.white;
+      if (y >= 27 && y < 29) c = ((x + y) & 1) ? C.gh1 : C.white; else if (y >= 29 && y < 33) c = C.gh1; else if (y >= 33) c = ((x + y) & 1) ? C.gh1 : C.gh2;
+      if (x >= 22) c = c === C.white ? C.gh1 : C.gh2;
+      g.d[y * g.w + x] = c;
+    }
+    outline(g, C.p3);
+    return g;
+  }
+  const frEyesPx = (g, mode, dx, dy) => {
+    dx = dx || 0; dy = dy || 0;
+    if (mode === 'happy') { [[9, 19], [10, 18], [11, 18], [12, 19], [16, 19], [17, 18], [18, 18], [19, 19]].forEach((p) => set(g, p[0] + dx, p[1] + dy, C.ink)); return; }
+    if (mode === 'sleep') { [[9, 18], [10, 19], [11, 19], [12, 18], [16, 18], [17, 19], [18, 19], [19, 18]].forEach((p) => set(g, p[0] + dx, p[1] + dy, C.ink)); return; }
+    rect(g, 10 + dx, 16 + dy, 2, 4, C.ink); rect(g, 17 + dx, 16 + dy, 2, 4, C.ink); set(g, 10 + dx, 16 + dy, C.white); set(g, 17 + dx, 16 + dy, C.white);
+  };
+  const frFacePx = (g, mouth) => {
+    rect(g, 6, 22, 3, 2, C.pink); rect(g, 20, 22, 3, 2, C.pink);
+    if (mouth === 'o') { ell(g, 14, 24, 1.6, 2.2, C.ink); } else if (mouth === 'big') { rect(g, 12, 23, 5, 2, C.ink); rect(g, 13, 25, 3, 1, C.ink); set(g, 14, 25, C.pink); } else { set(g, 12, 23, C.ink); rect(g, 13, 24, 3, 1, C.ink); set(g, 16, 23, C.ink); }
+  };
+  const hollow = (g, x, y, w, h, c) => { rect(g, x, y, w, 1, c); rect(g, x, y + h - 1, w, 1, c); rect(g, x, y, 1, h, c); rect(g, x + w - 1, y, 1, h, c); };
+  const frNub = (g, x, y) => { ell(g, x, y, 2, 1.7, C.white); outline(g, C.p3); };
+  function friendPx(kind) {
+    const g = frBodyPx();
+    const done = () => svg(g, { x: -10, y: -45, s: U });
+    switch (kind) {
+      case 'reader':
+        frEyesPx(g, 'open', 0, 2); frFacePx(g, 'o'); hollow(g, 8, 16, 6, 5, C.brn); hollow(g, 15, 16, 6, 5, C.brn); rect(g, 14, 17, 1, 1, C.brn);
+        poly(g, [[5, 26], [14, 28], [23, 26], [23, 33], [14, 35], [5, 33]], C.bone); line(g, 14, 28, 14, 35, C.brn, 1); hollow(g, 5, 26, 18, 8, C.brn); rect(g, 14, 27, 1, 8, C.brn);
+        for (let i = 0; i < 3; i++) { line(g, 7, 29 + i * 2, 12, 30 + i * 2, C.wick, 1); line(g, 16, 30 + i * 2, 21, 29 + i * 2, C.wick, 1); }
+        frNub(g, 5, 28); frNub(g, 23, 28); break;
+      case 'sleeper':
+        frEyesPx(g, 'sleep'); frFacePx(g, 'o'); poly(g, [[5, 14], [8, 6], [16, 3], [24, 7], [27, 12], [27, 16], [22, 13], [10, 15]], C.p4);
+        rect(g, 4, 14, 20, 2, C.white); outline(g, C.p3); rect(g, 24, 14, 4, 4, C.white);
+        [[22, 4], [23, 4], [24, 4], [23, 5], [22, 6], [23, 6], [24, 6]].forEach((p) => set(g, p[0], p[1], C.lav)); [[25, 0], [26, 0], [27, 0], [26, 1], [25, 2], [26, 2], [27, 2]].forEach((p) => set(g, p[0], p[1], C.lav)); break;
+      case 'witch':
+        frEyesPx(g, 'happy'); frFacePx(g, 'big'); poly(g, [[8, 10], [13, 1], [16, 0], [21, 10]], C.d2); rect(g, 3, 9, 22, 3, C.d2); rect(g, 8, 8, 13, 1, C.org); rect(g, 13, 7, 3, 2, C.yel); outline(g, C.p3); break;
+      case 'candy':
+        frEyesPx(g, 'open', 0, -1); frFacePx(g, 'big'); line(g, 22, 30, 25, 12, C.white, 1); outline(g, C.p3); { const q = G(28, 36); ell(q, 24, 8, 3.8, 3.8, C.pink); rim(q, C.pink, C.white, C.orgD); ell(q, 24, 8, 1.4, 1.4, C.white); outline(q, C.p3); stamp(g, q, 0, 0); } frNub(g, 22, 30); break;
+      case 'balloon':
+        frEyesPx(g, 'open', 1, -2); frFacePx(g, 'smile'); line(g, 22, 31, 24, 12, C.lav, 1); outline(g, C.p3); { const q = G(28, 36); ell(q, 23.5, 7, 3.8, 3.5, C.org); rim(q, C.org, C.orgL, C.orgD); rect(q, 23, 2, 2, 2, C.grn); set(q, 22, 6, C.ink); set(q, 25, 6, C.ink); rect(q, 22, 9, 4, 1, C.ink); outline(q, C.ink); stamp(g, q, 0, 0); } frNub(g, 22, 31); break;
+      case 'cool':
+        frFacePx(g, 'smile'); rect(g, 7, 15, 6, 4, C.ink); rect(g, 16, 15, 6, 4, C.ink); rect(g, 13, 16, 3, 1, C.ink); rect(g, 8, 15, 2, 1, C.p4); rect(g, 17, 15, 2, 1, C.p4);
+        line(g, 24, 28, 26, 22, C.white, 1); rect(g, 25, 17, 2, 5, C.white); outline(g, C.p3); break;
+      case 'dancer':
+        line(g, 5, 28, 2, 21, C.white, 1); line(g, 23, 28, 26, 21, C.white, 1); frEyesPx(g, 'happy'); frFacePx(g, 'big'); outline(g, C.p3);
+        ell(g, 22, 7, 1.5, 1.2, C.yel); ell(g, 26, 4, 1.5, 1.2, C.yel); line(g, 23, 7, 23, 1, C.yel, 1); line(g, 27, 4, 27, 0, C.yel, 1); break;
+      case 'peek':
+        frEyesPx(g, 'open', 1, 1); set(g, 14, 22, C.ink); rect(g, 6, 22, 3, 2, C.pink); rect(g, 20, 22, 3, 2, C.pink);
+        rect(g, 2, 24, 24, 12, C.stn); ell(g, 14, 25, 12, 4, C.stn); rim(g, C.stn, C.stnL, C.d2); rect(g, 13, 28, 2, 5, C.stnL); rect(g, 11, 30, 6, 1, C.stnL); frNub(g, 7, 24); frNub(g, 21, 24); break;
+      case 'party':
+        frEyesPx(g, 'happy'); frFacePx(g, 'big'); poly(g, [[14, 0], [8, 11], [20, 11]], C.pink); set(g, 13, 5, C.yel); set(g, 16, 7, C.yel); set(g, 12, 9, C.yel); rect(g, 13, -0, 2, 1, C.yel); outline(g, C.p3);
+        line(g, 20, 25, 25, 24, C.org, 1); rect(g, 26, 23, 2, 2, C.grn); set(g, 2, 8, C.grn); set(g, 26, 12, C.p4); set(g, 3, 4, C.yel); break;
+      case 'baby': {
+        const s = frBodyPx(); g.d.fill(0); ell(g, 14, 24, 7.5, 7.5, C.white); rect(g, 7, 24, 15, 9, C.white);
+        for (let x = 7; x < 22; x++) { const h = Math.round(2 * Math.abs(Math.sin(Math.PI * (x - 7 + 0.5) / 5))); rect(g, x, 33, 1, h, C.white); }
+        for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.d[y * g.w + x] === C.white && (y >= 33 || x >= 20)) g.d[y * g.w + x] = C.gh1;
+        outline(g, C.p3); rect(g, 10, 23, 3, 5, C.ink); rect(g, 16, 23, 3, 5, C.ink); set(g, 10, 23, C.white); set(g, 16, 23, C.white); ell(g, 14, 30, 2, 1.4, C.org); set(g, 14, 30, C.yel); set(g, 14, 17, C.white); void s; break; }
+      case 'scarf':
+        frEyesPx(g, 'happy'); frFacePx(g, 'smile'); rect(g, 4, 26, 20, 4, C.orgD); rect(g, 17, 30, 4, 7, C.orgD); for (let x = 6; x < 24; x += 4) rect(g, x, 26, 1, 4, C.white); rect(g, 17, 33, 4, 1, C.white); outline(g, C.p3); break;
+      case 'crown':
+        frEyesPx(g, 'open'); frFacePx(g, 'smile'); outline(g, C.p3); { const q = G(28, 36); poly(q, [[6, 11], [7, 4], [10, 8], [14, 2], [18, 8], [21, 4], [22, 11]], C.yel); rect(q, 6, 10, 16, 2, C.orgL); set(q, 14, 10, C.pink); outline(q, C.orgD); stamp(g, q, 0, 0); } set(g, 25, 8, C.white); set(g, 2, 3, C.white); break;
+      default: frEyesPx(g, 'open'); frFacePx(g, 'smile');
+    }
+    return done();
+  }
+  const friend = (k) => '<svg viewBox="-10 -50 140 200" aria-hidden="true" overflow="visible">' + svg(shadow(26), { x: 15, y: 142, s: U }).replace('<g ', '<g opacity=".7" ') + friendPx(k) + '</svg>';
+
+  return { ghost, gateLock, coverScene, gardenSky, farLayer, midLayer, nearLayer, gatePanel, badge, X, friend, setTitle, init, eyeStep: 5 };
 })();
 
 /* ===== 見た目の入れかえ口：なめらか版とドット絵版の「絵」と「音」を、ひとつの名前（Art・Snd）で呼べるようにする =====
@@ -2743,6 +2997,17 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   const NS = 'v1.';
   let curStyle = 'smooth';   // 見た目：smooth（なめらか）／dot（ドット絵）
   const state = { found: new Set(), done: false, card: null, sample: true, mine: false, sheetId: null, inGarden: false, lastFocus: null, bgmWanted: true, trackChosen: false, muteAll: false };
+
+  // 記録（端末の中だけ）：見つけた豆知識・ミュージックビデオを見たか。サーバーには送らない。使えない時（プライベートモードなど）は、今の画面の中だけ
+  const STORE = 'hc-halloween-v1';
+  function loadProgress() {
+    try {
+      const o = JSON.parse(localStorage.getItem(STORE) || '{}');
+      return { found: Array.isArray(o.found) ? o.found.filter((id) => TRIVIA.some((t) => t.id === id)) : [], mv: o.mv === 1 };
+    } catch (e) { return { found: [], mv: false }; }
+  }
+  function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ found: Array.from(state.found), mv: state.mv ? 1 : 0 })); } catch (e) { /* 保存できなくても、遊べる */ } }
+  { const pr = loadProgress(); pr.found.forEach((id) => state.found.add(id)); state.mv = pr.mv; state.done = state.found.size >= TRIVIA.length; }
 
   // ---------------------------------------------------------------------------
   // 1. 招待状の中身（入力 → 検査 → リンクの中へ）
@@ -2895,8 +3160,9 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     }
     // 見本のとき＝「つくる」だけ。リンクから開いたとき＝「自分もつくる」と「書きかえる」。つくった直後（mine）は「書きかえる」だけ
     $('#btnMake').hidden = !!state.mine;
-    $('#btnEdit').hidden = sample;
-    $('#btnMake').firstElementChild.textContent = sample ? '招待状をつくる' : '自分も招待状をつくる';
+    $('#btnEdit').hidden = sample || !state.mine;     // 書きかえは、つくった直後の自分の招待状だけ。もらったものは、コピーしてつくる
+    $('#btnBlank').hidden = sample || !!state.mine;
+    $('#btnMake').firstElementChild.textContent = sample ? '招待状をつくる' : '自分も招待状をつくる（この内容をコピー）';
   }
   function loadFromHash() {
     const c = Card.fromHash(location.hash);
@@ -2931,6 +3197,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function buildGarden() {
     if (gardenBuilt) return; gardenBuilt = true;
     $('#sky').innerHTML = Art.gardenSky(); $('#lFar').innerHTML = Art.farLayer(); $('#lMid').innerHTML = Art.midLayer(); $('#lNear').innerHTML = Art.nearLayer(LABELS);
+    state.found.forEach((fid) => { const g = $('#ch-' + fid); if (g) g.classList.add('seen'); });
     $('#gate').innerHTML = '<div class="gl">' + Art.gatePanel(false) + '</div><div class="gr">' + Art.gatePanel(true) + '</div><div class="lock">' + Art.gateLock() + '</div>';
     fit();
   }
@@ -3027,8 +3294,10 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     Snd.unlock(); Snd.play('tap');
     state.inGarden = false; clearTimeout(boltTimer); closeSheet(true);
     gardenWrap.hidden = true; $('#cover').hidden = false; app.dataset.view = 'cover';
-    document.documentElement.style.overflow = ''; updateFound();
-    window.scrollTo(0, $('#invite').offsetTop - 20);
+    document.documentElement.style.overflow = ''; updateFound(); renderFriends();
+    const nNew = $('#friends').querySelectorAll('.fr[data-pending]').length;     // 新しい友だちが来ている時は、表紙の上から見せる（登場を見てもらう）
+    window.scrollTo(0, nNew ? 0 : $('#invite').offsetTop - 20);
+    if (nNew) { setTimeout(revealFriends, 450); setTimeout(() => toast('おばけの友だちが、' + nNew + '人、遊びに来たよ！'), 700); }
   }
   ghostBtn.addEventListener('click', enterGarden);
   $('#btnBack').addEventListener('click', backToCover);
@@ -3055,15 +3324,45 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     setTimeout(() => g.classList.remove('go-knock'), 1800);
     setTimeout(() => openHouse(g), 1100);
   }
+  // 魔女の家：ノックすると、扉があき、ミュージックビデオ（サビの15秒）が見られる。動画は、タップするまで読みこまない（通信量・LINEの中でも軽く）
+  const MV = { src: 'mv_clip.mp4', poster: 'mv_poster.jpg', yt: '' };   // yt＝YouTube全編のURL。入れた時だけ、ボタンが出る
+  let mvDuck = false;
+  function mvRestoreBgm() { if (mvDuck && state.bgmWanted) { Snd.unlock(); Snd.bgm(true); } mvDuck = false; }
+  function markMv() {
+    if (state.mv) return;
+    state.mv = true; saveProgress(); renderFriends();
+    toast(state.found.size >= TRIVIA.length ? 'ミュージックビデオも見たね！\n表紙が、おばけ大集合になったよ' : 'ミュージックビデオ、見たね！\n豆知識を全部見ると、表紙が、おばけ大集合になるよ');
+  }
+  function setupMv() {
+    const v = $('#mvVideo');
+    $('#shMv').hidden = false; $('#mvPlay').hidden = false;
+    v.pause(); v.removeAttribute('src'); v.removeAttribute('controls'); v.poster = MV.poster;
+    $('#mvYt').hidden = !MV.yt; if (MV.yt) $('#mvYt').href = MV.yt;
+  }
+  function startMv() {
+    const v = $('#mvVideo'); Snd.unlock();
+    $('#mvPlay').hidden = true; v.src = MV.src; v.setAttribute('controls', '');
+    const pr = v.play(); if (pr && pr.catch) pr.catch(() => { /* 自動で始まらなくても、操作の枠から押せる */ });
+  }
+  function stopMv() {
+    const v = $('#mvVideo'); v.pause(); v.removeAttribute('src'); try { v.load(); } catch (e) { /* 読みこむものが無い */ }
+    $('#shMv').hidden = true; mvRestoreBgm();
+  }
+  $('#mvPlay').addEventListener('click', startMv);
+  $('#mvVideo').addEventListener('play', () => { if (!mvDuck && state.bgmWanted && Snd.bgmOn) { mvDuck = true; Snd.bgm(false); } });   // 動画の音と、BGMが重ならないように
+  $('#mvVideo').addEventListener('timeupdate', (e) => { if (e.target.currentTime >= 5) markMv(); });
+  $('#mvVideo').addEventListener('ended', () => { markMv(); mvRestoreBgm(); });
+  $('#mvVideo').addEventListener('error', () => { if (!$('#mvVideo').getAttribute('src')) return; $('#mvPlay').hidden = false; $('#mvVideo').removeAttribute('controls'); toast('動画を読みこめませんでした\n電波のよい所で、もう一度どうぞ'); mvRestoreBgm(); });
   function openHouse(fromEl) {
     state.sheetId = 'house'; state.lastFocus = fromEl || null;
     $('#shBadge').innerHTML = Art.badge('house');
     $('#shLabel').textContent = '魔女の家';
     $('#shQ').textContent = 'トントントン…… だれかいるかな？';
     const box = $('#shAText'); box.textContent = '';
-    ['扉のすきまから、とんがり帽子がのぞきました。', '魔女は、いま、ダンスの練習中。そのうち、ここから出てきて、いっしょに歌ってくれます。（準備中）'].forEach((p, i) => { const e = el('p', null, p); if (i) e.style.marginTop = '.6em'; box.appendChild(e); });
-    $('#shSrc').textContent = '';
+    ['扉があいて、魔女が顔を出しました。', 'いっしょに踊ろう！ ミュージックビデオの、はじまりです。'].forEach((p, i) => { const e = el('p', null, p); if (i) e.style.marginTop = '.6em'; box.appendChild(e); });
+    $('#shSrc').textContent = state.mv ? '見てくれて、ありがとう。' : '豆知識を全部見て、このビデオも見ると、表紙が「おばけ大集合」になるよ。';
     $('#shReveal').hidden = true; $('#shA').hidden = false; $('#shNext').hidden = true;
+    setupMv();
     sheetBack.hidden = false; sheet.hidden = false; void sheet.offsetWidth; sheet.classList.add('open');
     $('#shClose').focus({ preventScroll: true });
   }
@@ -3099,7 +3398,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
       if (t.note) src.appendChild(document.createTextNode('　※' + t.note));
     }
     $('#shReveal').hidden = true; $('#shA').hidden = false;
-    const first = !state.found.has(t.id); state.found.add(t.id); updateFound();
+    const first = !state.found.has(t.id); state.found.add(t.id); updateFound(); saveProgress(); renderFriends();
     const g = $('#ch-' + t.id); if (g) g.classList.add('seen');
     const left = TRIVIA.filter((x) => !state.found.has(x.id));
     $('#shNext').hidden = !left.length; $('#shNext').textContent = left.length ? 'つぎのおばけへ ›' : '';
@@ -3107,6 +3406,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   }
   function closeSheet(silent) {
     if (sheet.hidden) return;
+    if (state.sheetId === 'house') stopMv();
     sheet.classList.remove('open'); sheetBack.hidden = true;
     setTimeout(() => { sheet.hidden = true; }, 380);
     const fe = state.lastFocus; state.lastFocus = null;
@@ -3136,7 +3436,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function showFinale() {
     state.done = true;
     const c = state.card || {};
-    let msg = 'おばけたち全員に会えたね。\n';
+    let msg = 'おばけたち全員に会えたね。\n' + (state.mv ? '表紙が、おばけ大集合になったよ！\n' : '魔女の家の、ミュージックビデオも見てね。\n');
     msg += c.d && !state.sample ? dateText(c).split('\n')[0] + 'に、会場で会いましょう。' : '本番は、会場で会いましょう。';
     $('#finMsg').textContent = msg;
     const box = $('#confetti'); box.textContent = '';
@@ -3163,9 +3463,13 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   const editor = $('#editor'), edBack = $('#edBack');
   function fillForm(c) { KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || ''; }); }
   function readForm() { const o = {}; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = k === 'rp' ? (f.checked ? '1' : '') : f.value; }); return clean(o); }
-  function openEditor() {
+  // src：'copy'＝もらった招待状をコピー（もらったものは、そのまま残す。差出人・あて名は空に）／'blank'＝白紙から（これも、もらったものは残す）／なし＝いまの画面の招待状（見本・つくった直後の自分のもの）を書きかえる
+  let edKeep = false;
+  function openEditor(src) {
     Snd.unlock(); Snd.play('tap');
-    fillForm(state.sample ? { rp: '1' } : state.card || {});
+    edKeep = src === 'copy' || src === 'blank';
+    if (src === 'copy') { const o = Object.assign({}, state.card || {}); delete o.f; delete o.to; delete o.st; fillForm(o); } else if (src === 'blank') fillForm({ rp: '1' }); else fillForm(state.sample ? { rp: '1' } : state.card || {});
+    $('#edCopyNote').hidden = src !== 'copy';
     $('#edResult').hidden = true; $('#edMsg').textContent = '';
     edBack.hidden = false; editor.hidden = false; void editor.offsetWidth; editor.classList.add('open');
     editor.elements.t.focus({ preventScroll: true });
@@ -3173,17 +3477,19 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function closeEditor() {
     editor.classList.remove('open'); edBack.hidden = true; setTimeout(() => { editor.hidden = true; }, 380);
   }
-  $('#btnMake').addEventListener('click', () => { if (!state.sample) { try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) { /* 別の枠の中では使えない */ } state.card = null; state.sample = true; state.mine = false; } openEditor(); });
-  $('#btnEdit').addEventListener('click', openEditor);
+  $('#btnMake').addEventListener('click', () => openEditor(state.sample || state.mine ? undefined : 'copy'));
+  $('#btnBlank').addEventListener('click', () => openEditor('blank'));
+  $('#btnEdit').addEventListener('click', () => openEditor());
   $('#edX').addEventListener('click', closeEditor);
   edBack.addEventListener('click', closeEditor);
-  $('#edSample').addEventListener('click', () => { fillForm(sampleCard()); renderCard(readForm(), false); });
-  editor.addEventListener('input', () => { renderCard(readForm(), false); });
+  $('#edSample').addEventListener('click', () => { fillForm(sampleCard()); if (!edKeep) renderCard(readForm(), false); });
+  editor.addEventListener('input', () => { if (!edKeep) renderCard(readForm(), false); });   // もらった招待状を残す時は、画面の招待状を書きかえない
   let lastCard = null;
   // 選んだ見た目のリンクを、欄・LINEのボタンに入れる
   function refreshShare() {
     const c = Object.assign({}, lastCard || state.card || {}, { st: editor.elements.sty.value === 'dot' ? 'dot' : '' }), url = shareUrl(c);
     $('#edUrl').value = url;
+    $('#edOpen').href = url;
     $('#shLine').href = 'https://line.me/R/share?text=' + encodeURIComponent((c.t || 'Halloween Party') + '\nおばけにタッチしてね\n' + url);
     $('#edMsg').textContent = 'リンクの長さ：' + url.length + '文字';
   }
@@ -3194,11 +3500,14 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     const c = readForm();
     if (!Object.keys(c).length) { $('#edMsg').textContent = 'どれか1つは、書いてね。'; return; }
     lastCard = c;
-    try { history.replaceState(null, '', '#c=' + Card.encode(Object.assign({}, c, { st: curStyle === 'dot' ? 'dot' : '' }))); } catch (e) { /* 別の枠の中では使えない */ }
-    state.mine = true; renderCard(c, false);
+    if (!edKeep) {
+      try { history.replaceState(null, '', '#c=' + Card.encode(Object.assign({}, c, { st: curStyle === 'dot' ? 'dot' : '' }))); } catch (e) { /* 別の枠の中では使えない */ }
+      state.mine = true; renderCard(c, false);
+    }
     $('#edStyles').hidden = false; editor.elements.sty.value = curStyle;
     refreshShare();
     $('#shNative').hidden = !navigator.share;
+    $('#edOpen').hidden = !edKeep;
     $('#edResult').hidden = false;
     $('#edResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
@@ -3208,7 +3517,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     catch (e) { const f = $('#edUrl'); f.focus(); f.select(); try { document.execCommand('copy'); toast('リンクをコピーしました'); } catch (e2) { toast('リンクを長押ししてコピーしてね'); } }
   });
   $('#shNative').addEventListener('click', () => {
-    const c = state.card || {}; if (navigator.share) navigator.share({ title: c.t || 'Halloween Party', text: 'おばけにタッチしてね', url: $('#edUrl').value }).catch(() => {});
+    const c = lastCard || state.card || {}; if (navigator.share) navigator.share({ title: c.t || 'Halloween Party', text: 'おばけにタッチしてね', url: $('#edUrl').value }).catch(() => {});
   });
 
   // ---------------------------------------------------------------------------
@@ -3265,10 +3574,85 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     if (e.key !== 'Escape') return;
     if (!bgmMenu.hidden) { closeBgmMenu(); return; }
     if (!$('#finale').hidden) { $('#finale').hidden = true; return; }
+    if (!help.hidden) { closeHelp(); return; }
     if (!sheet.hidden) { closeSheet(); return; }
     if (!editor.hidden) closeEditor();
   });
   window.addEventListener('hashchange', () => { if (!state.inGarden) loadFromHash(); });
+
+  // ---------------------------------------------------------------------------
+  // 8. つかいかた・ルール（もらった人／おくる人）
+  //    右上の「？」と、表紙の下のリンクから開く。説明の中のアイコンは、本物のボタンの絵をうつす
+  // ---------------------------------------------------------------------------
+  const help = $('#help'), helpBack = $('#helpBack');
+  let helpT = 0;
+  {
+    const SRC = { found: '#found', sound: '#btnSound', bgm: '#btnBgm', style: '#btnStyle' };
+    help.querySelectorAll('.ic[data-ic]').forEach((i) => { const s = $(SRC[i.dataset.ic] + ' svg'); if (s) i.appendChild(s.cloneNode(true)); });
+    help.querySelectorAll('.hpn').forEach((n) => { n.textContent = TRIVIA.length; });
+  }
+  function helpTab(id) {
+    [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([t, p]) => { const on = t === id; $('#' + t).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; });
+    help.scrollTop = 0;
+  }
+  function openHelp(from, tab) {
+    Snd.unlock(); Snd.play('tap'); clearTimeout(helpT);
+    state.helpFocus = from || null; helpTab(tab || 'tabRecv');
+    helpBack.hidden = false; help.hidden = false; void help.offsetWidth; help.classList.add('open');
+    $('#hpX').focus({ preventScroll: true });
+  }
+  function closeHelp() {
+    if (help.hidden) return;
+    help.classList.remove('open'); helpBack.hidden = true;
+    helpT = setTimeout(() => { help.hidden = true; }, 380);
+    const f = state.helpFocus; state.helpFocus = null; if (f && f.focus) f.focus({ preventScroll: true });
+  }
+  $('#btnHelp').addEventListener('click', (e) => { e.stopPropagation(); openHelp(e.currentTarget); });
+  $('#btnHelpFoot').addEventListener('click', (e) => openHelp(e.currentTarget));
+  $('#hpX').addEventListener('click', () => { Snd.play('tap'); closeHelp(); });
+  helpBack.addEventListener('click', closeHelp);
+  $('#tabRecv').addEventListener('click', () => helpTab('tabRecv'));
+  $('#tabMake').addEventListener('click', () => helpTab('tabMake'));
+
+  // ---------------------------------------------------------------------------
+  // 9. おばけの友だち（表紙）：豆知識を見るたびに1体ずつ増える。全部見て、MVも見ると、表紙が「おばけ大集合」
+  // ---------------------------------------------------------------------------
+  const FR_ORDER = ['reader', 'sleeper', 'witch', 'candy', 'balloon', 'cool', 'dancer', 'peek'], FR_EXTRA = ['party', 'baby', 'scarf', 'crown'];
+  // [横%, 足もとの縦%, 幅%, ゆれの秒, ずらし秒]
+  const FR_POS = {
+    reader: [12, 77, 17, 5.4, 0], sleeper: [87, 80, 16, 6.8, -2], witch: [90, 41, 13, 4.6, -1], candy: [31, 85, 14, 5, -3], balloon: [93, 58, 12, 5.8, -2.4], cool: [8, 51, 12, 6.2, -4],
+    dancer: [67, 82, 15, 3.6, -0.5], peek: [50, 73, 15, 6.6, -1.7],
+    party: [19, 64, 13, 4.2, -2.2], baby: [80, 67, 11, 3.9, -1.2], scarf: [47, 86, 13, 5.2, -3.3], crown: [22, 87, 13, 6, -0.8],
+  };
+  const friendsWanted = () => {
+    const l = FR_ORDER.slice(0, Math.min(state.found.size, FR_ORDER.length));
+    if (state.found.size >= TRIVIA.length && state.mv) l.push.apply(l, FR_EXTRA);
+    return l;
+  };
+  let frStyle = '';
+  function renderFriends(restyle) {
+    const box = $('#friends'), want = friendsWanted();
+    if (restyle || frStyle !== curStyle) { box.textContent = ''; frStyle = curStyle; }
+    const have = new Set(Array.from(box.children).map((e) => e.dataset.k));
+    want.forEach((k) => {
+      if (have.has(k)) return;
+      const p = FR_POS[k], b = el('button', 'fr'); b.type = 'button'; b.dataset.k = k; b.setAttribute('aria-label', 'おばけの友だち');
+      b.style.cssText = 'left:' + p[0] + '%;top:' + p[1] + '%;--w:' + p[2] + ';--d:' + p[3] + 's;--dl:' + p[4] + 's';
+      b.innerHTML = '<span class="fri">' + Art.friend(k) + '</span>';
+      if (state.inGarden) b.dataset.pending = '1';     // 庭にいる間は、見えない所で増える → 表紙にもどった時に、ぽんと登場
+      box.appendChild(b);
+    });
+    $('#friendsMsg').hidden = !(state.found.size >= TRIVIA.length && state.mv);
+  }
+  function revealFriends() {
+    $('#friends').querySelectorAll('.fr[data-pending]').forEach((b, i) => {
+      delete b.dataset.pending; b.style.setProperty('--pd', (i * 0.2).toFixed(1) + 's'); b.classList.add('new'); setTimeout(() => b.classList.remove('new'), 1500 + i * 200);
+    });
+  }
+  $('#friends').addEventListener('click', (e) => {
+    const b = e.target.closest('.fr'); if (!b) return;
+    Snd.unlock(); Snd.play('tap'); b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop'); setTimeout(() => b.classList.remove('hop'), 750);
+  });
 
   // 見た目の切りかえ（なめらか⇄ドット絵）：絵・音・BGM を入れかえる。招待状・見つけた数・庭での位置は、そのまま
   const STYLE_NAMES = { smooth: 'なめらか', dot: 'ドット絵' };
@@ -3284,7 +3668,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     Snd.setTrack(tid); if (wasBgm) Snd.bgm(true);
     Object.keys(TXT).forEach((q) => { const e = $(q); if (e) e.textContent = TXT[q]; });
     if (Art.init) Art.init();
-    $('#coverScene').innerHTML = Art.coverScene(); $('#ghostArt').innerHTML = Art.ghost();
+    $('#coverScene').innerHTML = Art.coverScene(); $('#ghostArt').innerHTML = Art.ghost(); renderFriends(true);
     renderCard(state.card || sampleCard(), state.card ? state.sample : true);
     if (gardenBuilt) {
       const sl = garden.scrollLeft; gardenBuilt = false; buildGarden();
@@ -3313,6 +3697,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   $('#ghostArt').innerHTML = Art.ghost();
   loadFromHash();
   updateFound();
+  renderFriends(true);
   // 音の聴き比べ（?lab=1 を付けて開くと、画面の下に出る）：作った本人が、耳で直すための道具
   const LAB = !!(window.HC_LAB || /[?&]lab=1(&|$)/.test(location.search));
   let labBox = null;
@@ -3326,7 +3711,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     document.body.appendChild(box);
   }
   if (LAB) buildLab();
-  window.HC = { Card, Snd, state, Art, TRIVIA, renderCard, sampleCard, strike, setStyle: applyStyle, get style() { return curStyle; } };
+  window.HC = { Card, Snd, state, Art, TRIVIA, MV, markMv, renderFriends, friendsWanted, renderCard, sampleCard, strike, setStyle: applyStyle, get style() { return curStyle; } };
 })();
 
 </script>
