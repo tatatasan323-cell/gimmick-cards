@@ -668,9 +668,9 @@ html[data-style="dot"] .f2{opacity:0}}
           <li><b>表紙のおばけに、タッチ。</b>おばけの庭に入れます。招待状（日にち・場所・ひとこと）は、表紙の下にあります。</li>
           <li><b>庭では、左右にスワイプ。</b>パソコンは、ドラッグ・マウスのホイール・左右のボタンでも動けます。</li>
           <li><b>気になるおばけを、タップ。</b>音と動きのあとに、ハロウィンの豆知識が出ます。「こたえを見る」で、答えと出典がわかります。</li>
-          <li><b>豆知識は、全部で<span class="hpn"></span>つ。</b>見つけた数は、右上の <i class="ic" data-ic="found"></i> に出ます。全部見つけると、お祝いの画面が出ます。</li>
-          <li><b>庭のまんなかの「魔女の家」</b>をノックすると、ミュージックビデオ（サビの15秒）が見られます。全編は、その下のボタンから YouTube で見られます。</li>
-          <li><b>おばけの友だちが、表紙に集まります。</b>豆知識を1つ見るたびに、表紙のおばけが1人ずつ増えます。<b>豆知識を全部見て、ミュージックビデオも見ると、表紙が「おばけ大集合」</b>に。友だちにも、見せてあげてね。</li>
+          <li><b>おばけは、全部で<span class="hpn"></span>人。</b>豆知識のおばけ<span class="hpt"></span>人と、魔女の家の魔女です。会った数は、右上の <i class="ic" data-ic="found"></i> に出ます。<b>魔女は、ノックして、ダンスのミュージックビデオを見ると仲間入り。</b>全員に会うと、お祝いの画面が出ます。</li>
+          <li><b>庭のまんなかの「魔女の家」</b>をノックすると、魔女のダンスのミュージックビデオ（サビの15秒）が見られます。見ると、魔女に会ったことになります。全編は、その下のボタンから YouTube で見られます。</li>
+          <li><b>おばけの友だちが、表紙に集まります。</b>豆知識を1つ見るたびに、表紙のおばけが1人ずつ増えます。<b>9人全員に会う（魔女のダンスも見る）と、表紙が「おばけ大集合」</b>に。友だちにも、見せてあげてね。</li>
         </ol>
         <h4>右上のボタン</h4>
         <ul class="keys">
@@ -3000,6 +3000,8 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
 
   // 記録（端末の中だけ）：見つけた豆知識・ミュージックビデオを見たか。サーバーには送らない。使えない時（プライベートモードなど）は、今の画面の中だけ
   const STORE = 'hc-halloween-v1';
+  // おばけは全部で9人＝豆知識のおばけ8人＋魔女（魔女の家で、ダンスのMVを見ると仲間入り）。9人そろうと「全部見つけた」
+  const metCount = () => state.found.size + (state.mv ? 1 : 0), totalCount = () => TRIVIA.length + 1, isComplete = () => state.found.size >= TRIVIA.length && !!state.mv;
   function loadProgress() {
     try {
       const o = JSON.parse(localStorage.getItem(STORE) || '{}');
@@ -3007,7 +3009,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     } catch (e) { return { found: [], mv: false }; }
   }
   function saveProgress() { try { localStorage.setItem(STORE, JSON.stringify({ found: Array.from(state.found), mv: state.mv ? 1 : 0 })); } catch (e) { /* 保存できなくても、遊べる */ } }
-  { const pr = loadProgress(); pr.found.forEach((id) => state.found.add(id)); state.mv = pr.mv; state.done = state.found.size >= TRIVIA.length; }
+  { const pr = loadProgress(); pr.found.forEach((id) => state.found.add(id)); state.mv = pr.mv; state.done = isComplete(); }
 
   // ---------------------------------------------------------------------------
   // 1. 招待状の中身（入力 → 検査 → リンクの中へ）
@@ -3194,10 +3196,11 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   let gardenBuilt = false;
   const LABELS = {}; TRIVIA.forEach((t) => { LABELS[t.id] = t.name + '（タッチすると豆知識）'; }); LABELS.house = '魔女の家（ノックする）';
   function fit() { world.style.setProperty('--ww', Math.round(window.innerHeight * 2.6) + 'px'); }
+  function markSeen() { state.found.forEach((fid) => { const g = $('#ch-' + fid); if (g) g.classList.add('seen'); }); if (state.mv) { const h = $('#ch-house'); if (h) h.classList.add('seen'); } }
   function buildGarden() {
     if (gardenBuilt) return; gardenBuilt = true;
     $('#sky').innerHTML = Art.gardenSky(); $('#lFar').innerHTML = Art.farLayer(); $('#lMid').innerHTML = Art.midLayer(); $('#lNear').innerHTML = Art.nearLayer(LABELS);
-    state.found.forEach((fid) => { const g = $('#ch-' + fid); if (g) g.classList.add('seen'); });
+    markSeen();
     $('#gate').innerHTML = '<div class="gl">' + Art.gatePanel(false) + '</div><div class="gr">' + Art.gatePanel(true) + '</div><div class="lock">' + Art.gateLock() + '</div>';
     fit();
   }
@@ -3267,7 +3270,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     }, first ? 4500 + Math.random() * 2500 : 9000 + Math.random() * 10000);
   }
   function updateFound() {
-    $('#foundN').textContent = state.found.size; $('#foundT').textContent = TRIVIA.length;
+    $('#foundN').textContent = metCount(); $('#foundT').textContent = totalCount();
     $('#found').hidden = !state.inGarden;
   }
   function enterGarden() {
@@ -3330,8 +3333,8 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function mvRestoreBgm() { if (mvDuck && state.bgmWanted) { Snd.unlock(); Snd.bgm(true); } mvDuck = false; }
   function markMv() {
     if (state.mv) return;
-    state.mv = true; saveProgress(); renderFriends();
-    toast(state.found.size >= TRIVIA.length ? 'ミュージックビデオも見たね！\n表紙が、おばけ大集合になったよ' : 'ミュージックビデオ、見たね！\n豆知識を全部見ると、表紙が、おばけ大集合になるよ');
+    state.mv = true; saveProgress(); updateFound(); renderFriends(); markSeen();
+    toast(isComplete() ? '魔女のダンス、見たね！\n魔女も仲間入り。とじると、お祝い！' : '魔女のダンス、見たね！\n魔女も仲間入り（あと' + (totalCount() - metCount()) + '人）');
   }
   function setupMv() {
     const v = $('#mvVideo');
@@ -3360,7 +3363,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     $('#shQ').textContent = 'トントントン…… だれかいるかな？';
     const box = $('#shAText'); box.textContent = '';
     ['扉があいて、魔女が顔を出しました。', 'いっしょに踊ろう！ ミュージックビデオの、はじまりです。'].forEach((p, i) => { const e = el('p', null, p); if (i) e.style.marginTop = '.6em'; box.appendChild(e); });
-    $('#shSrc').textContent = state.mv ? '見てくれて、ありがとう。' : '豆知識を全部見て、このビデオも見ると、表紙が「おばけ大集合」になるよ。';
+    $('#shSrc').textContent = state.mv ? '魔女は、もう仲間です。見てくれて、ありがとう。' : 'おばけは、全部で' + totalCount() + '人。魔女のダンス（このビデオ）を見ると、魔女も仲間入りだよ。';
     $('#shReveal').hidden = true; $('#shA').hidden = false; $('#shNext').hidden = true;
     setupMv();
     sheetBack.hidden = false; sheet.hidden = false; void sheet.offsetWidth; sheet.classList.add('open');
@@ -3401,7 +3404,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     const first = !state.found.has(t.id); state.found.add(t.id); updateFound(); saveProgress(); renderFriends();
     const g = $('#ch-' + t.id); if (g) g.classList.add('seen');
     const left = TRIVIA.filter((x) => !state.found.has(x.id));
-    $('#shNext').hidden = !left.length; $('#shNext').textContent = left.length ? 'つぎのおばけへ ›' : '';
+    $('#shNext').hidden = !left.length && state.mv; $('#shNext').textContent = left.length ? 'つぎのおばけへ ›' : (state.mv ? '' : '最後は、魔女の家へ ›');
     void first;
   }
   function closeSheet(silent) {
@@ -3411,13 +3414,20 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     setTimeout(() => { sheet.hidden = true; }, 380);
     const fe = state.lastFocus; state.lastFocus = null;
     if (!silent) {
-      if (!state.done && state.found.size >= TRIVIA.length) setTimeout(showFinale, 500);
+      if (!state.done && isComplete()) setTimeout(showFinale, 500);
       else if (fe && fe.focus) fe.focus({ preventScroll: true });
     }
   }
   function gotoNext() {
     const left = TRIVIA.filter((x) => !state.found.has(x.id));
-    if (!left.length) { closeSheet(); return; }
+    if (!left.length) {
+      if (state.mv) { closeSheet(); return; }
+      const wW0 = world.getBoundingClientRect().width;      // 豆知識は全部見た → 最後は、魔女の家へ案内する
+      closeSheet(true); Snd.play('tap');
+      garden.scrollTo({ left: Math.max(0, Art.X.house / 2600 * wW0 - garden.clientWidth / 2), behavior: 'smooth' });
+      toast('魔女の家をノックして、\nダンスを見にいこう');
+      return;
+    }
     const idx = TRIVIA.indexOf(T(state.sheetId));
     const next = TRIVIA.slice(idx + 1).concat(TRIVIA.slice(0, idx)).find((x) => !state.found.has(x.id)) || left[0];
     const g = $('#ch-' + next.id), wW = world.getBoundingClientRect().width;
@@ -3436,7 +3446,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function showFinale() {
     state.done = true;
     const c = state.card || {};
-    let msg = 'おばけたち全員に会えたね。\n' + (state.mv ? '表紙が、おばけ大集合になったよ！\n' : '魔女の家の、ミュージックビデオも見てね。\n');
+    let msg = 'おばけたち全員に会えたね。\n魔女のダンスも、ばっちり。\n表紙が、おばけ大集合になったよ！\n';
     msg += c.d && !state.sample ? dateText(c).split('\n')[0] + 'に、会場で会いましょう。' : '本番は、会場で会いましょう。';
     $('#finMsg').textContent = msg;
     const box = $('#confetti'); box.textContent = '';
@@ -3589,7 +3599,8 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   {
     const SRC = { found: '#found', sound: '#btnSound', bgm: '#btnBgm', style: '#btnStyle' };
     help.querySelectorAll('.ic[data-ic]').forEach((i) => { const s = $(SRC[i.dataset.ic] + ' svg'); if (s) i.appendChild(s.cloneNode(true)); });
-    help.querySelectorAll('.hpn').forEach((n) => { n.textContent = TRIVIA.length; });
+    help.querySelectorAll('.hpn').forEach((n) => { n.textContent = totalCount(); });
+    help.querySelectorAll('.hpt').forEach((n) => { n.textContent = TRIVIA.length; });
   }
   function helpTab(id) {
     [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([t, p]) => { const on = t === id; $('#' + t).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; });
@@ -3672,7 +3683,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     renderCard(state.card || sampleCard(), state.card ? state.sample : true);
     if (gardenBuilt) {
       const sl = garden.scrollLeft; gardenBuilt = false; buildGarden();
-      state.found.forEach((fid) => { const g = $('#ch-' + fid); if (g) g.classList.add('seen'); });
+      markSeen();
       garden.scrollLeft = sl; world.style.setProperty('--sx', sl); navState();
     }
     if (!sheet.hidden && state.sheetId) $('#shBadge').innerHTML = Art.badge(state.sheetId);
