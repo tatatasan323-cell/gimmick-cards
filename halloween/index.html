@@ -669,7 +669,7 @@ html[data-style="dot"] .f2{opacity:0}}
           <li><b>庭では、左右にスワイプ。</b>パソコンは、ドラッグ・マウスのホイール・左右のボタンでも動けます。</li>
           <li><b>気になるおばけを、タップ。</b>音と動きのあとに、ハロウィンの豆知識が出ます。「こたえを見る」で、答えと出典がわかります。</li>
           <li><b>豆知識は、全部で<span class="hpn"></span>つ。</b>見つけた数は、右上の <i class="ic" data-ic="found"></i> に出ます。全部見つけると、お祝いの画面が出ます。</li>
-          <li><b>庭のまんなかの「魔女の家」</b>をノックすると、ミュージックビデオ（15秒）が見られます。</li>
+          <li><b>庭のまんなかの「魔女の家」</b>をノックすると、ミュージックビデオ（サビの15秒）が見られます。全編は、その下のボタンから YouTube で見られます。</li>
           <li><b>おばけの友だちが、表紙に集まります。</b>豆知識を1つ見るたびに、表紙のおばけが1人ずつ増えます。<b>豆知識を全部見て、ミュージックビデオも見ると、表紙が「おばけ大集合」</b>に。友だちにも、見せてあげてね。</li>
         </ol>
         <h4>右上のボタン</h4>
@@ -3325,7 +3325,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     setTimeout(() => openHouse(g), 1100);
   }
   // 魔女の家：ノックすると、扉があき、ミュージックビデオ（サビの15秒）が見られる。動画は、タップするまで読みこまない（通信量・LINEの中でも軽く）
-  const MV = { src: 'mv_clip.mp4', poster: 'mv_poster.jpg', yt: '' };   // yt＝YouTube全編のURL。入れた時だけ、ボタンが出る
+  const MV = { src: 'mv_clip.mp4', poster: 'mv_poster.jpg', yt: 'https://youtu.be/uFx4Vcr8o8A' };   // yt＝YouTube全編のURL。入れた時だけ、ボタンが出る
   let mvDuck = false;
   function mvRestoreBgm() { if (mvDuck && state.bgmWanted) { Snd.unlock(); Snd.bgm(true); } mvDuck = false; }
   function markMv() {
