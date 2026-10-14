@@ -216,6 +216,11 @@ svg{display:block}
 #help .keys b{display:block;color:var(--orange2);font-size:14px;margin-bottom:1px}
 #help .steps .ic{width:26px;height:26px;vertical-align:-7px}
 .hpnote{font-size:12px;line-height:1.6;opacity:.75;margin-top:8px}
+.hpreset{margin-top:26px;padding-top:14px;border-top:1px dashed rgba(255,179,71,.4);text-align:center}
+#hpResetBox{margin-top:12px;text-align:left;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,138,138,.45)}
+#hpResetBox>p{font-size:13.5px;font-weight:700;margin-bottom:8px}
+.hprbtns{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.chip.warn{background:#c93f08;border-color:#ffb347;color:#fff}
 .ic{display:inline-grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:rgba(10,4,32,.55);border:1px solid rgba(255,255,255,.35);color:var(--cream);font-weight:800;font-size:16px;line-height:1}
 .ic svg{width:18px;height:18px}
 #help .xx{display:none}
@@ -389,6 +394,8 @@ html[data-style="dot"] .count{background:#ffb347;color:#14102a;border:3px solid 
 html[data-style="dot"] .row.msg dd{font-style:normal;background:rgba(255,255,255,.08);border-left:4px solid var(--orange)}
 html[data-style="dot"] #sheet,html[data-style="dot"] #editor,html[data-style="dot"] #help{background:#241046;border:4px solid #14102a;border-bottom:0;box-shadow:inset 0 4px 0 #ff8a1f,0 -6px 0 #000}
 html[data-style="dot"] .hptabs{background:linear-gradient(#241046 72%,rgba(36,16,70,0))}
+html[data-style="dot"] #hpResetBox{border:3px solid #c93f08;border-radius:0}
+html[data-style="dot"] .chip.warn{background:#c93f08;box-shadow:inset 3px 3px 0 #ff8a5a,4px 4px 0 #000}
 html[data-style="dot"] .hptabs button{border:3px solid #14102a;border-radius:0;background:#2a1450;box-shadow:inset 3px 3px 0 #4a2c7a,3px 3px 0 #000}
 html[data-style="dot"] .hptabs button[aria-selected="true"]{background:#ff8a1f;color:#14102a;box-shadow:inset 4px 4px 0 #ffc766,inset -4px -4px 0 #c93f08,3px 3px 0 #000}
 html[data-style="dot"] .ic{border:3px solid #14102a;background:#2a1450;box-shadow:inset 2px 2px 0 #4a2c7a}
@@ -714,7 +721,19 @@ html[data-style="dot"] .f2{opacity:0}}
           <li>書きかえたいときは、<b>新しいリンクをつくって、送りなおします。</b>前のリンクは、前の内容のまま開きます。（つくった直後なら、「この招待状を書きかえる」で直せます）</li>
           <li>あつめたおばけの記録は、<b>あなたのスマホの中だけ</b>に残ります（送った人には届きません）。ブラウザのデータを消すと、はじめからになります</li>
           <li>日にちを入れると、「あと◯日」と、カレンダーのボタンが出ます</li>
+          <li>つくった招待状は、そのまま残ります（アドレスの中に入っているため）。新しい招待状をつくり直したいときは、<b>「白紙から、つくる」</b>か、下の<b>「はじめからにする」</b>を使います</li>
         </ul>
+      </div>
+      <div class="hpreset">
+        <button id="hpResetOpen" class="linkbtn" type="button" aria-expanded="false" aria-controls="hpResetBox">はじめからにする（リセット）</button>
+        <div id="hpResetBox" hidden>
+          <p>リセットすると、次のことが起きます。</p>
+          <ul class="plain">
+            <li>あつめたおばけと、ミュージックビデオを見た記録を消します（表紙のおばけも、はじめにもどります）</li>
+            <li>画面の招待状（もらったもの・つくったもの）を外して、見本にもどします。<b>送ったリンクは、そのまま使えます</b>（もらった相手の画面には、何も起きません）</li>
+          </ul>
+          <div class="hprbtns"><button id="hpResetDo" class="chip warn" type="button">リセットする</button><button id="hpResetNo" class="chip ghost" type="button">やめる</button></div>
+        </div>
       </div>
     </div>
   </section>
@@ -3163,7 +3182,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     // 見本のとき＝「つくる」だけ。リンクから開いたとき＝「自分もつくる」と「書きかえる」。つくった直後（mine）は「書きかえる」だけ
     $('#btnMake').hidden = !!state.mine;
     $('#btnEdit').hidden = sample || !state.mine;     // 書きかえは、つくった直後の自分の招待状だけ。もらったものは、コピーしてつくる
-    $('#btnBlank').hidden = sample || !!state.mine;
+    $('#btnBlank').hidden = sample;
     $('#btnMake').firstElementChild.textContent = sample ? '招待状をつくる' : '自分も招待状をつくる（この内容をコピー）';
   }
   function loadFromHash() {
@@ -3665,6 +3684,51 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     Snd.unlock(); Snd.play('tap'); b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop'); setTimeout(() => b.classList.remove('hop'), 750);
   });
 
+  // 「はじめからにする」：記録（おばけ・MV）と、画面の招待状を、まっさらにもどす。送ったリンクには、何も起きない（サーバーには何も無い）
+  function resetAll() {
+    try { localStorage.removeItem(STORE); } catch (e) { /* 消せなくても、画面の中は、もどす */ }
+    state.found.clear(); state.mv = false; state.done = false; state.mine = false; lastCard = null;
+    try { history.replaceState(null, '', location.href.split('#')[0]); } catch (e) { /* 別の枠の中では使えない */ }
+    document.querySelectorAll('.ch.seen').forEach((g) => g.classList.remove('seen'));
+    $('#finale').hidden = true; if (!editor.hidden) closeEditor();
+    closeSheet(true);
+    if (state.inGarden) backToCover();
+    renderCard(sampleCard(), true); fillForm({ rp: '1' }); $('#edResult').hidden = true;
+    updateFound(); renderFriends(true);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  const hrBox = $('#hpResetBox'), hrOpen = $('#hpResetOpen');
+  hrOpen.addEventListener('click', () => { hrBox.hidden = !hrBox.hidden; hrOpen.setAttribute('aria-expanded', String(!hrBox.hidden)); if (!hrBox.hidden) hrBox.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+  $('#hpResetNo').addEventListener('click', () => { hrBox.hidden = true; hrOpen.setAttribute('aria-expanded', 'false'); Snd.play('tap'); });
+  $('#hpResetDo').addEventListener('click', () => { resetAll(); hrBox.hidden = true; hrOpen.setAttribute('aria-expanded', 'false'); closeHelp(); Snd.play('chime', 0); toast('はじめからに、もどしました'); });
+
+  // ---------------------------------------------------------------------------
+  // 10. 音は、いつも1つの画面だけ：LINE・ブラウザで、何度も開きなおすと、古い画面が裏で鳴りつづけて、音が2重3重に重なる。
+  //     あとから触った画面が音を引きつぐ（BroadcastChannel と localStorage の2経路で知らせる）。古い画面のBGMは止まり、触ると、そちらで鳴りなおす
+  // ---------------------------------------------------------------------------
+  const TAB = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let bc = null, owner = false;      // owner＝いま音を持っているのは、この画面（持っている間は、何度触っても、知らせを送らない）
+  try { bc = new BroadcastChannel('hc-halloween-audio'); } catch (e) { bc = null; }
+  function claimAudio(force) {
+    if (owner && !force) return; owner = true; const now = Date.now();
+    try { if (bc) bc.postMessage({ from: TAB, at: now }); } catch (e) { /* 送れなくても、もう1つの経路がある */ }
+    try { localStorage.setItem('hc-halloween-claim', TAB + '|' + now); } catch (e) { /* 使えない時は、この経路は無し */ }
+  }
+  function yieldAudio() {
+    owner = false;                                   // 音を、ほかの画面にわたした
+    if (!state.bgmWanted || state.yielded) return;
+    state.yielded = true; state.bgmWanted = false; Snd.bgm(false); $('#btnBgm').setAttribute('aria-pressed', 'false');
+    toast('ほかの画面で、音を鳴らしています\nここを触ると、こちらで鳴ります');
+  }
+  if (bc) bc.onmessage = (e) => { if (e.data && e.data.from !== TAB) yieldAudio(); };
+  window.addEventListener('storage', (e) => { if (e.key === 'hc-halloween-claim' && e.newValue && e.newValue.split('|')[0] !== TAB) yieldAudio(); });
+  // この画面を触った：音を引きつぐ（ほかで鳴っていたBGMは止まる）。引きわたしていた画面は、BGMを鳴らしなおす
+  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => {
+    claimAudio();
+    if (state.yielded) { state.yielded = false; state.bgmWanted = true; $('#btnBgm').setAttribute('aria-pressed', 'true'); Snd.unlock(); Snd.bgm(true); }
+  }, true));
+  window.addEventListener('pagehide', () => { try { Snd.bgm(false); } catch (e) { /* 閉じる途中 */ } });
+
   // 見た目の切りかえ（なめらか⇄ドット絵）：絵・音・BGM を入れかえる。招待状・見つけた数・庭での位置は、そのまま
   const STYLE_NAMES = { smooth: 'なめらか', dot: 'ドット絵' };
   const DEFAULT_TRACK = { smooth: 'waltz', dot: 'march' };   // 見た目ごとの、初めの曲（本人が曲を選んだあとは、その曲を保つ）
@@ -3722,7 +3786,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     document.body.appendChild(box);
   }
   if (LAB) buildLab();
-  window.HC = { Card, Snd, state, Art, TRIVIA, MV, markMv, renderFriends, friendsWanted, renderCard, sampleCard, strike, setStyle: applyStyle, get style() { return curStyle; } };
+  window.HC = { Card, Snd, state, Art, TRIVIA, MV, markMv, resetAll, claimAudio, yieldAudio, renderFriends, friendsWanted, renderCard, sampleCard, strike, setStyle: applyStyle, get style() { return curStyle; } };
 })();
 
 </script>
