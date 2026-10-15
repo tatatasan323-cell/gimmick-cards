@@ -10,6 +10,8 @@
 <meta property="og:title" content="ハロウィン招待状 ─ おばけの庭へようこそ">
 <meta property="og:description" content="おばけにタッチしてね。かわいいおばけたちが、ハロウィンの豆知識を教えてくれる招待状です。">
 <meta property="og:image" content="https://tatatasan323-cell.github.io/gimmick-cards/halloween/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:url" content="https://tatatasan323-cell.github.io/gimmick-cards/halloween/">
 <meta name="twitter:card" content="summary_large_image">
 <style>
@@ -544,7 +546,7 @@ html[data-style="dot"] .f2{opacity:0}}
       <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
       <details class="terms">
         <summary>ご利用にあたって</summary>
-        <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。見つけた豆知識の数とミュージックビデオを見たかどうか（表紙のおばけを増やすための記録）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。第三者への無断配布・複製、およびプログラムの改ざんを禁止します。著作権は作者に帰属します。</p>
+        <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。見つけた豆知識の数とミュージックビデオを見たかどうか（表紙のおばけを増やすための記録）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作った招待状を送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
       </details>
       <p class="credit">制作：AI内製化工房 MITA</p>
     </footer>
@@ -3307,7 +3309,11 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
       updateFound(); Snd.play('creak', 0); $('#hintSwipe').hidden = false; scheduleBolt(true);
       requestAnimationFrame(() => requestAnimationFrame(() => { gate.classList.add('open'); }));
       setTimeout(() => { gate.classList.add('fade'); }, 1500);
-      setTimeout(() => { gate.hidden = true; gate.className = ''; ghostBtn.classList.remove('boo'); garden.focus({ preventScroll: true }); }, 2200);
+      setTimeout(() => {
+        gate.hidden = true; gate.className = ''; ghostBtn.classList.remove('boo'); garden.focus({ preventScroll: true });
+        // iPhoneの消音スイッチは、ページから見分けられない。いちばん音を待つ瞬間（庭に入った時）に、一度だけ言う
+        if (!state.soundHinted && Snd.enabled) { state.soundHinted = true; toast('音が出ない時は、\nマナーモードを解除してね'); }
+      }, 2200);
       setTimeout(() => { const wW = world.getBoundingClientRect().width; garden.scrollTo({ left: Math.max(0, Art.X.pumpkin / 2600 * wW - garden.clientWidth / 2), behavior: 'smooth' }); }, 1900);
       if (state.bgmWanted) Snd.bgm(true);
     }, 520);
