@@ -42,6 +42,10 @@ export function tap() { tone(1400, 1100, 0.025, 0, 0.06); }
 // 海の光の波：ざわざわ〜っと駆け上がる、きらめきの音の列
 export function wave() { const S = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 2637]; for (let i = 0; i < 14; i++) { const f = S[i % S.length] * (i >= 8 ? 2 : 1); tone(f, f, 0.03, i * 0.07, 0.9); } hiss(0.03, 0, 1.2, 'highpass', 6000, 0.6); }
 // 花火：ぽん（打ち上げ）と、ぱらぱら
+// なぞった海の、小さな光の波：やさしい1音
+export function ripple() { const S = [1046.5, 1318.5, 1568, 2093, 2637], f = S[(Math.random() * S.length) | 0]; tone(f, f, 0.014, 0, 0.6); tone(f * 1.5, f * 1.5, 0.007, 0.06, 0.45); }
+// 盛大な花火：低いドン（遠くの山にこだま）と、パチパチ
+export function boom(big = 1) { tone(110, 45, 0.12 * big, 0, 0.7, 'triangle'); tone(70, 40, 0.05 * big, 0.25, 0.6, 'triangle'); hiss(0.05 * big, 0, 0.6, 'lowpass', 600); for (let i = 0; i < 7; i++) hiss(r(0.012, 0.025), 0.2 + i * r(0.05, 0.12), r(0.02, 0.05), 'bandpass', r(2500, 6500), 1.2); }
 export function pop() { tone(180, 90, 0.08, 0, 0.25, 'triangle'); for (let i = 0; i < 6; i++) hiss(r(0.02, 0.04), 0.05 + i * r(0.03, 0.08), r(0.03, 0.06), 'bandpass', r(2500, 6000), 1.2); }
 // そりの鈴（サンタ）
 export function jingle() { for (let i = 0; i < 6; i++) { const f = r(3800, 6200); tone(f, f, 0.018, i * 0.09, 0.5); tone(f * 1.41, f * 1.41, 0.01, i * 0.09, 0.4); } }

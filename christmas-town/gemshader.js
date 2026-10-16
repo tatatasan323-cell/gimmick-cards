@@ -62,9 +62,9 @@ void main() {
 const FS = `
 #define MAXP ${MAXP}
 uniform samplerCube uEnv; uniform vec4 uPlanes[MAXP]; uniform int uN; uniform float uIor; uniform float uDisp; uniform float uDens; uniform float uBright;
-uniform vec3 uEmis; uniform vec3 uShift; uniform float uShiftK; uniform vec3 uEdge; uniform float uOpacity;
+uniform vec3 uEmis; uniform vec3 uShift; uniform float uShiftK; uniform vec3 uEdge; uniform float uOpacity; uniform vec3 uLight;
 varying vec3 vPos; varying vec3 vEye; varying vec3 vR0; varying vec3 vR1; varying vec3 vR2; varying vec3 vCol; varying float vAsm;
-vec3 env(vec3 d) { vec3 w = normalize(vR0 * d.x + vR1 * d.y + vR2 * d.z); return textureCube(uEnv, w).rgb * uBright; }
+vec3 env(vec3 d) { vec3 w = normalize(vR0 * d.x + vR1 * d.y + vR2 * d.z); return textureCube(uEnv, w).rgb * uBright * uLight; }
 float fres(float c, float f0) { return f0 + (1.0 - f0) * pow(1.0 - clamp(c, 0.0, 1.0), 5.0); }
 void main() {
   vec3 V = normalize(vPos - vEye), N = normalize(cross(dFdx(vPos), dFdy(vPos))); if (dot(N, V) > 0.0) N = -N;
@@ -92,12 +92,13 @@ void main() {
   #include <colorspace_fragment>
 }`;
 // 1つの形と色から、宝石の絵の具を作る。disp＝色の分かれ方（ダイヤは大きい）、dens＝色の濃さ
+// uLight＝まわりの光の色と強さ（ふつうは白の1。暗いホールで、ろうそく・月明かりの色に染める）
 export function gemMaterial(geo, envTex, o = {}) {
   const P = facetPlanes(geo);
   const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS, uniforms: {
     uEnv: { value: envTex }, uPlanes: { value: P.planes }, uN: { value: P.count }, uIor: { value: o.ior ?? 1.7 }, uDisp: { value: o.disp ?? 0.02 }, uDens: { value: o.dens ?? 0.55 }, uBright: { value: o.bright ?? 1.0 },
     uColor: { value: new THREE.Color(o.color || '#ffffff') }, uEmis: { value: new THREE.Color(0, 0, 0) }, uShift: { value: new THREE.Color(o.color || '#ffffff') }, uShiftK: { value: 0 },
-    uAsm: { value: 99 }, uEdge: { value: new THREE.Color(o.color || '#ffffff').multiplyScalar(2.5) }, uOpacity: { value: 1 } } });
+    uAsm: { value: 99 }, uLight: { value: new THREE.Color(1, 1, 1) }, uEdge: { value: new THREE.Color(o.color || '#ffffff').multiplyScalar(2.5) }, uOpacity: { value: 1 } } });
   if (o.transparent) { m.transparent = true; m.depthWrite = false; }
   if (geo.attributes.color) m.vertexColors = true;   // 2色の宝石（ウォーターメロン・トルマリン）は、頂点の色で
   return m;
