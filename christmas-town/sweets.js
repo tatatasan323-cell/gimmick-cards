@@ -71,14 +71,24 @@ const BITE_FS = `uniform vec4 uBite[32]; varying vec3 vBW;
 float biteD() { float m = 1e3; for (int i = 0; i < 32; i++) { vec4 b = uBite[i]; if (b.w <= 0.0) continue; vec3 d = vBW - b.xyz; float L = length(d); if (L > b.w * 1.5) continue;
   float jag = 1.0 + 0.14 * sin(atan(d.z, d.x) * 9.0 + b.x * 7.0) * cos(d.y * 29.0 + b.z * 5.0) + 0.05 * sin(d.y * 61.0 + d.x * 47.0); m = min(m, L - b.w * jag); } return m; }
 `;
-function biteable(m, inner = false) {
+// 穴をあける。inner＝クッキーの壁（穴のふちちょうど）。ほかの飾りは、穴のふちから7cmまで消す（壁がなくなった所に、窓の枠が浮いて見えた）
+// 家は中が空洞なので、穴の奥は町の側で「かじった球の内側の面（家の形の中だけ）」を描いて、中身の詰まったクッキーに見せる（biteCavity）
+export function biteable(m, inner = false) {
   m.onBeforeCompile = (sh) => { sh.uniforms.uBite = BITE_U;
     sh.vertexShader = 'varying vec3 vBW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvBW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = BITE_FS + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat bd = biteD(); if (bd < 0.0) discard;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\nif (bd < 0.04) diffuseColor.rgb *= vec3(1.08, 0.86, 0.66);' + (inner ? '\nif (!gl_FrontFacing) diffuseColor.rgb *= 0.5;' : ''))
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>' + (inner ? '\nif (!gl_FrontFacing) totalEmissiveRadiance += vec3(1.0, 0.55, 0.2) * 0.32;' : ''));
+    sh.fragmentShader = BITE_FS + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat bd = biteD(); if (bd < ' + (inner ? '0.0' : '0.07') + ') discard;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nif (bd < 0.04) diffuseColor.rgb *= vec3(1.08, 0.86, 0.66);');
   };
-  m.customProgramCacheKey = () => 'bite' + (inner ? 'I' : ''); return m;
+  m.customProgramCacheKey = () => 'bite3' + (inner ? 'I' : ''); return m;
+}
+// かじった穴の奥の面：球の内側を、その家の形（壁の箱と切妻の屋根）の中だけ描く。uInv＝町→家の座標、uDim＝(横の半分, 奥行きの半分, 壁の高さ, 屋根の高さ)
+export function biteCavity() {
+  const D = dough(), U = { uInv: { value: new THREE.Matrix4() }, uDim: { value: new THREE.Vector4(1, 1, 1, 1) } }, m = new THREE.MeshStandardMaterial({ map: D.map, normalMap: D.normal, color: '#f0c896', roughness: 0.9, side: THREE.BackSide, emissive: '#5a3418', emissiveIntensity: 0.25 });
+  m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U);
+    sh.vertexShader = 'varying vec3 vCW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvCW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform mat4 uInv; uniform vec4 uDim; varying vec3 vCW;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n{ vec3 q = (uInv * vec4(vCW, 1.0)).xyz; if (abs(q.x) > uDim.x || abs(q.z) > uDim.y || q.y < -0.2 || q.y > uDim.z + uDim.w * (1.0 - abs(q.x) / uDim.x)) discard; }');
+  };
+  m.customProgramCacheKey = () => 'bite-cavity'; m.userData.U = U; return m;
 }
 
 // ---------- 材質 ----------
@@ -89,7 +99,7 @@ export function makeMats(env) {
   const stripe = ctex(64, 256, (g, w, h) => { g.fillStyle = '#fbf6f2'; g.fillRect(0, 0, w, h); g.fillStyle = '#d81e34'; for (let i = -2; i < 10; i++) { g.beginPath(); g.moveTo(0, i * 32); g.lineTo(w, i * 32 - 22); g.lineTo(w, i * 32 - 6); g.lineTo(0, i * 32 + 16); g.fill(); } });
   const E = (o) => Object.assign(o, env ? { envMap: env } : {}), V2 = (k) => new THREE.Vector2(k, k);
   const M = {
-    cookie: new THREE.MeshStandardMaterial({ map: D.map, normalMap: D.normal, normalScale: V2(1.1), vertexColors: true, roughness: 0.76, side: THREE.DoubleSide }),
+    cookie: new THREE.MeshStandardMaterial({ map: D.map, normalMap: D.normal, normalScale: V2(1.1), vertexColors: true, roughness: 0.76, emissive: '#ffffff', emissiveMap: D.map, emissiveIntensity: 0.1 }),   // 月の当たらない裏側も、生地の色がうっすら見える
     frost: new THREE.MeshPhysicalMaterial(E({ map: F.map, normalMap: F.normal, normalScale: V2(0.9), color: '#fbfcff', roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.35, sheen: 0.6, sheenColor: new THREE.Color('#e4ecff'), emissive: '#2a3460', emissiveIntensity: 0.12, envMapIntensity: 0.8 })),
     icing: new THREE.MeshPhysicalMaterial(E({ color: '#fffaf2', normalMap: G.normal, normalScale: V2(0.3), roughness: 0.3, clearcoat: 0.5, emissive: '#fff1dc', emissiveIntensity: 0.1, envMapIntensity: 0.6 })),
     wafer: new THREE.MeshStandardMaterial({ map: W.map, normalMap: W.normal, normalScale: V2(1.2), vertexColors: true, roughness: 0.7 }),
@@ -100,6 +110,18 @@ export function makeMats(env) {
     stripe: new THREE.MeshPhysicalMaterial(E({ map: stripe, roughness: 0.22, clearcoat: 1, envMapIntensity: 0.8 })),
     pearl: new THREE.MeshPhysicalMaterial(E({ color: '#fffaf0', roughness: 0.12, clearcoat: 1, iridescence: 0.4, iridescenceIOR: 1.5, envMapIntensity: 1.3 })),
   };
+  // 遠くの家の裏と横に貼る一枚：アーチの窓（灯りがともる）・アイシングの波・ガムドロップ・ハート
+  // glow＝光る分の絵：窓は明るく、アイシングとガムドロップはうっすら（夜の裏側でも、白いアイシングが白く見えるように）
+  const dc = (glow) => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), ic = glow ? '#5c5c5c' : '#fffaf2'; if (glow) { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); }
+    const arch = (x, y, w, h) => { g.beginPath(); g.moveTo(x - w / 2, y + h / 2); g.lineTo(x - w / 2, y - h / 2 + w / 2); g.arc(x, y - h / 2 + w / 2, w / 2, Math.PI, 0); g.lineTo(x + w / 2, y + h / 2); g.closePath(); };
+    const icing = () => { if (!glow) { g.shadowColor = 'rgba(60,24,6,.6)'; g.shadowBlur = 3; g.shadowOffsetY = 3; } g.strokeStyle = g.fillStyle = ic; };
+    for (const x of [70, 186]) { arch(x, 112, 62, 92); if (glow) g.fillStyle = '#ffd890'; else { const gr = g.createLinearGradient(0, 66, 0, 158); gr.addColorStop(0, '#ffe6a0'); gr.addColorStop(1, '#ff9a3a'); g.fillStyle = gr; } g.fill();
+      g.save(); icing(); g.lineWidth = 7; arch(x, 112, 62, 92); g.stroke(); g.lineWidth = 4; g.beginPath(); g.moveTo(x, 70); g.lineTo(x, 158); g.moveTo(x - 31, 120); g.lineTo(x + 31, 120); g.stroke(); g.fillRect(x - 40, 160, 80, 10); g.restore(); }
+    g.save(); icing(); g.lineWidth = 6; for (const y of [14, 236]) { g.beginPath(); for (let i = 0; i < 9; i++) g.arc(14 + i * 29, y, 14, 0, Math.PI, y > 100); g.stroke(); }
+    const cols = ['#ff4a5a', '#3fd06a', '#ffd23a', '#5fa8ff', '#ff8a2a', '#c07aff']; for (let i = 0; i < 7; i++) { g.fillStyle = glow ? '#3a3a3a' : cols[i % 6]; g.beginPath(); g.arc(30 + i * 33, 210, 9, 0, TAU); g.fill(); if (!glow) { g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(27 + i * 33, 207, 3, 0, TAU); g.fill(); } }
+    g.fillStyle = glow ? '#4a2a38' : '#ff7aa8'; g.beginPath(); g.moveTo(128, 60); g.bezierCurveTo(108, 44, 112, 26, 128, 36); g.bezierCurveTo(144, 26, 148, 44, 128, 60); g.fill(); g.restore();
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  M.decal = new THREE.MeshStandardMaterial({ map: dc(false), emissiveMap: dc(true), emissive: '#ffffff', emissiveIntensity: 0.9, alphaTest: 0.4, roughness: 0.5 });
   for (const [k, m] of Object.entries(M)) biteable(m, k === 'cookie');
   return M;
 }
@@ -160,6 +182,9 @@ export function addHouse(acc, o) {
   const ww = Math.min(0.42, w * 0.2), wh = ww * 1.3, rows = h > 2.6 ? 2 : 1;
   for (let r = 0; r < rows; r++) { const cy = rows === 1 ? h * 0.55 : h * (0.32 + r * 0.38); for (const cx of [-w * 0.27, w * 0.27]) { win(cx, cy, ww, wh, 'f'); if (lod === 0) win(cx, cy, ww, wh, 'b'); } if (lod === 0) for (const cz of d > 2.6 ? [-d * 0.25, d * 0.25] : [0]) { win(cz, cy, ww, wh, 'r'); win(cz, cy, ww, wh, 'l'); } }
   win(0, h + rh * 0.38, ww * 0.8, ww * 0.8, 'f');
+  // 遠くの家の裏と横：窓とアイシングを描いた一枚を貼る（近い家は、本物の窓と飾りがある。裏から見ても、お菓子の家に見えるように）
+  if (lod >= 1) { const dh = h * 0.86; acc.add('decal', at(new THREE.PlaneGeometry(w * 0.9, dh).rotateY(Math.PI).translate(0, dh / 2 + 0.05, -zf - 0.006)));
+    for (const sd of [-1, 1]) acc.add('decal', at(new THREE.PlaneGeometry(d * 0.88, dh).rotateY(sd * Math.PI / 2).translate(sd * (w / 2 + bev + 0.006), dh / 2 + 0.05, 0))); }
   // 扉：チョコの板に、アイシングのアーチ。近い家は、両わきにキャンディケインと、扉にリース
   if (o.door) { const dw = 0.5, dh = Math.min(1.0, h * 0.42), door = new THREE.BoxGeometry(dw, dh, 0.06).translate(0, dh / 2, zf + 0.02); acc.add('choco', at(door)); acc.add('icing', at(piped([new THREE.Vector3(-dw / 2 - 0.04, 0, zf + 0.06), new THREE.Vector3(-dw / 2 - 0.04, dh, zf + 0.06), new THREE.Vector3(0, dh + 0.12, zf + 0.06), new THREE.Vector3(dw / 2 + 0.04, dh, zf + 0.06), new THREE.Vector3(dw / 2 + 0.04, 0, zf + 0.06)], 0.026)));
     if (lod === 0) { for (const s of [-1, 1]) acc.add('stripe', at(cane(s * (dw / 2 + 0.16), 0, dh * 0.95, zf + 0.12, -s)));
@@ -186,7 +211,7 @@ export function kakigori(R, H, syrup, seed = 1) {
 }
 // ソフトクリームの山：絞り口の筋（8本）のある太い管が、細くなりながら3回半うずを巻いて、先がくるり
 export function softServe(R, H, colA, colB = null, turns = 3.4) {
-  const RS = 16, Nn = 170, pos = [], col = [], idx = [], ca = new THREE.Color(colA), cb = new THREE.Color(colB || colA);
+  const RS = 12, Nn = 120, pos = [], col = [], idx = [], ca = new THREE.Color(colA), cb = new THREE.Color(colB || colA);   // 遠くの山なので、細かさは控えめに
   for (let i = 0; i <= Nn; i++) { const t = i / Nn, th = t * turns * TAU, rc = R * 0.62 * (1 - t * 0.92), y = H * (0.08 + 0.78 * Math.pow(t, 0.85)) + (t > 0.94 ? (t - 0.94) * H * 2.2 : 0), rt = R * 0.42 * (1 - t * 0.78) + 0.02 * R;
     const cx = Math.cos(th) * rc, cz = Math.sin(th) * rc, mix = colB ? 0.5 + 0.5 * Math.sin(th * 0.5) : 0, c = ca.clone().lerp(cb, mix);
     for (let j = 0; j <= RS; j++) { const ph = (j / RS) * TAU, rr = rt * (1 + 0.08 * Math.sin(ph * 8)), nx = Math.cos(th) * Math.cos(ph), ny = Math.sin(ph), nz = Math.sin(th) * Math.cos(ph); pos.push(cx + nx * rr, y + ny * rr * 0.85, cz + nz * rr); const sh = 0.88 + 0.12 * Math.sin(ph * 8); col.push(c.r * sh, c.g * sh, c.b * sh); }
@@ -403,7 +428,7 @@ float deerAng(vec2 p, out vec2 piv) { float a = 0.0; piv = vec2(0.0);
 vec2 rot2(vec2 v, float a) { float c = cos(a), s = sin(a); return vec2(c * v.x - s * v.y, s * v.x + c * v.y); }
 `;
 export function deerMaterial(map) {
-  const U = { uLeg: { value: new THREE.Vector4() }, uNeck: { value: 0 }, uEat: { value: 0 } }, m = new THREE.MeshStandardMaterial({ map, roughness: 0.8, side: THREE.DoubleSide });
+  const U = { uLeg: { value: new THREE.Vector4() }, uNeck: { value: 0 }, uEat: { value: 0 } }, m = new THREE.MeshStandardMaterial({ map, roughness: 0.8, side: THREE.DoubleSide, emissive: '#ffffff', emissiveMap: map, emissiveIntensity: 0.2 });
   const dn = dough().normal.clone(); dn.repeat.set(3, 3); dn.needsUpdate = true; m.normalMap = dn;
   m.onBeforeCompile = (sh) => { sh.uniforms.uLeg = U.uLeg; sh.uniforms.uNeck = U.uNeck;
     sh.vertexShader = DEER + sh.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n{ vec2 pv; float a = deerAng(position.xy, pv); objectNormal.xy = rot2(objectNormal.xy, a); }').replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec2 pv; float a = deerAng(position.xy, pv); transformed.xy = pv + rot2(transformed.xy - pv, a); }');
@@ -411,7 +436,8 @@ export function deerMaterial(map) {
   m.customProgramCacheKey = () => 'deer-run'; m.userData.U = U; return m;
 }
 // 焼き色だけのクッキー（そり）
-export function cookieMaterial(map) { const U = { uEat: { value: 0 } }, m = new THREE.MeshStandardMaterial({ map, roughness: 0.75, side: THREE.DoubleSide }); m.onBeforeCompile = (sh) => cookieLook(sh, U); m.customProgramCacheKey = () => 'cookie-look'; return m; }
+// クッキーは、暗い裏側からも絵が見えるよう、自分の絵で少しだけ光る
+export function cookieMaterial(map) { const U = { uEat: { value: 0 } }, m = new THREE.MeshStandardMaterial({ map, roughness: 0.75, side: THREE.DoubleSide, emissive: '#ffffff', emissiveMap: map, emissiveIntensity: 0.2 }); m.onBeforeCompile = (sh) => cookieLook(sh, U); m.customProgramCacheKey = () => 'cookie-look'; return m; }
 export function santaFace() { return ctex(256, 320, (g, w, h) => { const X = (x) => ((x + 0.45) / 0.9) * w, Y = (y) => (1 - (y + 0.55) / 1.1) * h; doughBase(g, w, h); icingPen(g);
   g.fillStyle = '#d8283c'; g.beginPath(); g.moveTo(X(-0.17), Y(0.42)); g.quadraticCurveTo(X(0), Y(0.72), X(0.2), Y(0.56)); g.lineTo(X(0.17), Y(0.42)); g.closePath(); g.fill(); g.fillRect(X(-0.15), Y(0.19), X(0.15) - X(-0.15), Y(-0.17) - Y(0.19));
   g.fillStyle = '#fffaf2'; g.fillRect(X(-0.19), Y(0.45), X(0.19) - X(-0.19), 12); g.beginPath(); g.arc(X(0.21), Y(0.57), 9, 0, TAU); g.fill(); g.beginPath(); g.moveTo(X(-0.12), Y(0.3)); g.quadraticCurveTo(X(0), Y(0.12), X(0.12), Y(0.3)); g.quadraticCurveTo(X(0), Y(0.22), X(-0.12), Y(0.3)); g.fill();
