@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ぷるとろ聖夜｜X'masグリーティングカード</title>
+<meta name="description" content="宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。時間がとろける、おかしな港町へようこそ。">
+<meta property="og:title" content="ぷるとろ聖夜｜X'masグリーティングカード">
+<meta property="og:description" content="はじいて、こわして、とろける。おかしな港町へようこそ。">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://tatatasan323-cell.github.io/gimmick-cards/christmas-town/og_card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0b1030">
+<style>
+:root{--ink:#fff6ea;--sub:#cfd6ff;--gold:#ffd27a;--paper:#fffaf1;--brown:#4a2a14;--cookie:#c98a4e;--red:#d8283e;--mint:#2fc07a;--night:#0b1030;color-scheme:dark}
+*{box-sizing:border-box}
+html{background:var(--night)}
+body{margin:0;min-height:100%;background:linear-gradient(180deg,#0a0f2c 0%,#141244 46%,#1d1546 100%);color:var(--ink);font-family:"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic UI","Meiryo",system-ui,sans-serif;-webkit-text-size-adjust:100%;overflow-x:hidden}
+button,input,textarea{font:inherit}
+[hidden]{display:none!important}
+#snow{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.aurora{position:fixed;left:-20%;right:-20%;top:-8vh;height:46vh;pointer-events:none;z-index:0;background:radial-gradient(60% 55% at 30% 60%,rgba(60,255,170,.22),transparent 70%),radial-gradient(50% 45% at 70% 50%,rgba(150,110,255,.2),transparent 70%);filter:blur(8px);animation:aur 14s ease-in-out infinite alternate}
+@keyframes aur{from{transform:translateX(-4%) skewX(-6deg)}to{transform:translateX(4%) skewX(6deg)}}
+main{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 16px calc(26px + env(safe-area-inset-bottom))}
+.garland{display:flex;justify-content:space-between;margin:0 6px 6px;height:16px;background:radial-gradient(120% 70% at 50% 0,transparent 60%,rgba(255,255,255,.18) 61%,transparent 66%) 0 0/100% 100% no-repeat}
+.garland i{width:9px;height:12px;border-radius:50% 50% 45% 45%;margin-top:4px;animation:tw 2.4s ease-in-out infinite;box-shadow:0 0 10px currentColor;background:currentColor}
+.garland i:nth-child(4n+1){color:#ff5a6a}.garland i:nth-child(4n+2){color:#ffd23a;animation-delay:.6s}.garland i:nth-child(4n+3){color:#4ad0ff;animation-delay:1.2s}.garland i:nth-child(4n){color:#7aff8a;animation-delay:1.8s}
+@keyframes tw{0%,100%{opacity:1}50%{opacity:.35}}
+.hero{text-align:center;padding:6px 0 4px}
+.kicker{margin:0;font-size:12px;font-weight:800;letter-spacing:.28em;color:var(--gold)}
+h1{margin:6px 0 0;font-size:clamp(40px,12vw,58px);line-height:1.1;font-weight:900;letter-spacing:.06em;background:linear-gradient(180deg,#fff 0%,#ffe2ee 45%,#ff9ec0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 rgba(160,40,90,.55)) drop-shadow(0 8px 18px rgba(255,90,160,.35));animation:jel 4.5s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes jel{0%,82%,100%{transform:scale(1,1)}86%{transform:scale(1.06,.93)}90%{transform:scale(.97,1.04)}94%{transform:scale(1.02,.98)}}
+.sub{margin:8px 0 0;font-size:15px;font-weight:800;letter-spacing:.12em;color:var(--sub)}
+.puyos{display:flex;justify-content:center;gap:12px;margin:16px 0 12px;height:62px;align-items:flex-end}
+.puyo{position:relative;width:54px;height:46px;border:0;padding:0;cursor:pointer;border-radius:50% 50% 44% 44%/62% 62% 38% 38%;background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.9) 0 7%,transparent 8%),radial-gradient(circle at 50% 70%,var(--c2) 0%,var(--c1) 72%);box-shadow:inset 0 -6px 10px rgba(0,0,0,.18),inset 0 4px 8px rgba(255,255,255,.35),0 6px 14px rgba(0,0,0,.35);opacity:.92;animation:hop 1.8s ease-in-out infinite;transform-origin:50% 100%;-webkit-tap-highlight-color:transparent}
+.puyo::before,.puyo::after{content:"";position:absolute;top:44%;width:6px;height:9px;border-radius:50%;background:#2a1a2a}
+.puyo::before{left:33%}.puyo::after{right:33%}
+.puyo b{position:absolute;left:50%;top:62%;width:10px;height:5px;margin-left:-5px;border-radius:0 0 10px 10px;border:2px solid #2a1a2a;border-top:0}
+.puyo:nth-child(1){--c1:#ff7aa6;--c2:#ffd0e0}.puyo:nth-child(2){--c1:#3fd08a;--c2:#c8ffe0;animation-delay:.3s}.puyo:nth-child(3){--c1:#ffc83a;--c2:#fff2b8;animation-delay:.6s}.puyo:nth-child(4){--c1:#a07aff;--c2:#e2d6ff;animation-delay:.9s}
+@keyframes hop{0%,100%{transform:translateY(0) scale(1.06,.94)}12%{transform:translateY(0) scale(1.1,.88)}38%{transform:translateY(-14px) scale(.94,1.08)}62%{transform:translateY(0) scale(1.08,.92)}}
+.puyo.sq{animation:sq .55s ease-out}
+@keyframes sq{0%{transform:scale(1.35,.62)}35%{transform:scale(.82,1.25) translateY(-10px)}65%{transform:scale(1.12,.9)}100%{transform:scale(1,1)}}
+.card{position:relative;margin:4px 0 16px;padding:22px 20px 20px;background:var(--paper);color:var(--brown);border:10px solid var(--cookie);border-radius:26px;box-shadow:0 0 0 2px #8a5428,0 18px 40px rgba(0,0,0,.45);outline:3px dashed rgba(255,255,255,.95);outline-offset:-9px}
+.sample{position:absolute;right:16px;top:12px;margin:0;padding:2px 10px;border-radius:999px;background:#ffe2e6;color:var(--red);font-size:11px;font-weight:800;letter-spacing:.1em}
+.ttl{margin:4px 0 4px;text-align:center;font-size:26px;font-weight:900;letter-spacing:.04em;color:#b8203a;text-wrap:balance;overflow-wrap:anywhere}
+.ttl.l2{font-size:22px}.ttl.l3{font-size:18px}
+.count{margin:0 0 12px;text-align:center;font-size:14px;font-weight:800;color:#2a8a5a}
+.rows{margin:6px 0 0;display:grid;gap:10px}
+.row{display:grid;grid-template-columns:4.6em 1fr;gap:10px;align-items:baseline;padding-bottom:9px;border-bottom:1px dashed rgba(120,70,30,.25)}
+.row:last-child{border-bottom:0}
+.row dt{font-size:11.5px;font-weight:800;letter-spacing:.08em;color:var(--red)}
+.row dd{margin:0;font-size:15px;font-weight:700;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.row dd small{display:block;font-size:12.5px;font-weight:600;color:#7a5a40}
+.row.msg dd{font-weight:600}
+.acts{display:grid;gap:8px;margin-top:14px}
+.acts a,.acts button{display:block;text-align:center;padding:10px 12px;border-radius:14px;border:2px solid #e8d2b6;background:#fff;color:var(--brown);font-size:14px;font-weight:800;text-decoration:none;cursor:pointer}
+.hint2{margin:2px 2px 0;font-size:11.5px;line-height:1.6;color:#7a5a40;white-space:pre-line}
+.reply{margin-top:6px;padding:12px;border-radius:16px;background:#fff1f3}
+.reply>p:first-child{margin:0 0 8px;text-align:center;font-size:13px;font-weight:800;color:var(--red)}
+.ra{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ra a{border-color:#ffc2cc!important}
+.enter{text-align:center;margin:6px 0 18px}
+.big{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:78%;padding:16px 26px;border-radius:999px;background:linear-gradient(180deg,#6af0b0,#1fae66);color:#04301c;font-size:19px;font-weight:900;letter-spacing:.06em;text-decoration:none;box-shadow:inset 0 -5px 0 rgba(0,0,0,.14),inset 0 3px 0 rgba(255,255,255,.5),0 10px 26px rgba(40,220,140,.35);animation:jel 3.8s ease-in-out infinite}
+.lead{margin:12px auto 0;max-width:30em;font-size:13.5px;line-height:1.9;color:var(--sub);text-wrap:pretty}
+.make{display:grid;gap:10px;justify-items:center;margin:4px 0 10px}
+.pump{display:inline-flex;justify-content:center;min-width:72%;padding:13px 22px;border:0;border-radius:999px;background:linear-gradient(180deg,#ff8ab0,#e23e6c);color:#fff;font-size:16px;font-weight:900;letter-spacing:.06em;cursor:pointer;box-shadow:inset 0 -4px 0 rgba(0,0,0,.16),inset 0 3px 0 rgba(255,255,255,.4),0 8px 20px rgba(255,80,140,.35)}
+.linkbtn{border:0;background:none;color:var(--gold);font-size:13.5px;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px}
+.foot{margin-top:18px;text-align:center;font-size:12.5px;color:var(--sub)}
+.foot p{margin:6px 0}
+.terms{margin:10px auto 0;max-width:34em;text-align:left;background:rgba(255,255,255,.06);border-radius:14px;padding:10px 14px}
+.terms summary{cursor:pointer;font-weight:800;color:var(--ink)}
+.terms p{font-size:12px;line-height:1.85;margin:8px 0 2px}
+.credit{opacity:.7;letter-spacing:.08em}
+.town{position:relative;z-index:1;display:block;width:100%;height:auto;margin-top:6px}
+.back{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:5;padding:6px 13px;border-radius:999px;background:rgba(10,10,40,.6);color:#ffe7c0;font-size:13px;font-weight:800;text-decoration:none}
+.help{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));z-index:5;width:34px;height:34px;border-radius:50%;border:0;background:rgba(10,10,40,.6);color:#ffe7c0;font-size:17px;font-weight:900;cursor:pointer}
+.back2{position:fixed;inset:0;z-index:20;background:rgba(4,6,20,.55)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:560px;margin:0 auto;max-height:90vh;overflow:auto;padding:18px 18px calc(22px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:#fffaf2;color:#3a2414;box-shadow:0 -10px 40px rgba(0,0,0,.45);transform:translateY(102%);transition:transform .36s cubic-bezier(.2,.9,.25,1.1)}
+.sheet.open{transform:none}
+.shead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.shead h3{margin:0;font-size:18px;font-weight:900;color:#b8203a}
+.chip{border:2px solid #e8d2b6;background:#fff;color:#3a2414;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;cursor:pointer}
+.chip.warn{border-color:#ffb0b8;color:var(--red)}
+.note{margin:6px 0 10px;padding:9px 11px;border-radius:12px;background:#fff1e0;font-size:12px;line-height:1.7}
+.note.copy{background:#e8fff2}
+#editor label{display:block;margin:10px 0 0;font-size:12.5px;font-weight:800;color:#7a4a28}
+#editor input:not([type=checkbox]),#editor textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:2px solid #ecd8c0;border-radius:12px;background:#fff;color:#3a2414;font-size:16px}
+#editor textarea{resize:vertical;line-height:1.6}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two>*{min-width:0}
+.chk{display:flex!important;align-items:center;gap:8px;grid-column:1/-1}
+.chk input{width:20px;height:20px}
+.edbtns{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:16px}
+.edbtns .pump{min-width:0;flex:1}
+#edResult{margin-top:16px;padding-top:14px;border-top:2px dashed #ecd8c0}
+.ok{margin:0 0 8px;font-weight:900;color:#1f8a52}
+#edUrl{width:100%;padding:9px 10px;border:2px solid #ecd8c0;border-radius:10px;font-size:12px;color:#5a4030;background:#fff}
+.shares{display:grid;gap:8px;margin-top:10px}
+.sbtn{display:block;text-align:center;padding:12px;border-radius:14px;border:2px solid #e8d2b6;background:#fff;color:#3a2414;font-size:15px;font-weight:900;text-decoration:none;cursor:pointer}
+.sbtn.line{background:#06c755;border-color:#06c755;color:#fff}
+.tiny{font-size:11.5px;color:#8a6a50;margin:8px 0 0}
+#help h4{margin:16px 0 6px;font-size:14px;color:#b8203a}
+#help ol,#help ul{margin:0;padding-left:1.3em;font-size:13px;line-height:1.85}
+.tabs{display:flex;gap:8px;margin:6px 0 4px}
+.tabs button{flex:1;padding:8px;border-radius:999px;border:2px solid #ecd8c0;background:#fff;color:#7a4a28;font-weight:900;cursor:pointer}
+.tabs button[aria-selected=true]{background:#b8203a;border-color:#b8203a;color:#fff}
+.reset{margin-top:18px;padding-top:12px;border-top:2px dashed #ecd8c0}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;transform:translate(-50%,20px);opacity:0;max-width:86vw;padding:10px 16px;border-radius:14px;background:rgba(20,16,40,.92);color:#fff;font-size:13.5px;font-weight:800;white-space:pre-line;text-align:center;pointer-events:none;transition:.25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head><body>
+<canvas id="snow" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true"></div>
+<a id="back" class="back" href="./#post" hidden>‹ 港町へもどる</a>
+<button id="btnHelp" class="help" type="button" aria-label="つかいかた・ルール">？</button>
+<main>
+  <div class="garland" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <header class="hero">
+    <p class="kicker">X'mas Greeting Card</p>
+    <h1>ぷるとろ聖夜</h1>
+    <p class="sub">はじいて、こわして、とろける。</p>
+  </header>
+  <div class="puyos" aria-label="ゼリーの住人（さわると、ぷるん）">
+    <button class="puyo" type="button" aria-label="ピンクのぷよ"><b></b></button><button class="puyo" type="button" aria-label="みどりのぷよ"><b></b></button><button class="puyo" type="button" aria-label="きいろのぷよ"><b></b></button><button class="puyo" type="button" aria-label="むらさきのぷよ"><b></b></button>
+  </div>
+
+  <article class="card" id="card" aria-labelledby="ttl">
+    <p class="sample" id="sampleTag" hidden>見本</p>
+    <h2 class="ttl" id="ttl">Christmas Party</h2>
+    <p class="count" id="count" hidden></p>
+    <dl class="rows" id="rows"></dl>
+    <div class="acts" id="acts"></div>
+  </article>
+
+  <section class="enter">
+    <a id="goTown" class="big" href="./">おかしな港町へ <span aria-hidden="true">›</span></a>
+    <p class="lead">宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。時間がとろける、おかしな港町へようこそ。</p>
+  </section>
+
+  <div class="make">
+    <button id="btnMake" class="pump" type="button">カードをつくる</button>
+    <button id="btnEdit" class="linkbtn" type="button" hidden>このカードを書きかえる</button>
+    <button id="btnBlank" class="linkbtn" type="button" hidden>白紙から、つくる</button>
+  </div>
+
+  <footer class="foot">
+    <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
+    <details class="terms">
+      <summary>ご利用にあたって</summary>
+      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
+    </details>
+    <p class="credit">制作：AI内製化工房 MITA</p>
+  </footer>
+</main>
+<svg class="town" viewBox="0 0 400 90" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs><linearGradient id="hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2050"/><stop offset="1" stop-color="#1a1032"/></linearGradient></defs>
+  <g fill="url(#hs)"><path d="M0 90V52l14-14 14 14v38zM30 90V44l16-18 16 18v46zM64 90V56l11-12 11 12v34zM88 90V40l18-20 18 20v50zM126 90V54l13-13 13 13v36zM154 90V46l15-17 15 17v44zM186 90V30l6-12h4l6 12v60zM214 90V50l14-15 14 15v40zM244 90V42l17-19 17 19v48zM280 90V56l11-12 11 12v34zM304 90V46l15-16 15 16v44zM336 90V52l14-14 14 14v38zM366 90V44l17-18 17 18v46z"/></g>
+  <g fill="#ffd27a" opacity=".85"><rect x="10" y="60" width="5" height="6" rx="1"/><rect x="40" y="52" width="5" height="6" rx="1"/><rect x="47" y="66" width="5" height="6" rx="1"/><rect x="100" y="48" width="5" height="6" rx="1"/><rect x="110" y="62" width="5" height="6" rx="1"/><rect x="136" y="64" width="5" height="6" rx="1"/><rect x="165" y="54" width="5" height="6" rx="1"/><rect x="191" y="40" width="4" height="7" rx="1"/><rect x="224" y="58" width="5" height="6" rx="1"/><rect x="256" y="50" width="5" height="6" rx="1"/><rect x="263" y="66" width="5" height="6" rx="1"/><rect x="290" y="64" width="5" height="6" rx="1"/><rect x="315" y="54" width="5" height="6" rx="1"/><rect x="346" y="62" width="5" height="6" rx="1"/><rect x="378" y="52" width="5" height="6" rx="1"/></g>
+  <circle cx="194" cy="14" r="3" fill="#ffe08a"/></svg>
+
+<!-- カードをつくる -->
+<div id="edBack" class="back2" hidden></div>
+<form id="editor" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="edH" autocomplete="off">
+  <div class="shead"><h3 id="edH">カードをつくる</h3><button type="button" id="edX" class="chip">とじる</button></div>
+  <p class="note copy" id="edCopyNote" hidden>もらったカードの内容を、<b>コピー</b>しました。<b>もらったカードは、そのまま残ります</b>（リンクも変わりません）。差出人とあて名は空にしたので、あなたの名前で書いてね。</p>
+  <p class="note">空欄の項目は、カードに出ません。入力した内容は、リンクの中に入ります（サーバーには保存されません）。LINEなどで送った相手には見えるので、見せたくない情報は入れないでください。</p>
+  <label>タイトル<input name="t" maxlength="28" placeholder="Christmas Party"></label>
+  <label>あて名<input name="to" maxlength="24" placeholder="例：みんな／ゆうこさん"></label>
+  <label>日にち<input name="d" type="date"></label>
+  <div class="two"><label>はじまり<input name="s" type="time"></label><label>おわり<input name="e" type="time"></label></div>
+  <label>会場の名前<input name="vn" maxlength="40" placeholder="例：わが家／〇〇公民館"></label>
+  <label>住所・行き方<input name="va" maxlength="60" placeholder="例：〇〇市△△1-2-3　駅から徒歩5分"></label>
+  <label>連絡先<input name="c" maxlength="60" placeholder="例：LINEで連絡してね"></label>
+  <label>ひとこと<textarea name="m" maxlength="200" rows="4" placeholder="例：ケーキを用意して待ってるよ。プレゼント交換もしようね！"></textarea></label>
+  <div class="two">
+    <label>差出人<input name="f" maxlength="24" placeholder="例：ゆうこ"></label>
+    <label>持ち物<input name="dc" maxlength="40" placeholder="例：500円くらいのプレゼント"></label>
+    <label class="chk"><input type="checkbox" name="rp"><span>参加のお返事を、LINEでもらう</span></label>
+  </div>
+  <div class="edbtns"><button type="button" id="edSample" class="chip">例を入れる</button><button type="submit" class="pump">リンクをつくる</button></div>
+  <div id="edResult" hidden>
+    <p class="ok">できました。このリンクを送ってね。</p>
+    <input id="edUrl" readonly aria-label="カードのリンク">
+    <div class="shares">
+      <a id="shLine" class="sbtn line" href="#" target="_blank" rel="noopener">LINEで送る</a>
+      <button type="button" id="shCopy" class="sbtn">リンクをコピー</button>
+      <button type="button" id="shNative" class="sbtn" hidden>ほかのアプリで送る</button>
+    </div>
+    <p class="tiny" id="edMsg" aria-live="polite"></p>
+  </div>
+</form>
+
+<!-- つかいかた・ルール -->
+<div id="helpBack" class="back2" hidden></div>
+<section id="help" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="hpH">
+  <div class="shead"><h3 id="hpH">つかいかた・ルール</h3><button type="button" id="hpX" class="chip">とじる</button></div>
+  <div class="tabs" role="tablist" aria-label="読む人をえらぶ">
+    <button type="button" role="tab" id="tabRecv" aria-controls="hpRecv" aria-selected="true">もらった人</button>
+    <button type="button" role="tab" id="tabMake" aria-controls="hpMake" aria-selected="false">おくる人</button>
+  </div>
+  <div id="hpRecv" role="tabpanel">
+    <h4>あそびかた</h4>
+    <ul>
+      <li><b>「おかしな港町へ」</b>を押すと、町に入れます。宝石をはじいたり、ステンドグラスを割ったり、氷をけずったり。こわしても、ちゃんと戻ります</li>
+      <li>町の中の使い方は、左上の<b>「メニュー」</b>の「あそびかた」に書いてあります</li>
+      <li>日にちが入っていれば、「あと◯日」と、カレンダーに入れるボタンが出ます</li>
+      <li>「参加する／欠席する」があれば、押すとLINEが開いて、返事を送れます（送る相手は、自分でえらびます）</li>
+      <li>自分もカードを送りたい時は、<b>「自分もカードをつくる」</b>。もらったカードは、そのまま残ります</li>
+    </ul>
+  </div>
+  <div id="hpMake" role="tabpanel" hidden>
+    <h4>おくりかた</h4>
+    <ol>
+      <li><b>「カードをつくる」</b>を押します（港町の郵便局からも来られます）</li>
+      <li>タイトル・日にち・ひとこと などを書きます。<b>空欄は、カードに出ません</b></li>
+      <li><b>「リンクをつくる」</b>→<b>「LINEで送る」</b>で、送る相手をえらんで送信。「リンクをコピー」なら、メールやSNSにも貼れます</li>
+    </ol>
+    <h4>お返事をもらう</h4>
+    <ul>
+      <li>「参加のお返事を、LINEでもらう」にチェックすると、カードに「参加する／欠席する」が付きます</li>
+      <li>返事は、押した人から あなたへの LINE のメッセージで届きます。<b>人数の自動集計は、ありません。</b>届いたメッセージで、数えてね</li>
+    </ul>
+    <h4>ルール・注意</h4>
+    <ul>
+      <li><b>入力した内容は、リンクの中に入ります。</b>リンクを知っている人には、全部見えます。住所・電話番号など、見せたくないことは、入れないでね</li>
+      <li>サーバーには、保存されません。<b>リンクが、カードの本体</b>です。送ったトークを、控えとして残しておくと安心です</li>
+      <li>書きかえたいときは、<b>新しいリンクをつくって、送りなおします。</b>前のリンクは、前の内容のまま開きます</li>
+    </ul>
+  </div>
+  <div class="reset">
+    <button id="rsOpen" class="linkbtn" type="button" aria-expanded="false" aria-controls="rsBox">はじめからにする（リセット）</button>
+    <div id="rsBox" hidden>
+      <ul>
+        <li>港町の記録（見つけた豆知識・行った場所）を消します</li>
+        <li>画面のカード（もらったもの・つくったもの）を外して、見本にもどします。<b>送ったリンクは、そのまま使えます</b></li>
+      </ul>
+      <p style="display:flex;gap:10px;margin:10px 0 0"><button id="rsDo" class="chip warn" type="button">リセットする</button><button id="rsNo" class="chip" type="button">やめる</button></p>
+    </div>
+  </div>
+</section>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  // GitHub の公開版をまとめる時に true になる（港町と同じフォルダ）。false＝claude.ai の非公開の試作（#c= を運べないので、送るリンクは公開版のアドレスで作る）
+  const PAGES = true;
+  const TOWN = PAGES ? './' : 'https://claude.ai/artifact/8xihFzCwcV25EcBV6FcEsH';
+  const PUBLIC_CARD = 'https://tatatasan323-cell.github.io/gimmick-cards/christmas-town/card.html';
+  const NS = 'x1.', TOWN_SAVE = 'xmas-town-v1';
+  const $ = (s) => document.querySelector(s);
+  const state = { card: null, sample: true, mine: false };
+
+  // ---------- 音（さわった時だけ。最初に画面にふれてから鳴らす） ----------
+  const Snd = (() => { let ac = null, out = null;
+    const tone = (f0, f1, vol, delay, dur, type = 'sine') => { if (!ac || ac.state !== 'running') return; try { const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); } catch (e) { /* 音が出なくても使える */ } };
+    return {
+      unlock() { try { if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.8; out.connect(ac.destination); } if (ac.state !== 'running') ac.resume(); } catch (e) { /* 同上 */ } },
+      boing(k) { const f = [392, 330, 440, 294][k % 4] * (0.95 + Math.random() * 0.1); tone(f * 1.5, f, 0.12, 0, 0.34); tone(f * 0.75, f * 0.55, 0.06, 0.02, 0.42, 'triangle'); },
+      tap() { tone(1400, 1100, 0.03, 0, 0.06); },
+      chime() { [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, f, 0.05, i * 0.09, 0.9)); },
+    }; })();
+
+  // ---------- 1. カードの中身（入力 → 検査 → リンクの中へ）。画面には textContent でしか出さない ----------
+  const MAX = { t: 28, to: 24, vn: 40, va: 60, c: 60, m: 200, f: 24, dc: 40 };
+  const KEYS = ['t', 'to', 'd', 's', 'e', 'vn', 'va', 'c', 'm', 'f', 'dc', 'rp'];
+  const str = (v, n, keepNl) => {
+    if (typeof v !== 'string') return '';
+    let s = v.replace(keepNl ? /[\u0000-\u0009\u000b-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g : /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '');
+    s = s.replace(/\r\n?/g, '\n').trim();
+    return Array.from(s).slice(0, n).join('');
+  };
+  function validDate(s) { const [y, m, d] = s.split('-').map(Number), t = new Date(Date.UTC(y, m - 1, d)); return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d; }
+  function clean(o) {
+    const r = {};
+    if (!o || typeof o !== 'object') return r;
+    for (const k of KEYS) {
+      let v = o[k];
+      if (k === 'rp') v = v === '1' ? '1' : '';
+      else if (k === 'd') v = (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && validDate(v)) ? v : '';
+      else if (k === 's' || k === 'e') v = (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)) ? v : '';
+      else v = str(v, MAX[k], k === 'm');
+      if (v) r[k] = v;
+    }
+    return r;
+  }
+  const b64u = {
+    enc(s) { const b = new TextEncoder().encode(s); let x = ''; b.forEach((c) => { x += String.fromCharCode(c); }); return btoa(x).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+    dec(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const x = atob(s), b = new Uint8Array(x.length); for (let i = 0; i < x.length; i++) b[i] = x.charCodeAt(i); return new TextDecoder('utf-8', { fatal: true }).decode(b); },
+  };
+  const Card = {
+    encode(o) { return NS + b64u.enc(JSON.stringify(clean(o))); },
+    decode(s) { try { if (typeof s !== 'string' || s.indexOf(NS) !== 0 || s.length > 6000) return null; const o = clean(JSON.parse(b64u.dec(s.slice(NS.length)))); return Object.keys(o).length ? o : null; } catch (e) { return null; } },
+    fromHash(h) { const m = /^#c=([A-Za-z0-9._-]+)$/.exec(h || ''); return m ? Card.decode(m[1]) : null; },
+  };
+  function sampleCard() {
+    const now = new Date(); let y = now.getFullYear();
+    if (now > new Date(y, 11, 24, 23, 59)) y += 1;
+    return { t: 'Christmas Party', to: 'みんな', d: y + '-12-24', s: '17:00', e: '20:00', vn: 'わが家', va: '〇〇市△△町1-2-3　駅から歩いて5分', c: 'LINEで連絡してね', m: 'ケーキを用意して待ってるよ。\nプレゼント交換もしようね！', f: 'ゆうこ', dc: '500円くらいのプレゼント', rp: '1' };
+  }
+
+  // ---------- 2. カードの表示 ----------
+  const WD = ['日', '月', '火', '水', '木', '金', '土'];
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  function dateText(c) {
+    if (!c.d) return '';
+    const [y, m, d] = c.d.split('-').map(Number), w = WD[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    let s = m + '月' + d + '日（' + w + '）';
+    if (c.s) s += '\n' + c.s + (c.e ? ' 〜 ' + c.e : ' 〜');
+    return s;
+  }
+  function daysUntil(ds) { const [y, m, d] = ds.split('-').map(Number), now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()), t1 = new Date(y, m - 1, d); return Math.round((t1 - t0) / 86400000); }
+  function row(dt, dd, cls) { const r = el('div', 'row' + (cls ? ' ' + cls : '')); r.appendChild(el('dt', null, dt)); const d = el('dd'); if (typeof dd === 'string') d.textContent = dd; else d.appendChild(dd); r.appendChild(d); return r; }
+  const TTL0 = 'Christmas Party';
+  function icsText(c) {
+    const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'), p2 = (n) => String(n).padStart(2, '0');
+    const d = c.d.replace(/-/g, ''), now = new Date(), stamp = now.getUTCFullYear() + p2(now.getUTCMonth() + 1) + p2(now.getUTCDate()) + 'T' + p2(now.getUTCHours()) + p2(now.getUTCMinutes()) + p2(now.getUTCSeconds()) + 'Z';
+    let start, end;
+    if (c.s) { start = 'DTSTART:' + d + 'T' + c.s.replace(':', '') + '00'; end = 'DTEND:' + d + 'T' + (c.e || c.s).replace(':', '') + '00'; }
+    else { const [y, m, dd] = c.d.split('-').map(Number), n = new Date(Date.UTC(y, m - 1, dd + 1)); start = 'DTSTART;VALUE=DATE:' + d; end = 'DTEND;VALUE=DATE:' + n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()); }
+    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//xmas-card//JA', 'BEGIN:VEVENT', 'UID:' + stamp + '-' + Math.random().toString(36).slice(2) + '@xmas-card', 'DTSTAMP:' + stamp, start, end,
+      'SUMMARY:' + esc(c.t || TTL0), 'LOCATION:' + esc([c.vn, c.va].filter(Boolean).join(' ')), 'DESCRIPTION:' + esc(c.m), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  }
+  function gcalUrl(c) {
+    const d = c.d.replace(/-/g, ''), p2 = (n) => String(n).padStart(2, '0'); let dates;
+    if (c.s) dates = d + 'T' + c.s.replace(':', '') + '00/' + d + 'T' + (c.e || c.s).replace(':', '') + '00';
+    else { const [y, m, dd] = c.d.split('-').map(Number), n = new Date(Date.UTC(y, m - 1, dd + 1)); dates = d + '/' + n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()); }
+    const q = (k, v) => k + '=' + encodeURIComponent(v);
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&' + q('text', c.t || TTL0) + '&dates=' + dates + '&' + q('location', [c.vn, c.va].filter(Boolean).join(' ')) + '&' + q('details', c.m || '');
+  }
+  const ext = (a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; };
+  function renderCard(c, sample) {
+    state.card = c; state.sample = sample;
+    const title = c.t || TTL0, len = Array.from(title).length;
+    $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : '');
+    document.title = sample ? "ぷるとろ聖夜｜X'masグリーティングカード" : title + ' ─ ぷるとろ聖夜';
+    $('#sampleTag').hidden = !sample;
+    const rows = $('#rows'); rows.textContent = '';
+    if (c.to) rows.appendChild(row('TO', c.to + ' へ'));
+    if (c.d) rows.appendChild(row('日時', dateText(c)));
+    if (c.vn || c.va) { const dd = el('div'); if (c.vn) dd.appendChild(document.createTextNode(c.vn)); if (c.va) dd.appendChild(el('small', null, c.va)); rows.appendChild(row('会場', dd)); }
+    if (c.dc) rows.appendChild(row('持ち物', c.dc));
+    if (c.c) rows.appendChild(row('連絡先', c.c));
+    if (c.m) rows.appendChild(row('ひとこと', c.m, 'msg'));
+    if (c.f) rows.appendChild(row('FROM', c.f));
+    if (!rows.children.length) rows.appendChild(row('お知らせ', 'メリークリスマス！'));
+    const cnt = $('#count');
+    if (c.d) { const n = daysUntil(c.d); cnt.hidden = false; cnt.textContent = n > 1 ? 'あと ' + n + ' 日…' : n === 1 ? 'いよいよ、あした！' : n === 0 ? '今日は、パーティの日！' : 'ありがとう、楽しかったね'; } else cnt.hidden = true;
+    const acts = $('#acts'); acts.textContent = '';
+    if (c.vn || c.va) { const a = ext(el('a', null, '地図を開く')); a.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([c.vn, c.va].filter(Boolean).join(' ')); acts.appendChild(a); }
+    if (c.d) {
+      const g = ext(el('a', null, 'Googleカレンダーに入れる')); g.href = gcalUrl(c); acts.appendChild(g);
+      const b = el('button', null, 'iPhoneのカレンダーに入れる'); b.type = 'button';
+      b.addEventListener('click', () => {
+        Snd.unlock(); Snd.tap();
+        if (!PAGES) { toast('この試作版では、カレンダーの書き出しは使えません'); return; }
+        const blob = new Blob([icsText(c)], { type: 'text/calendar;charset=utf-8' }), u = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = u; a.download = 'christmas-party.ics'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+        toast('カレンダーのファイルを書き出しました');
+      });
+      acts.appendChild(b);
+      acts.appendChild(el('p', 'hint2', 'Android・パソコン：上のボタンを押すと、予定の入った画面が開きます。\niPhone：下のボタンを押したあと、画面に出る「カレンダーに追加」を押します。' + (/Line\//i.test(navigator.userAgent) ? '\nLINEの中では保存できないことがあります。その時は、右上のメニューから「ブラウザで開く」を選んでください。' : '')));
+    }
+    if (c.rp) {   // 参加の返事：LINEの共有画面を、返事の文入りで開く（送り先は、押した人が選ぶ。サーバーには何も送らない）
+      const rep = el('div', 'reply'), when = c.d ? dateText(c).split('\n')[0] : '', ra = el('div', 'ra');
+      rep.appendChild(el('p', null, 'ご出欠のお返事'));
+      [['参加する', '🎄 ' + (c.t || TTL0) + '\n参加します！' + (when ? '（' + when + '）' : '')], ['欠席する', (c.t || TTL0) + '\nごめんなさい、今回は欠席します。']].forEach(([label, msg]) => { const a = ext(el('a', null, label)); a.href = 'https://line.me/R/share?text=' + encodeURIComponent(msg); ra.appendChild(a); });
+      rep.appendChild(ra); rep.appendChild(el('p', 'hint2', 'LINEの画面で、返事を送る相手（このカードをくれたトーク）を選んで送ってね。'));
+      acts.appendChild(rep);
+    }
+    // 見本＝「つくる」だけ。もらったカード＝「自分もつくる（コピー）」と「白紙から」。つくった直後＝「書きかえる」
+    $('#btnMake').hidden = state.mine; $('#btnEdit').hidden = sample || !state.mine; $('#btnBlank').hidden = sample;
+    $('#btnMake').textContent = sample ? 'カードをつくる' : '自分もカードをつくる（この内容をコピー）';
+  }
+  function loadFromHash() { const c = PAGES ? Card.fromHash(location.hash) : null; if (c) renderCard(c, false); else renderCard(sampleCard(), true); }
+
+  // ---------- 3. 港町への入口。港町の郵便局から来た時は、左上に「港町へもどる」 ----------
+  let fromTown = false;
+  try { const r = document.referrer ? new URL(document.referrer) : null; fromTown = PAGES && !!r && r.origin === location.origin && r.pathname.replace(/[^/]*$/, '') === location.pathname.replace(/[^/]*$/, '') && !/card\.html$/.test(r.pathname); } catch (e) { /* 来た所が分からない時は、ふつうの入口 */ }
+  $('#goTown').href = PAGES ? (fromTown ? './#post' : './') : TOWN;
+  if (!PAGES) { $('#goTown').target = '_blank'; $('#goTown').rel = 'noopener'; }
+  $('#back').hidden = !fromTown;
+  document.querySelectorAll('.puyo').forEach((p, i) => p.addEventListener('click', () => { Snd.unlock(); Snd.boing(i); p.classList.remove('sq'); void p.offsetWidth; p.classList.add('sq'); }));
+
+  // ---------- 4. カードをつくる・送る ----------
+  const editor = $('#editor'), edBack = $('#edBack');
+  function fillForm(c) { KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || ''; }); }
+  function readForm() { const o = {}; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = k === 'rp' ? (f.checked ? '1' : '') : f.value; }); return clean(o); }
+  let edKeep = false, lastCard = null;
+  function openSheet(sh, back) { back.hidden = false; sh.hidden = false; void sh.offsetWidth; sh.classList.add('open'); }
+  function closeSheet(sh, back) { sh.classList.remove('open'); back.hidden = true; setTimeout(() => { sh.hidden = true; }, 380); }
+  function openEditor(src) {
+    Snd.unlock(); Snd.tap();
+    edKeep = src === 'copy' || src === 'blank';
+    if (src === 'copy') { const o = Object.assign({}, state.card || {}); delete o.f; delete o.to; fillForm(o); } else if (src === 'blank') fillForm({ rp: '1' }); else fillForm(state.sample ? { rp: '1' } : state.card || {});
+    $('#edCopyNote').hidden = src !== 'copy'; $('#edResult').hidden = true; $('#edMsg').textContent = '';
+    openSheet(editor, edBack); editor.elements.t.focus({ preventScroll: true });
+  }
+  const closeEditor = () => closeSheet(editor, edBack);
+  $('#btnMake').addEventListener('click', () => openEditor(state.sample || state.mine ? undefined : 'copy'));
+  $('#btnBlank').addEventListener('click', () => openEditor('blank'));
+  $('#btnEdit').addEventListener('click', () => openEditor());
+  $('#edX').addEventListener('click', closeEditor); edBack.addEventListener('click', closeEditor);
+  $('#edSample').addEventListener('click', () => { fillForm(sampleCard()); if (!edKeep) renderCard(readForm(), false); });
+  editor.addEventListener('input', () => { if (!edKeep) renderCard(readForm(), false); });   // もらったカードを残す時は、画面のカードを書きかえない
+  const shareUrl = (c) => (PAGES ? location.href.split('#')[0].split('?')[0] : PUBLIC_CARD) + '#c=' + Card.encode(c);
+  editor.addEventListener('submit', (e) => {
+    e.preventDefault(); Snd.unlock(); Snd.chime();
+    const c = readForm();
+    if (!Object.keys(c).length) { $('#edMsg').textContent = 'どれか1つは、書いてね。'; $('#edResult').hidden = false; return; }
+    lastCard = c;
+    if (!edKeep) { if (PAGES) { try { history.replaceState(null, '', '#c=' + Card.encode(c)); } catch (er) { /* 別の枠の中では使えない */ } } state.mine = true; renderCard(c, false); }
+    const url = shareUrl(c);
+    $('#edUrl').value = url;
+    $('#shLine').href = 'https://line.me/R/share?text=' + encodeURIComponent((c.t || TTL0) + '\nおかしな港町で、まってるね\n' + url);
+    $('#edMsg').textContent = 'リンクの長さ：' + url.length + '文字' + (PAGES ? '' : '（試作版なので、送るリンクは公開版のアドレスです）');
+    $('#shNative').hidden = !navigator.share;
+    $('#edResult').hidden = false; $('#edResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('#shCopy').addEventListener('click', async () => {
+    const u = $('#edUrl').value; Snd.tap();
+    try { await navigator.clipboard.writeText(u); toast('リンクをコピーしました'); }
+    catch (e) { const f = $('#edUrl'); f.focus(); f.select(); try { document.execCommand('copy'); toast('リンクをコピーしました'); } catch (e2) { toast('リンクを長押ししてコピーしてね'); } }
+  });
+  $('#shNative').addEventListener('click', () => { const c = lastCard || state.card || {}; if (navigator.share) navigator.share({ title: c.t || TTL0, text: 'おかしな港町で、まってるね', url: $('#edUrl').value }).catch(() => {}); });
+
+  // ---------- 5. つかいかた・ルール・リセット ----------
+  const help = $('#help'), helpBack = $('#helpBack');
+  const openHelp = () => { Snd.unlock(); Snd.tap(); openSheet(help, helpBack); };
+  const closeHelp = () => closeSheet(help, helpBack);
+  $('#btnHelp').addEventListener('click', openHelp); $('#btnHelpFoot').addEventListener('click', openHelp); $('#hpX').addEventListener('click', closeHelp); helpBack.addEventListener('click', closeHelp);
+  [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([t]) => $('#' + t).addEventListener('click', () => { [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([a, p]) => { const on = a === t; $('#' + a).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; }); }));
+  $('#rsOpen').addEventListener('click', () => { const box = $('#rsBox'); box.hidden = !box.hidden; $('#rsOpen').setAttribute('aria-expanded', String(!box.hidden)); });
+  $('#rsNo').addEventListener('click', () => { $('#rsBox').hidden = true; $('#rsOpen').setAttribute('aria-expanded', 'false'); });
+  $('#rsDo').addEventListener('click', () => {
+    try { localStorage.removeItem(TOWN_SAVE); } catch (e) { /* 記録が使えない画面 */ }
+    if (PAGES) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* 同上 */ } }
+    state.mine = false; renderCard(sampleCard(), true); $('#rsBox').hidden = true; closeHelp(); toast('はじめからにしました');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!help.hidden) closeHelp(); else if (!editor.hidden) closeEditor(); });
+  window.addEventListener('hashchange', loadFromHash);
+  let tt = 0;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400); }
+
+  // ---------- 6. 降る雪（動きを減らす設定の人には、止めた雪） ----------
+  const cv = $('#snow'), g = cv.getContext('2d'), still = matchMedia('(prefers-reduced-motion: reduce)').matches; let W = 0, H = 0, F = [];
+  function size() { const d = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); F = Array.from({ length: Math.round(Math.min(90, W * H / 9000)) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: 0.8 + Math.random() * 2.4, v: 12 + Math.random() * 30, s: Math.random() * 6 })); }
+  let last = performance.now();
+  function snow(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; g.clearRect(0, 0, W, H);
+    for (const f of F) { if (!still) { f.y += f.v * dt; f.x += Math.sin(now / 1000 + f.s) * 8 * dt; if (f.y > H + 4) { f.y = -4; f.x = Math.random() * W; } } g.globalAlpha = 0.35 + f.r / 5; g.beginPath(); g.arc(f.x, f.y, f.r, 0, 6.2832); g.fillStyle = '#fff'; g.fill(); }
+    if (!still) requestAnimationFrame(snow); }
+  addEventListener('resize', () => { size(); if (still) snow(performance.now()); });
+  size(); requestAnimationFrame(snow);
+
+  loadFromHash();
+  window.__ok = true;
+  if (/[?&]t=1(&|$)/.test(location.search)) window.__card = { Card, clean, sampleCard, shareUrl, state: () => ({ sample: state.sample, mine: state.mine, card: state.card }) };
+})();
+</script>
+</body></html>

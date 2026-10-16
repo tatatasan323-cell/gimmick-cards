@@ -391,7 +391,7 @@ const LAMP = (() => { const n = LAMPS.length, post = new THREE.InstancedMesh(new
   LAMPS.forEach(([x, z], i) => { const y = landH(x, z); mm.makeTranslation(x, y, z); post.setMatrixAt(i, mm); mm.makeTranslation(x, y + 2.28, z); lan.setMatrixAt(i, mm); pos.push(x, y + 2.28, z); if (eOf(x, z) < 1.07 && i % 2 === 0) addStreak(x, z, rr(4, 7), '#ffd090', 0.35); });
   scene.add(post, lan); const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const glow = new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: '#ffc080', size: 1.5, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(glow);
   // 柱は細くて指で当てにくいので、見えない太めの筒で当てる
-  const hit = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.32, 0.32, 2.7, 6).translate(0, 1.35, 0), new THREE.MeshBasicMaterial(), n); hit.visible = false; LAMPS.forEach(([x, z], i) => hit.setMatrixAt(i, mm.makeTranslation(x, landH(x, z), z))); hit.computeBoundingSphere(); scene.add(hit);
+  const hit = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.22, 2.7, 6).translate(0, 1.35, 0), new THREE.MeshBasicMaterial(), n); hit.visible = false; LAMPS.forEach(([x, z], i) => hit.setMatrixAt(i, mm.makeTranslation(x, landH(x, z), z))); hit.computeBoundingSphere(); scene.add(hit);
   return { post, lan, glow, hit, st: LAMPS.map(() => null) }; })();
 // 触ると、柱がポキポキと3つに折れる（根元は立ったまま、上の2つは飛んで転がる。灯りの玉は、いちばん上についたまま）。しばらくすると、下から順にカリカリと戻って、灯りがともる
 // かけらは、折れ目の高さごとに形を分けて、しま模様が元の柱とつながるようにする（1つの形をのばすと、しまの幅が変わった）
@@ -441,8 +441,8 @@ function label(text, sub) {
 }
 // GitHub では、街と仕掛けを同じフォルダに置き、同じタブで行き来する（共通/まとめる_pages.py が PAGES を true にする）。claude.ai の試作では、仕掛けごとの非公開ページへ
 const PAGES = true;
-const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html' }
-  : { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U' };
+const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html', post: 'card.html' }
+  : { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U', post: 'https://claude.ai/artifact/8BYtjoMnsyP5yRzrQojXfC' };
 if (PAGES) { $('go').removeAttribute('target'); $('go').removeAttribute('rel'); }
 function area(id, name, sub, text, link, grp, view, labelY, labelSub) {
   const A = { id, name, sub, text, link, g: grp, view, kind: 'area' }; grp.traverse((o) => { if (o.isMesh && !o.userData.pick) addPick(o, A); });
@@ -503,7 +503,7 @@ const THEATER = (() => { const [x, z, ry] = AREAPOS.theater, g = new THREE.Group
   const acc = new SW.Acc(); acc.add('cookie', new THREE.CylinderGeometry(2.4, 2.5, 3.0, 36).translate(0, 1.5, 0), '#f2d6b6'); acc.add('choco', new THREE.CylinderGeometry(2.55, 2.55, 2, 36).translate(0, -0.95, 0)); acc.add('gum', new THREE.SphereGeometry(2.45, 36, 16, 0, TAU, 0, Math.PI / 2).scale(1, 0.65, 1).translate(0, 3.0, 0), '#e0283c'); acc.add('gum', new THREE.TorusGeometry(2.45, 0.14, 8, 48).rotateX(Math.PI / 2).translate(0, 3.0, 0), '#ffd23a'); acc.add('gum', new THREE.SphereGeometry(0.25, 14, 10).translate(0, 4.65, 0), '#ffd23a'); acc.add('choco', new THREE.BoxGeometry(0.9, 1.6, 0.1).translate(0, 0.8, 2.45));
   for (const m of acc.build(MATS)) g.add(m);
   return area('theater', 'ミュージカルの劇場', '準備中（3曲のMV）', 'ジンジャーブレッドたちのミュージカル。ヒップホップ・ゴスペル・フォークの3曲を、ここで上映する予定です。', null, g, { d: 12, h: 3 }, 6.3, '準備中'); })();
-// 郵便局（⑤・招待状・準備中）＋赤いポスト（豆知識）
+// 郵便局（クリスマスカードへ）＋赤いポスト（豆知識）
 let POSTBOX = null;
 const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.5, rh: 1.5, roof: 'frost', shade: '#fff4e6', glass: '#ffd86a', door: true, base: 1.6 };
   const g = houseGroup(o); POSTBOX = new THREE.Group(); POSTBOX.position.set(1.7, 0, 1.9); g.add(POSTBOX);
@@ -527,7 +527,7 @@ const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), 
     const PM = { red: gel('#d81f2e', { glow: '#ff5040', gl: 0.45 }), gold: new THREE.MeshStandardMaterial({ color: '#f0c050', metalness: 1, roughness: 0.28 }), dark: new THREE.MeshStandardMaterial({ color: '#2a0d0a', roughness: 0.5 }), frost: MATS.frost,
       env: new THREE.MeshStandardMaterial({ color: '#fffaf0', roughness: 0.7, emissive: '#fff4e0', emissiveIntensity: 0.15 }), plate: new THREE.MeshStandardMaterial({ map: plate, roughness: 0.4, metalness: 0.2, side: THREE.DoubleSide }), leaf: gel('#1f9a4a', { glow: '#5ad080', gl: 0.4 }), berry: gel('#e8202e', { glow: '#ff5040', gl: 0.6 }) };
     PM.leaf.side = THREE.DoubleSide; for (const m of acc.build(PM)) POSTBOX.add(m); }
-  return area('post', '郵便局', '準備中（招待状）', 'ここから、クリスマスの招待状を送れるようにする予定です。ハロウィンの招待状と同じく、LINEで送れる形に。', null, g, { d: 9, h: 1.5 }, 4.7, '準備中'); })();
+  return area('post', '郵便局', 'クリスマスカード', 'クリスマスカード（招待状）をつくって、LINEで送れます。もらった人は、カードからこの港町へ。', ART.post, g, { d: 9, h: 1.5 }, 4.7); })();
 // パン屋
 const BAKERY = (() => { const [x, z, ry] = AREAPOS.bakery, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.6, rh: 1.6, roof: 'frost', shade: '#d9aa80', glass: '#ffb347', door: true, base: 1.6, chimney: true }; return { g: houseGroup(o), o }; })();
 // 空に浮かぶテーブル（グミのつみき）
@@ -948,7 +948,7 @@ function flyTo(target, lookAt, dist, up) { const dir = V1.copy(drone.p).sub(targ
 // 指の先にあるもの（海・豆知識・住人・名所・地面や家）
 function pickAt(x, y) {
   const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam);
-  const hs = ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false); let h = hs[0];
+  const hs = ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false).filter((x) => !(x.object === LAMP.hit && LAMP.st[x.instanceId])); let h = hs[0];   // 折れている街灯の筒は、当たりにしない
   // 街灯の当たりの筒は柱より太いので、すぐ後ろに住人・豆知識などがいたら、そちらを優先（住人をかじるつもりが、街灯が折れていた）
   if (h && h.object === LAMP.hit) { const alt = hs.find((x) => x.object !== LAMP.hit && x.object.userData.pick && x.distance - h.distance < 0.9); if (alt) h = alt; }
   // 山の当たりは輪郭をなぞった大きな筒なので、すぐ奥（8m以内）に名所・住人・豆知識があれば、そちらを優先（崖のそばの美術館を押すと、山をかじっていた）
@@ -1198,7 +1198,7 @@ function drawMenu() {
       else P.append(mRow('？？？', 'ヒント：' + WHERE[T.id], mBtn('さがしに行く', () => { closeMenu(); tip.go(); }, 'go'))); } }
   else if (menuTab === 'howto') { P.append(mEl('div', 'hd', 'おかしな港町の、あそびかた'));
     for (const [a, b] of [['左の丸', '飛ぶ（上＝前・下＝うしろ・左右＝横へ）'], ['▲ ▼', '上がる・下がる'], ['空や町をなぞる', 'まわりを見まわす'], ['2本指をひろげる・せばめる', '近づく・はなれる'],
-      ['家や住人をタップ', 'かじる（しばらくすると、もとどおり）'], ['遠くのかき氷・パフェの山をタップ', 'すくって食べる（たくさん食べると…？）'], ['海をなぞる', '光の波が広がる。何度も広げると…？'], ['名所の看板の建物をタップ', 'そばへ飛んで、「この場所へ」で中の仕掛けへ'], ['✦ の光', '豆知識。さわると読めます'],
+      ['家や住人をタップ', 'かじる（しばらくすると、もとどおり）'], ['遠くのかき氷・パフェの山をタップ', 'すくって食べる（たくさん食べると…？）'], ['郵便局', 'クリスマスカード（招待状）をつくって、LINEで送れます'], ['海をなぞる', '光の波が広がる。何度も広げると…？'], ['名所の看板の建物をタップ', 'そばへ飛んで、「この場所へ」で中の仕掛けへ'], ['✦ の光', '豆知識。さわると読めます'],
       ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b)); }
   else { P.append(mEl('div', 'hd', 'BGM は、この港町の中だけで鳴ります'));
     P.append(mRow('BGM', PREF.bgm ? '鳴らす' : '鳴らさない', mBtn(PREF.bgm ? 'オン' : 'オフ', () => { PREF.bgm = !PREF.bgm; savePref(); soundStarted = true; BGM.set(SND.audio(), PREF.bgm); drawMenu(); }, PREF.bgm ? 'on' : null)));
