@@ -51,9 +51,9 @@ scene.add(new THREE.HemisphereLight('#bfe8ff', '#3a2a80', 0.8));
 const sun = new THREE.DirectionalLight('#f4fbff', 2.2); sun.position.set(-2, 8, 4); scene.add(sun);
 const rim = new THREE.DirectionalLight('#ff9be0', 1.4); rim.position.set(3, -2, -5); scene.add(rim);
 
-// ---------- 固さ（3種）：ゆるい（最初）／もっとゆるい＝どこまでも伸ばせる／みず＝もっとゆるいと同じやわらかさで、長く伸びてからちぎれ、漂って戻る（本人 2026-10-16：ふつうはやめた） ----------
+// ---------- 固さ（3種）：ゆるい（最初）／もっとゆるい＝どこまでも伸ばせる／みず＝もっとゆるいと同じやわらかさで、目いっぱい伸びてからちぎれ、漂って戻る（本人 2026-10-16：ふつうはやめた） ----------
 const MODES = { loose: { P: { ks: 40, kg: 6, c: 2.0, kp: 700, cd: 2.5, xs: 0.1, lmax: 2.6 }, max: 2.4, tear: 0, slide: 0.8 }, looser: { P: { ks: 13, kg: 2.4, c: 1.5, kp: 700, cd: 1.6, xs: 0.07, lmax: 5 }, max: 6.0, tear: 0, slide: 0.18 },
-  water: { P: { ks: 13, kg: 1.6, c: 1.0, kp: 700, cd: 1.2, xs: 0.07, lmax: 2.6 }, max: 3.2, tear: 1.6, slide: 0.35, shatter: 1800 } };
+  water: { P: { ks: 13, kg: 2.4, c: 1.2, kp: 700, cd: 1.4, xs: 0.07, lmax: 5 }, max: 6.0, tear: 3.0, slide: 0.18, shatter: 1800 } };   // みず＝もっとゆるいと同じやわらかさで、目いっぱい伸ばしてから（3.0）ちぎれる（本人 2026-10-17：引っぱる前にちぎれていた）
 let mode = 'loose';
 document.querySelectorAll('#modes button').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.m; document.querySelectorAll('#modes button').forEach((x) => x.classList.toggle('on', x === b)); for (const it of actives) Object.assign(it.act.lat.P, MODES[mode].P); SND.tapSound(mode === 'water' ? 1.4 : mode === 'looser' ? 1.2 : 1, mode === 'water'); }));
 

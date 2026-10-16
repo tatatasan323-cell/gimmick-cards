@@ -7,10 +7,12 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 .tx{position:fixed;left:0;right:0;text-align:center;color:#fff4dc;text-shadow:0 2px 12px rgba(20,8,0,.85);pointer-events:none}
 #top{top:calc(14px + env(safe-area-inset-top));font-size:22px;font-weight:800;letter-spacing:.12em}
 #top small{display:block;margin-top:4px;font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.85}
-#hint{bottom:calc(24px + env(safe-area-inset-bottom));font-size:13px;font-weight:800;line-height:1.7;transition:opacity .8s}
+#hint{bottom:calc(150px + env(safe-area-inset-bottom));font-size:13px;font-weight:800;line-height:1.7;transition:opacity .8s}
 #card{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top));transform:translateX(-50%);min-width:220px;max-width:min(86vw,340px);padding:12px 16px;border-radius:16px;background:rgba(255,250,240,.95);color:#2a1a10;box-shadow:0 8px 30px rgba(0,0,0,.4);text-align:center;pointer-events:none;transition:opacity .4s}
 #card b{display:block;font-size:20px;letter-spacing:.08em}#card small{display:block;font-size:12px;font-weight:700;color:#7a5a3a;margin-top:2px}#card p{margin:8px 0 0;font-size:12.5px;line-height:1.6;text-align:left}
 #card i{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.2)}
+#joy{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:118px;height:118px;border-radius:50%;background:rgba(255,240,220,.12);border:2px solid rgba(255,230,190,.35);touch-action:none;z-index:5}
+#knob{position:absolute;left:39px;top:39px;width:40px;height:40px;border-radius:50%;background:rgba(255,236,200,.75);box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style>
@@ -19,7 +21,8 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 <!-- 港町（町の全景）へもどる -->
 <a id="toTown" href="./#museum">‹ 港町へもどる</a>
 <div class="tx" id="top">宝石の美術館<small id="sub">じゅんびちゅう…</small></div>
-<div class="tx" id="hint">床を タップ＝そこへ歩く・なぞる＝見まわす・2本指＝拡大縮小<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
+<div id="joy"><div id="knob"></div></div>
+<div class="tx" id="hint">左の丸＝歩く・床を タップ＝そこへ歩く・なぞる＝見まわす<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
 <div id="card" hidden><b id="cardName"></b><small id="cardSub"></small><p id="cardFact" hidden></p></div>
 <div id="fps" hidden></div>
 <script type="module">
@@ -37,7 +40,8 @@ import * as RM from './real_mats.js';
 import { DESIGNS, CEILING, ARCH, ROSE, paint } from './designs.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#05060d');
 const sky = makeSky(scene, { aurora: 0.5 });   // 天井の丸い天窓から見える空
 const GEM_ENV = gemEnv(renderer);   // きらめき用の環境（宝石・ガラスのかけら・飾り玉）
@@ -191,7 +195,8 @@ for (const z of CHANDS) {
   const ch = new THREE.Group(); ch.position.set(0, 5.4, z); scene.add(ch); CH_G.push(ch);
   const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.035, 8, 64), gold), r2 = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 48), gold); r1.rotation.x = r2.rotation.x = Math.PI / 2; r2.position.y = 0.38; ch.add(r1, r2);
   const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, HH - 5.8), gold); chain.position.y = 0.38 + (HH - 5.8) / 2; ch.add(chain);
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU, b = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), bulbMat); b.position.set(Math.cos(a), 0.09, Math.sin(a)); ch.add(b); const s = sprite('#ffc880', 0.45, 0.25); s.position.copy(b.position); ch.add(s); }
+  { const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 12, 8), bulbMat, 12), pos = []; for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; M4.makeTranslation(Math.cos(a), 0.09, Math.sin(a)); bulbs.setMatrixAt(i, M4); pos.push(Math.cos(a), 0.09, Math.sin(a)); } ch.add(bulbs);   // 電球と光は、まとめて描く（1つずつだと、2つのシャンデリアで48回）
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); ch.add(new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: new THREE.Color('#ffc880').multiplyScalar(0.25), size: 0.45, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); }
   const drops = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), dropMat, 36);
   for (let i = 0; i < 36; i++) { const ring = i < 24, a = ((ring ? i : i - 24) / (ring ? 24 : 12)) * TAU + (ring ? 0.13 : 0), r = ring ? 1.0 : 0.55; M4.compose(V1.set(Math.cos(a) * r, (ring ? -0.14 : 0.24) - Math.random() * 0.06, Math.sin(a) * r), Q.identity(), V2.set(0.03, 0.08, 0.03)); drops.setMatrixAt(i, M4); } ch.add(drops);
   const L = new THREE.PointLight('#ffc890', 1.2, 12, 1.4); L.position.set(0, -0.2, 0); ch.add(L); CH_L.push(L); }
@@ -308,14 +313,17 @@ const glassMat = () => new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughn
 const CRACK = ctex(256, 256, (g) => { g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineCap = 'round'; const cx = 120, cy = 140;
   for (let i = 0; i < 11; i++) { let x = cx, y = cy, a = (i / 11) * TAU + Math.random() * 0.4; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 9; k++) { a += (Math.random() - 0.5) * 0.5; x += Math.cos(a) * 16; y += Math.sin(a) * 16; g.lineTo(x, y); } g.stroke(); }
   g.lineWidth = 1.2; for (const rr of [26, 52, 80]) { g.beginPath(); for (let k = 0; k <= 22; k++) { const a = (k / 22) * TAU, w = rr * (0.85 + Math.random() * 0.3); k ? g.lineTo(cx + Math.cos(a) * w, cy + Math.sin(a) * w) : g.moveTo(cx + Math.cos(a) * w, cy + Math.sin(a) * w); } g.stroke(); } });
+// 透明度が0の光は描かない（描く回数に数えられていた：宝石の輪だけで48）。札は近くの物だけ描く（遠くでは字が読めない）
+const FADERS = [], PLAQUES = []; let plaqueN = 0;
+function cullFaint() { for (const m of FADERS) m.visible = m.opacity > 0.003; if (++plaqueN % 6 === 0) for (const p of PLAQUES) { p.getWorldPosition(V1); p.visible = V1.distanceTo(cam.position) < 7; } }
 // 札：宝石の名前を、金の板に
 function plaque(text) { const t = ctex(512, 128, (g) => { const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#f3d98f'); gr.addColorStop(1, '#b88a3a'); g.fillStyle = gr; g.fillRect(0, 0, 512, 128); g.strokeStyle = '#7a5520'; g.lineWidth = 6; g.strokeRect(6, 6, 500, 116); g.fillStyle = '#3a2408'; g.textAlign = 'center'; g.textBaseline = 'middle'; let fs = 62; g.font = `800 ${fs}px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif`; while (g.measureText(text).width > 470 && fs > 24) { fs -= 4; g.font = `800 ${fs}px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif`; } g.fillText(text, 256, 68); });
-  return new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.065), new THREE.MeshStandardMaterial({ map: t, metalness: 0.5, roughness: 0.35, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.3 })); }   // 札は、暗い中でも読めるように少し自分で光る
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.065), new THREE.MeshStandardMaterial({ map: t, metalness: 0.5, roughness: 0.35, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.3 })); m.userData.plaque = true; return m; }   // 札は、暗い中でも読めるように少し自分で光る
 
 let world = null; const exhibits = [], OBST = [];   // OBST＝床の展示の台（歩く時に入らない円）
 // 床の展示の置き場所：壁ぞいの2列ではなく、ホールのあちこちに散らす（となりと1.7m以上・敷物とベンチ・ツリーのまわり・入口はあける）。毎回同じ並びになるよう、決まった種から
 function scatter(n) {
-  const open = (x, z) => Math.abs(x) >= 1.8 && Math.abs(x) <= 5.9 && z <= 10.3 && z >= -HL + 1.2 && Math.hypot(x - TREE.x, z - TREE.z) >= 3.2 && Math.hypot(x - CRY.x, z - CRY.z) >= 3.4 && !BENCHES.some((b) => Math.abs(x - b.x) < 0.95 && Math.abs(z - b.z) < 1.55);
+  const open = (x, z) => Math.abs(x) >= 1.8 && Math.abs(x) <= 5.9 && z <= 10.3 && z >= -HL + 1.2 && Math.hypot(x - TREE.x, z - TREE.z) >= 3.2 && Math.hypot(x - CRY.x, z - CRY.z) >= 2.3 && !BENCHES.some((b) => Math.abs(x - b.x) < 0.95 && Math.abs(z - b.z) < 1.55);
   for (let r = 2.3; r > 1.5; r -= 0.05) for (let seed = 1; seed < 40; seed++) {
     let st = seed * 7919; const R = () => ((st = (st * 16807) % 2147483647) / 2147483647), pts = [], act = [], far = (x, z) => pts.every((q) => Math.hypot(q[0] - x, q[1] - z) >= r);
     for (let t = 0; pts.length < 2 && t < 999; t++) { const x = (R() * 2 - 1) * 5.9, z = -HL + 1.2 + R() * (HL + 9.1); if (open(x, z) && far(x, z)) { pts.push([x, z]); act.push(pts.length - 1); } }
@@ -430,7 +438,7 @@ function stepTreeRestore(dt) {
 function staticColliders() {
   world.createCollider(RAPIER.ColliderDesc.cuboid(HW, 0.1, HL).setTranslation(0, -0.1, 0).setFriction(0.5).setRestitution(0.25));
   for (const [hx, hz, x, z] of [[0.1, HL, -HW, 0], [0.1, HL, HW, 0], [HW, 0.1, 0, -HL], [HW, 0.1, 0, HL]]) world.createCollider(RAPIER.ColliderDesc.cuboid(hx, 2, hz).setTranslation(x, 2, z));
-  world.createCollider(RAPIER.ColliderDesc.cylinder(0.21, 1.75).setTranslation(TREE.x, 0.21, TREE.z)); world.createCollider(RAPIER.ColliderDesc.cylinder(0.2, 1.55).setTranslation(CRY.x, 0.2, CRY.z));
+  world.createCollider(RAPIER.ColliderDesc.cylinder(0.21, 1.75).setTranslation(TREE.x, 0.21, TREE.z));
   for (const b of BENCHES) b.col = world.createCollider(RAPIER.ColliderDesc.cuboid(0.3, 0.26, 0.9).setTranslation(b.x, 0.26, b.z));
   for (const s of [-1, 1]) for (const z of COL_Z) world.createCollider(RAPIER.ColliderDesc.cylinder(3, 0.24).setTranslation(s * (HW - 0.36), 3, z));
   for (const ex of exhibits) { if (ex.type === 'free') continue; const p = ex.grp.position, qq = ex.grp.quaternion, body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(p.x, p.y, p.z).setRotation({ x: qq.x, y: qq.y, z: qq.z, w: qq.w }));
@@ -461,30 +469,28 @@ const shardMat = new THREE.MeshPhysicalMaterial({ color: '#e2f4ec', roughness: 0
 const MAXF = 400, FR = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), gemMaterial(new THREE.OctahedronGeometry(1, 0), GEM_ENV, { ior: 1.7, disp: 0.02, dens: 0.3, bright: 1.15 }), MAXF), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 for (let i = 0; i < MAXF; i++) { FR.setMatrixAt(i, ZERO); FR.setColorAt(i, WHITE); } FR.frustumCulled = false; FR.renderOrder = 1; scene.add(FR); let fragI = 0;
 
-// ---------- ホールの真ん中：大きな虹色のクリスタル（天窓の真下の台。月明かりがまっすぐ落ちる） ----------
-// 息をのむきらめき（虹色の面・強いファイア・またたく光・床と天井に散る虹）／触るとワルツが1節ずつ進む（近くにいると、ひとりでに小さく奏でる）
-// なかなか割れない（4回つづけて触っても平気）。連打を続けるか長く押すと、ひびが入って軋み、やがて倒れて床で砕ける＝衝撃で、まわりの展示もツリーも崩れる。しばらくすると、かけらが集まってよみがえる
-const CRY = { x: 0, z: -2.4, top: 0.4, state: 'ok', stress: 0, taps: [], pressing: false, rot: 0, th: 0, w: 0, dir: new THREE.Vector3(), t: 0, glow: 0, notes: 0, falls: 0, restores: 0, quake: 0, lastTap: -99, auto: 0, creakK: 0 };
-const cryG = new THREE.Group(), cryPivot = new THREE.Group(), crySpin = new THREE.Group(); cryG.position.set(CRY.x, 0, CRY.z); scene.add(cryG); cryG.add(cryPivot); cryPivot.add(crySpin); crySpin.position.y = CRY.top + 0.08;
-{ // 台：二段の大理石に金の輪。天窓からの光（細いスポットと同じ仕組み）で照らす
-  const dm = roomify(marble.clone(), { spot: true }), u = dm.userData.spot; u.uSpP.value.set(CRY.x, HH - 0.1, CRY.z); u.uSpD.value.set(0, -1, 0); u.uSpC.value.setRGB(1.1, 1.18, 1.35); u.uSpCos.value.set(Math.cos(0.27), Math.cos(0.15));
-  cryG.add(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.56, 0.2, 64).translate(0, 0.1, 0), dm), new THREE.Mesh(new THREE.CylinderGeometry(1.22, 1.27, 0.2, 64).translate(0, 0.3, 0), dm));
-  for (const [r, y] of [[1.53, 0.2], [1.245, 0.4]]) cryG.add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.022, 8, 96).rotateX(Math.PI / 2).translate(0, y, 0), gold));
-  // 母岩：紫がかった黒い石（結晶が生えている）
-  const rg = new THREE.IcosahedronGeometry(0.72, 3), p = rg.attributes.position; for (let i = 0; i < p.count; i++) { V1.fromBufferAttribute(p, i); const k = 1 + 0.12 * Math.sin(V1.x * 9 + V1.z * 5) * Math.cos(V1.y * 11 + V1.x * 3); V1.multiplyScalar(k); V1.y = V1.y * 0.42; p.setXYZ(i, V1.x, V1.y, V1.z); } rg.computeVertexNormals();
-  crySpin.add(new THREE.Mesh(rg, new THREE.MeshPhysicalMaterial({ color: '#3a2a4c', roughness: 0.5, clearcoat: 0.5, envMap: GEM_ENV, envMapIntensity: 0.7, flatShading: true }))); }
-// 結晶：六角の柱に、とがった先（面ごとに虹の色）。大きな1本と、まわりの8本、ふちの小さな14本
-const CRY_GEO = (() => { const g = new THREE.LatheGeometry([[0.001, -0.3], [1, 0], [1, 2.2], [0.001, 3.1]].map(([x, y]) => new THREE.Vector2(x, y)), 6).toNonIndexed(), n = g.attributes.position.count, col = new Float32Array(n * 3), c = new THREE.Color();
-  for (let i = 0; i < n; i += 3) { c.setHSL(((i / 3) * 0.137) % 1, 0.95, 0.64); for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3); } g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g; })();
-const CRY_MAT = gemMaterial(CRY_GEO, GEM_ENV, { ior: 2.05, disp: 0.09, dens: 0.55, bright: 1.45 }), CRY_PTS = [];
-{ const add = (x, z, rr, hh, tilt, ry) => { const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tilt)); CRY_PTS.push({ p: new THREE.Vector3(x, 0.05, z), q, s: new THREE.Vector3(rr, hh, rr), k: 1 }); };
-  add(0, 0, 0.36, 0.95, 0.05, 0.3);
-  for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU + 0.2 * Math.sin(i * 3.1), r = 0.3 + 0.12 * ((i * 7) % 3) / 2; add(Math.cos(a) * r, Math.sin(a) * r, 0.14 + 0.05 * ((i * 5) % 3), 0.36 + 0.1 * ((i * 3) % 4), 0.3 + 0.1 * (i % 3), Math.PI / 2 - a); }
-  for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU + 0.4, r = 0.55 + 0.08 * (i % 2); add(Math.cos(a) * r, Math.sin(a) * r, 0.05 + 0.02 * (i % 3), 0.1 + 0.04 * (i % 4), 0.7, Math.PI / 2 - a); } }
-const CRY_IM = new THREE.InstancedMesh(CRY_GEO, CRY_MAT, CRY_PTS.length); CRY_IM.frustumCulled = false; CRY_IM.renderOrder = 1; crySpin.add(CRY_IM);
-const writeCry = (grow = 1) => { CRY_PTS.forEach((c, i) => { M4.compose(c.p, c.q, V2.copy(c.s).multiply(V3.set(c.k, c.k * grow, c.k))); CRY_IM.setMatrixAt(i, M4); }); CRY_IM.instanceMatrix.needsUpdate = true; }; writeCry();
-// きらめく所（結晶の稜と先）：結晶の形の中の点を、台の上の座標で
-const CRY_GL = []; for (let k = 0; k < 64; k++) { const c = CRY_PTS[k < 26 ? 0 : 1 + (k % 8)], y = k % 5 === 0 ? 3.05 : 0.4 + ((k * 0.37) % 1) * 1.9, a = ((k * 3) % 6) * (TAU / 6), r = y > 2.2 ? (3.1 - y) / 0.9 : 1; CRY_GL.push({ c, l: new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), ph: k * 2.3, w: 1.1 + (k % 7) * 0.23 }); }
+// ---------- ホールの真ん中：宙に浮かぶ、透明なクリスタル（天窓の真下。月明かりがまっすぐ落ちる） ----------
+// 台座はなし（本人 2026-10-17：台が大きすぎて、横のベンチとの間が通れなかった）。両端のとがった六角の水晶が、床から浮いてゆっくり回る
+// 触ると、新しい色が下から上へ流れて全体が染まり、内側がふわっと光って、ワルツが静かに1節。しばらくすると上から透明へ戻る（触るたびに次の色）
+// なかなか割れない（4回つづけて触っても平気）。長く押し続けると軋み、床へ落ちて砕ける＝衝撃で、まわりの展示もツリーも崩れる。しばらくすると、かけらが宙へ集まってよみがえる
+const CRY = { x: 0, z: -2.4, y0: 0.75, top: 0.4, h: 2.05, state: 'ok', stress: 0, taps: [], pressing: false, rot: 0, t: 0, glow: 0, notes: 0, falls: 0, restores: 0, quake: 0, lastTap: -99, auto: 0, creakK: 0, vy: 0, tilt: 0, dir: new THREE.Vector3(),
+  ci: -1, from: new THREE.Color(1, 1, 1), to: new THREE.Color(1, 1, 1), front: 9, up: true, hold: 0 };
+const cryG = new THREE.Group(), cryPivot = new THREE.Group(), crySpin = new THREE.Group(); cryG.position.set(CRY.x, 0, CRY.z); scene.add(cryG); cryG.add(cryPivot); cryPivot.add(crySpin); cryPivot.position.y = CRY.y0;
+// 水晶：下の先 → 六角の柱（少しふくらむ）→ 上の先。面は平ら（光が面で折れて、中で跳ね返る）。色は頂点ごと（流れる色に使う）
+const CRY_PROF = [[0.001, 0], [0.3, 0.42], [0.33, 0.75], [0.31, 1.55], [0.001, CRY.h]];
+const cryR = (y) => { for (let i = 1; i < CRY_PROF.length; i++) { const [r0, y0] = CRY_PROF[i - 1], [r1, y1] = CRY_PROF[i]; if (y <= y1) return r0 + (r1 - r0) * clamp((y - y0) / (y1 - y0), 0, 1); } return 0.001; };
+const CRY_GEO = (() => { const g = new THREE.LatheGeometry(CRY_PROF.map(([r, y]) => new THREE.Vector2(r, y)), 6).toNonIndexed(); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3)); g.computeVertexNormals(); return g; })();
+const CRY_MAT = gemMaterial(CRY_GEO, GEM_ENV, { ior: 1.95, disp: 0.12, dens: 0.42, bright: 1.6 }), CRY_MESH = new THREE.Mesh(CRY_GEO, CRY_MAT); CRY_MESH.renderOrder = 1; crySpin.add(CRY_MESH);
+// 色が流れる：front の高さを境に、下（上へ流れる時）／上（戻る時）が新しい色
+const CRY_TINTS = ['#ff86c0', '#b48cff', '#6aa8ff', '#6af0e4', '#7af09a', '#ffd870', '#ff9a7a'].map((c) => new THREE.Color(c).lerp(new THREE.Color(1, 1, 1), 0.2)), CC = new THREE.Color();
+function tintCrystal() { const col = CRY_GEO.attributes.color, pos = CRY_GEO.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const y = pos.getY(i), k = clamp((CRY.up ? CRY.front - y : y - CRY.front) / 0.35, 0, 1); CC.copy(CRY.from).lerp(CRY.to, k); col.setXYZ(i, CC.r, CC.g, CC.b); } col.needsUpdate = true; }
+const cryNow = (out) => out.copy(CRY.from).lerp(CRY.to, clamp(CRY.up ? (CRY.front + 0.35) / (CRY.h + 0.7) : (CRY.h + 0.35 - CRY.front) / (CRY.h + 0.7), 0, 1));   // いまの色（だいたい）
+// 足もとの光だまり（クリスタルの色）
+const CRY_POOL = new THREE.Mesh(new THREE.CircleGeometry(1.6, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: ctex(128, 128, (g) => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.45, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); }), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+CRY_POOL.position.set(CRY.x, 0.014, CRY.z); CRY_POOL.renderOrder = 3; scene.add(CRY_POOL);
+// きらめく所：六角の稜（角の線）の上
+const CRY_GL = []; for (let k = 0; k < 56; k++) { const y = k % 7 === 0 ? (k % 2 ? CRY.h : 0.02) : 0.1 + ((k * 0.37) % 1) * (CRY.h - 0.2), a = (k % 6) * (TAU / 6), r = cryR(y); CRY_GL.push({ l: new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r), ph: k * 2.3, w: 1.1 + (k % 7) * 0.23 }); }
 // 床と天井に散る虹（クリスタルが回るにつれて、ゆっくり回る）
 const RAINBOW = ctex(256, 64, (g) => { const gr = g.createLinearGradient(0, 0, 256, 0); ['#ff3040', '#ff9a30', '#ffe840', '#50ff70', '#40c8ff', '#6a60ff', '#c050ff'].forEach((c, i) => gr.addColorStop(i / 6, c)); g.fillStyle = gr; g.fillRect(0, 0, 256, 64); const m = g.createLinearGradient(0, 0, 0, 64); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.5, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = m; g.fillRect(0, 0, 256, 64); const e = g.createLinearGradient(0, 0, 256, 0); e.addColorStop(0, 'rgba(0,0,0,1)'); e.addColorStop(0.15, 'rgba(0,0,0,0)'); e.addColorStop(0.85, 'rgba(0,0,0,0)'); e.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = e; g.fillRect(0, 0, 256, 64); });
 const CAUS = []; for (let i = 0; i < 30; i++) { const ceil = i >= 20; CAUS.push({ a0: (i / 20) * TAU * 1.7 + (i % 3) * 0.4, r: ceil ? 0.6 + (i % 5) * 0.7 : 1.9 + ((i * 7) % 11) * 0.3, y: ceil ? HH - 0.03 : 0.012, len: 0.7 + ((i * 3) % 5) * 0.22, wd: 0.16 + (i % 3) * 0.06, ph: i * 1.7, ceil }); }
@@ -498,23 +504,23 @@ CRY_BEAM.renderOrder = 4; scene.add(CRY_BEAM);
 const CRY_FN = 170, CRY_FR = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), gemMaterial(new THREE.OctahedronGeometry(1, 0), GEM_ENV, { ior: 1.95, disp: 0.07, dens: 0.3, bright: 1.3 }), CRY_FN), CRY_FRAG = [];
 for (let i = 0; i < CRY_FN; i++) { CRY_FR.setMatrixAt(i, ZERO); CRY_FR.setColorAt(i, new THREE.Color().setHSL(i / CRY_FN, 0.8, 0.72)); } CRY_FR.frustumCulled = false; CRY_FR.renderOrder = 1; scene.add(CRY_FR);
 const SHOCK = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#d8e8ff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); SHOCK.position.y = 0.02; SHOCK.renderOrder = 4; scene.add(SHOCK); let shockT = 9;
-const cryTopW = (out) => out.set(0, 3.1 * 0.95 + 0.05, 0).applyMatrix4(crySpin.matrixWorld);
-// そっと触る：ワルツが1節進み、虹がはじける。続けて触るほど、ひずみがたまる
+const cryTopW = (out) => out.set(0, CRY.h, 0).applyMatrix4(crySpin.matrixWorld);
+// そっと触る：色が流れ、ワルツが1節進み、光がはじける。続けて触るほど、ひずみがたまる
 function crystalTap() { if (CRY.state !== 'ok') return; const now = nowS(); CRY.taps = CRY.taps.filter((t) => now - t < 1.2); CRY.taps.push(now); CRY.lastTap = now;
-  CRY.stress = Math.min(1.2, CRY.stress + (CRY.taps.length >= 3 ? 0.09 : 0.03)); CRY.glow = 1; CRY.notes++; SND.crystalPhrase(1);
-  crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, WHITE, 50, 1.4, true); flare(p, STAR6, '#ffffff', 2.6, 1.3);
+  CRY.stress = Math.min(1.2, CRY.stress + (CRY.taps.length >= 3 ? 0.09 : 0.03)); CRY.glow = 1; CRY.notes++; SND.crystalPhrase(0.7);
+  cryNow(CRY.from); CRY.ci = (CRY.ci + 1) % CRY_TINTS.length; CRY.to.copy(CRY_TINTS[CRY.ci]); CRY.up = true; CRY.front = -0.4; CRY.hold = 7;
+  crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, CRY.to, 50, 1.4, true); flare(p, STAR6, '#ffffff', 2.6, 1.3);
   if (CRY.stress >= 1) crystalTopple(); else if (CRY.stress > 0.45) SND.creakBig(CRY.stress); }
-// 倒れる：見る人の向こうへ、台の上の端を支点に
-function crystalTopple() {
-  if (CRY.state !== 'ok') return; CRY.state = 'toppling'; CRY.th = 0; CRY.w = 0.2; CRY.falls++; SND.groan();
-  CRY.dir.set(CRY.x - cam.position.x, 0, CRY.z - cam.position.z); if (CRY.dir.lengthSq() < 0.01) CRY.dir.set(0, 0, -1); CRY.dir.normalize();
-  const e = CRY.dir.clone().multiplyScalar(0.62); cryPivot.position.set(e.x, CRY.top + 0.08, e.z); crySpin.position.set(-e.x, 0, -e.z); }
+// 落ちる：見る人の向こうへ傾きながら、床へ
+function crystalTopple() { if (CRY.state !== 'ok') return; CRY.state = 'toppling'; CRY.vy = 0; CRY.tilt = 0; CRY.falls++; SND.groan();
+  CRY.dir.set(CRY.x - cam.position.x, 0, CRY.z - cam.position.z); if (CRY.dir.lengthSq() < 0.01) CRY.dir.set(0, 0, -1); CRY.dir.normalize(); }
 function crystalImpact() {
-  CRY.state = 'fallen'; CRY.t = 0; CRY_IM.visible = false; crySpin.updateMatrixWorld(true); const hit = cryTopW(new THREE.Vector3()).setY(0.05).lerp(V1.set(CRY.x, 0.05, CRY.z), 0.45);
-  // かけら：倒れた結晶の柱にそって生まれ、ぶつかった所から外へ飛ぶ。戻る時に帰る場所（立っていた時の結晶の中）を覚えておく
-  let n = 0; CRY_PTS.forEach((c, i) => { const m = i === 0 ? 60 : i < 9 ? 10 : 2; for (let j = 0; j < m && n < CRY_FN; j++, n++) { const f = (j + 0.5) / m, l = new THREE.Vector3(0, 0.1 + f * 2.8, 0).multiply(c.s).applyQuaternion(c.q).add(c.p);
-      const p = l.clone().applyMatrix4(crySpin.matrixWorld), v = p.clone().sub(hit).setY(0).normalize().multiplyScalar(rnd(2.5, 7.5) * (0.4 + f)).add(V2.set(rnd(-1.5, 1.5), rnd(1.5, 5.5), rnd(-1.5, 1.5)));
-      CRY_FRAG.push({ slot: n, p, v, r: new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6)), w: new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)), s: new THREE.Vector3(rnd(0.05, 0.1), rnd(0.09, 0.2), rnd(0.05, 0.1)).multiplyScalar(i === 0 ? 1.15 : i < 9 ? 0.8 : 0.5), home: l.clone().add(V2.set(0, CRY.top + 0.08, 0)).add(cryG.position), order: f, rest: false }); } });
+  CRY.state = 'fallen'; CRY.t = 0; CRY_MESH.visible = false; crySpin.updateMatrixWorld(true); const hit = cryTopW(new THREE.Vector3()).setY(0.05).lerp(V1.set(CRY.x, 0.05, CRY.z), 0.45);
+  // かけら：落ちた水晶の柱にそって生まれ、ぶつかった所から外へ飛ぶ。戻る時に帰る場所（浮かんでいた時の水晶の中）を覚えておく
+  for (let n = 0; n < CRY_FN; n++) { const f = (n + 0.5) / CRY_FN, a = n * 2.4, y = f * CRY.h, r = cryR(y) * 0.7 * Math.sqrt((n * 0.618) % 1), l = new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r);
+    const p = l.clone().applyMatrix4(crySpin.matrixWorld), v = p.clone().sub(hit).setY(0).normalize().multiplyScalar(rnd(2.5, 7.5) * (0.4 + f)).add(V2.set(rnd(-1.5, 1.5), rnd(1.5, 5.5), rnd(-1.5, 1.5)));
+    CRY_FRAG.push({ slot: n, p, v, r: new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6)), w: new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)), s: new THREE.Vector3(rnd(0.05, 0.1), rnd(0.09, 0.2), rnd(0.05, 0.1)), home: l.clone().add(V2.set(CRY.x, CRY.y0, CRY.z)), order: f, rest: false }); }
+  cryNow(CC); for (let n = 0; n < CRY_FN; n++) CRY_FR.setColorAt(n, HSL.copy(CC).lerp(WHITE, 0.35)); CRY_FR.instanceColor.needsUpdate = true;   // かけらは、割れた時の色
   SND.megaCrash(); CRY.quake = 1; shake = Math.max(shake, 0.06); shockT = 0; SHOCK.position.set(hit.x, 0.02, hit.z);
   flare(hit.clone().setY(0.8), STAR6, '#ffffff', 7, 0.9); burst(hit.clone().setY(0.6), WHITE, 160, 4.5, true);
   // 衝撃：近い展示ほど崩れやすい（衝撃が広がる速さで、近い所から順に）。ガラスのベンチ・ツリー・シャンデリア・ろうそくも
@@ -526,25 +532,28 @@ function stepCrystal(dt, now) {
   if (CRY.state === 'ok') {
     if (CRY.pressing) { CRY.stress += dt * 0.16; for (const th of [0.5, 0.65, 0.8, 0.92]) if (CRY.stress >= th && CRY.creakK < th) { CRY.creakK = th; SND.creakBig(th); } if (CRY.stress >= 1) { crystalTopple(); for (const s of ptrs.values()) if (s.crystal) s.mode = 'none'; } }
     else { CRY.stress = Math.max(0, CRY.stress - dt * 0.04); if (CRY.stress < 0.45) CRY.creakK = 0; }
-    CRY.rot += dt * 0.07; crySpin.rotation.set(Math.sin(now * 23) * 0.012 * CRY.stress * CRY.stress, CRY.rot, Math.sin(now * 19) * 0.012 * CRY.stress * CRY.stress);
+    CRY.rot += dt * 0.12; cryPivot.position.y = CRY.y0 + Math.sin(now * 0.8) * 0.05; crySpin.rotation.set(Math.sin(now * 23) * 0.012 * CRY.stress * CRY.stress, CRY.rot, Math.sin(now * 19) * 0.012 * CRY.stress * CRY.stress);
     // 近くにいると、ひとりでに小さく奏でる（触ってからしばらくは、触った曲のまま）
-    if (Math.hypot(cam.position.x - CRY.x, cam.position.z - CRY.z) < 5 && now - CRY.lastTap > 8 && (CRY.auto -= dt) <= 0) { CRY.auto = 6; SND.crystalPhrase(0.45); CRY.glow = Math.max(CRY.glow, 0.4); }
-  } else if (CRY.state === 'toppling') { CRY.w += (1.4 + 9 * Math.sin(Math.max(0.05, CRY.th))) * dt; CRY.th += CRY.w * dt; if (CRY.th >= 1.42) { CRY.th = 1.42; crystalImpact(); } }
+    if (Math.hypot(cam.position.x - CRY.x, cam.position.z - CRY.z) < 5 && now - CRY.lastTap > 8 && (CRY.auto -= dt) <= 0) { CRY.auto = 7; SND.crystalPhrase(0.35); CRY.glow = Math.max(CRY.glow, 0.35); }
+    // 色の流れ：上へ流れきったら、しばらくそのまま → 上から透明へ戻る
+    if (CRY.front < CRY.h + 0.4) { CRY.front += dt * (CRY.up ? 2.2 : 1.1); tintCrystal(); if (CRY.front >= CRY.h + 0.4 && !CRY.up) { CRY.from.copy(CRY.to); CRY.front = 9; } }
+    else if (CRY.hold > 0 && (CRY.hold -= dt) <= 0) { cryNow(CRY.from); CRY.to.setRGB(1, 1, 1); CRY.up = false; CRY.front = -0.4; }
+  } else if (CRY.state === 'toppling') { CRY.vy -= 9.8 * dt; cryPivot.position.y += CRY.vy * dt; CRY.tilt = Math.min(1.35, CRY.tilt + dt * (0.8 + CRY.tilt * 2.5)); if (cryPivot.position.y <= 0.02) { cryPivot.position.y = 0.02; crystalImpact(); } }
   else if (CRY.state === 'fallen') { CRY.t += dt;
     for (const f of CRY_FRAG) { if (f.rest) continue; f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); f.r.addScaledVector(f.w, dt); if (f.p.y < f.s.y) { f.p.y = f.s.y; f.v.y = Math.abs(f.v.y) * 0.3; f.v.x *= 0.62; f.v.z *= 0.62; f.w.multiplyScalar(0.6); if (Math.abs(f.v.y) < 0.2 && Math.hypot(f.v.x, f.v.z) < 0.1) f.rest = true; else if (Math.random() < 0.05) SND.tinkle(); } f.p.x = clamp(f.p.x, -HW + 0.2, HW - 0.2); f.p.z = clamp(f.p.z, -HL + 0.2, HL - 0.2); }
     if (CRY.t > 9) { CRY.state = 'restoring'; CRY.t = 0; for (const f of CRY_FRAG) f.from = f.p.clone(); SND.crystalRise(); } }
-  else if (CRY.state === 'restoring') { CRY.t += dt; const ease = (u) => u * u * (3 - 2 * u), up = ease(clamp(CRY.t / 1.0, 0, 1));
-    cryPivot.quaternion.setFromAxisAngle(V1.set(CRY.dir.z, 0, -CRY.dir.x), CRY.th * (1 - up));
+  else if (CRY.state === 'restoring') { CRY.t += dt; const ease = (u) => u * u * (3 - 2 * u);
     for (const f of CRY_FRAG) { const u = clamp((CRY.t - 0.6 - f.order * 1.4) / 0.9, 0, 1), e = ease(u); f.p.copy(f.from).lerp(f.home, e); f.p.y += Math.sin(u * Math.PI) * 0.8; f.k = u >= 1 ? 0 : 1; if (u > 0 && u < 1 && Math.random() < 0.15) put(SPARK, f.p, HSL.setHSL(f.order, 0.9, 0.7), 1); }
-    if (CRY.t > 0.9) { CRY_IM.visible = true; writeCry(clamp((CRY.t - 0.9) / 2.2, 0.001, 1)); }
-    if (CRY.t > 3.2) { CRY.state = 'ok'; CRY.stress = 0; CRY.th = 0; CRY.creakK = 0; CRY.restores++; cryPivot.position.set(0, 0, 0); cryPivot.quaternion.identity(); crySpin.position.set(0, CRY.top + 0.08, 0); writeCry(); for (const f of CRY_FRAG) CRY_FR.setMatrixAt(f.slot, ZERO); CRY_FRAG.length = 0; CRY_FR.instanceMatrix.needsUpdate = true; CRY.glow = 1; SND.crystalPhrase(1);
-      crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, WHITE, 80, 2.2, true); flare(p, STAR6, '#ffffff', 3.5, 1.6); } }
-  if (CRY.state === 'toppling' || CRY.state === 'fallen') cryPivot.quaternion.setFromAxisAngle(V1.set(CRY.dir.z, 0, -CRY.dir.x), CRY.th);
+    if (CRY.t > 0.9) { CRY.tilt = 0; cryPivot.position.y = CRY.y0; CRY_MESH.visible = true; CRY_MESH.scale.set(1, clamp((CRY.t - 0.9) / 2.2, 0.001, 1), 1); }
+    if (CRY.t > 3.2) { CRY.state = 'ok'; CRY.stress = 0; CRY.creakK = 0; CRY.restores++; CRY_MESH.scale.set(1, 1, 1); for (const f of CRY_FRAG) CRY_FR.setMatrixAt(f.slot, ZERO); CRY_FRAG.length = 0; CRY_FR.instanceMatrix.needsUpdate = true; CRY.glow = 1; SND.crystalPhrase(0.7);
+      CRY.from.setRGB(1, 1, 1); CRY.to.setRGB(1, 1, 1); CRY.front = 9; tintCrystal(); crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, WHITE, 80, 2.2, true); flare(p, STAR6, '#ffffff', 3.5, 1.6); } }
+  cryPivot.quaternion.setFromAxisAngle(V1.set(CRY.dir.z, 0, -CRY.dir.x), CRY.state === 'toppling' || CRY.state === 'fallen' ? CRY.tilt : 0);
   if (CRY_FRAG.length) { for (const f of CRY_FRAG) { M4.compose(f.p, Q.setFromEuler(E.set(f.r.x, f.r.y, f.r.z)), V2.copy(f.s).multiplyScalar(f.k ?? 1)); CRY_FR.setMatrixAt(f.slot, M4); } CRY_FR.instanceMatrix.needsUpdate = true; }
-  // 光：触ると虹色に光り、ゆっくり静まる。ひずみがたまると、白い光がちらつく
+  // 光：触ると、いまの色で内側がふわっと光り、ゆっくり静まる。ひずみがたまると、白い光がちらつく。足もとの光だまりも同じ色
   CRY.glow = Math.max(0, CRY.glow - dt * 0.5); CRY.quake = Math.max(0, CRY.quake - dt * 0.7); shake = Math.max(shake, CRY.quake * CRY.quake * 0.05);
-  HSL.setHSL((now * 0.15) % 1, 0.9, 0.6); CRY_MAT.uniforms.uEmis.value.copy(HSL).multiplyScalar(CRY.glow * 0.35).addScalar(CRY.stress > 0.5 && Math.random() < CRY.stress - 0.4 ? 0.25 : 0); CRY_MAT.uniforms.uLight.value.setScalar(1.05 + CRY.glow * 0.5);
-  if (CRY.state === 'ok' || CRY.state === 'toppling') { crySpin.updateMatrixWorld(); for (const g of CRY_GL) { const tw = Math.pow(Math.max(0, Math.sin(now * g.w + g.ph)), 18) * (1 + CRY.glow * 1.5); if (tw < 0.04) continue; V1.copy(g.l).multiply(g.c.s).applyQuaternion(g.c.q).add(g.c.p).applyMatrix4(crySpin.matrixWorld); put(GLINT, V1, HSL.setHSL((g.ph * 0.13 + now * 0.05) % 1, 0.7, 0.8), Math.min(1.8, tw * 1.6)); } }
+  cryNow(CC); CRY_MAT.uniforms.uEmis.value.copy(CC).multiplyScalar(CRY.glow * 0.3).addScalar(CRY.stress > 0.5 && Math.random() < CRY.stress - 0.4 ? 0.25 : 0); CRY_MAT.uniforms.uLight.value.setScalar(1.05 + CRY.glow * 0.5);
+  const lift = cryPivot.position.y; CRY_POOL.material.color.copy(CC).multiplyScalar((CRY.state === 'ok' ? 0.22 + CRY.glow * 0.35 : 0) * clamp(1.6 - lift * 0.6, 0.3, 1));
+  if (CRY.state === 'ok' || CRY.state === 'toppling') { crySpin.updateMatrixWorld(); for (const g of CRY_GL) { const tw = Math.pow(Math.max(0, Math.sin(now * g.w + g.ph)), 18) * (1 + CRY.glow * 1.5); if (tw < 0.04) continue; V1.copy(g.l).applyMatrix4(crySpin.matrixWorld); put(GLINT, V1, HSL.setHSL((g.ph * 0.13 + now * 0.05) % 1, 0.7, 0.8), Math.min(1.8, tw * 1.6)); } }
   const on = CRY.state === 'ok' ? 1 : CRY.state === 'restoring' ? clamp(CRY.t / 3.2, 0, 1) : 0;
   CAUS.forEach((c, i) => { const a = c.a0 + CRY.rot * (c.ceil ? -1.6 : 2.0), x = CRY.x + Math.cos(a) * c.r, z = CRY.z + Math.sin(a) * c.r, k = on * (0.55 + 0.25 * Math.sin(now * 1.3 + c.ph) + CRY.glow * 0.6);
     M4.compose(V1.set(x, c.y, z), Q.setFromEuler(E.set(-Math.PI / 2, 0, -a + (c.ceil ? 0.6 : 0.25))), V2.set(c.len, c.wd, 1)); CAUS_IM.setMatrixAt(i, M4); CAUS_IM.setColorAt(i, HSL.setRGB(k, k, k)); });
@@ -893,7 +902,7 @@ function standFor(ex, withFree = true) {   // withFree＝飛んでいる宝石�
     const e0 = new THREE.Vector3(c.x, EYE, c.z), seg = p.clone().sub(e0), L = seg.length(); seg.normalize(); let clear = true;
     for (const o of exhibits) { if (o === ex) continue; const q = o.holder.getWorldPosition(new THREE.Vector3()), t = clamp(V2.copy(q).sub(e0).dot(seg), 0, L), near = V2.copy(e0).addScaledVector(seg, t);
       if (o.type === 'free' ? withFree && near.distanceTo(q) < 0.5 : Math.hypot(near.x - o.grp.position.x, near.z - o.grp.position.z) < (o.type === 'case' ? 0.85 : 0.62)) { clear = false; break; } }   // ケースはガラスが目の高さ近くまである
-    if (clear) for (let s = 0; s <= 10; s++) { const t = (s / 10) * L; if (Math.hypot(e0.x + seg.x * t - TREE.x, e0.z + seg.z * t - TREE.z) < 2.0 || Math.hypot(e0.x + seg.x * t - CRY.x, e0.z + seg.z * t - CRY.z) < 1.1) { clear = false; break; } }
+    if (clear) for (let s = 0; s <= 10; s++) { const t = (s / 10) * L; if (Math.hypot(e0.x + seg.x * t - TREE.x, e0.z + seg.z * t - TREE.z) < 2.0 || Math.hypot(e0.x + seg.x * t - CRY.x, e0.z + seg.z * t - CRY.z) < 0.6) { clear = false; break; } }
     if (clear) return c;
   }
   return null;
@@ -908,7 +917,7 @@ addEventListener('resize', size); size();
 function walkable(v) {
   v.x = clamp(v.x, -HW + 1.0, HW - 1.0); v.z = clamp(v.z, -HL + 0.7, HL - 0.7);
   for (const o of OBST) { const dx = v.x - o.x, dz = v.z - o.z, d = Math.hypot(dx, dz); if (d < o.r) { v.x = o.x + (dx / (d || 1)) * o.r; v.z = o.z + (dz / (d || 1)) * o.r; } }
-  { const dx = v.x - CRY.x, dz = v.z - CRY.z, d = Math.hypot(dx, dz); if (d < 1.8) { v.x = CRY.x + (dx / (d || 1)) * 1.8; v.z = CRY.z + (dz / (d || 1)) * 1.8; } }   // クリスタルの台
+  { const dx = v.x - CRY.x, dz = v.z - CRY.z, d = Math.hypot(dx, dz); if (d < 0.65) { v.x = CRY.x + (dx / (d || 1)) * 0.65; v.z = CRY.z + (dz / (d || 1)) * 0.65; } }   // 宙のクリスタル（すぐそばまで寄れる）
   const dx = v.x - TREE.x, dz = v.z - TREE.z, d = Math.hypot(dx, dz); if (d < 2.3) { v.x = TREE.x + (dx / (d || 1)) * 2.3; v.z = TREE.z + (dz / (d || 1)) * 2.3; }
   for (const b of BENCHES) { const ox = 0.62 - Math.abs(v.x - b.x), oz = 1.3 - Math.abs(v.z - b.z); if (ox > 0 && oz > 0) { if (ox < oz) v.x += Math.sign(v.x - b.x || 1) * ox; else v.z += Math.sign(v.z - b.z || 1) * oz; } }
   return v;
@@ -922,7 +931,7 @@ function hitAt(x, y) {
   for (const e of exhibits) { const o = e.gem.group; if (o.parent !== scene || !o.visible) continue; if (ray.ray.distanceSqToPoint(o.position) < (e.gem.radius * 1.05) ** 2) { const t = V2.copy(o.position).sub(ray.ray.origin).dot(ray.ray.direction); if (t < bt) { bt = t; best = e; } } }
   if (best) return { ex: best, onFloor: true };
   // クリスタル（台の上の、たてに長い円柱で当てる）
-  let cryT = Infinity; if (CRY.state === 'ok') { const o = ray.ray.origin, d = ray.ray.direction, ox = o.x - CRY.x, oz = o.z - CRY.z, a = d.x * d.x + d.z * d.z, b = 2 * (ox * d.x + oz * d.z), c = ox * ox + oz * oz - 0.49, disc = b * b - 4 * a * c; if (a > 1e-6 && disc >= 0) { const t = (-b - Math.sqrt(disc)) / (2 * a), y = o.y + d.y * t; if (t > 0 && y > CRY.top && y < CRY.top + 3.3) cryT = t; } }
+  let cryT = Infinity; if (CRY.state === 'ok') { const o = ray.ray.origin, d = ray.ray.direction, ox = o.x - CRY.x, oz = o.z - CRY.z, a = d.x * d.x + d.z * d.z, b = 2 * (ox * d.x + oz * d.z), c = ox * ox + oz * oz - 0.2, disc = b * b - 4 * a * c; if (a > 1e-6 && disc >= 0) { const t = (-b - Math.sqrt(disc)) / (2 * a), y = o.y + d.y * t, y0 = cryPivot.position.y; if (t > 0 && y > y0 && y < y0 + CRY.h) cryT = t; } }
   // 宙の飾り（小さいので、少し大きめの球で当てる）
   let dec = null, dt = 1e9; const tryBall = (kind, i, p, r) => { if (ray.ray.distanceSqToPoint(p) < r * r) { const t = V2.copy(p).sub(ray.ray.origin).dot(ray.ray.direction); if (t > 0 && t < dt) { dt = t; dec = { kind, i }; } } };
   BAUBLES.forEach((b, i) => b.p && tryBall('bauble', i, b.p, b.s * 1.6)); STARS.forEach((s, i) => s.p && tryBall('star', i, s.p, s.s * 1.3)); ALL_CANDLES.forEach((c, i) => tryBall('candle', i, V3.set(c.x, (c.top || c.y) - c.h / 2, c.z).clone(), 0.16));
@@ -966,6 +975,13 @@ cvs.addEventListener('wheel', (e) => { fovZ = clamp(fovZ * (1 + Math.sign(e.delt
 // キー：文字ではなく「キーの場所」で受ける（日本語入力がオンだと、押した時の文字が届かない）。
 // 離した知らせが届かないことがある（本人「離しても止まらない」が2度）。押しっぱなしの間はくり返しの知らせが続くので、
 // 最後に押したキーの知らせが途切れたら、離したとみなす。前に押したキー（くり返しが止まる）は、離した知らせを信じる
+// 左の丸：上下＝前・後ろ、左右＝横へ（港町と同じ。床をタップして歩くより、思った所へ寄りやすい）
+const joy = { x: 0, y: 0, id: null };
+{ const J = document.getElementById('joy'), K = document.getElementById('knob'), setK = (x, y) => { K.style.transform = `translate(${x * 39}px, ${y * 39}px)`; };
+  const mv = (e) => { const r = J.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2), L = Math.hypot(dx, dy), k = L > 1 ? 1 / L : 1; joy.x = dx * k; joy.y = dy * k; setK(joy.x, joy.y); };
+  J.addEventListener('pointerdown', (e) => { J.setPointerCapture(e.pointerId); joy.id = e.pointerId; walkTo = null; SND.audio(); mv(e); });
+  J.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) mv(e); });
+  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) J.addEventListener(t, (e) => { if (e.pointerId === joy.id) { joy.id = null; joy.x = joy.y = 0; setK(0, 0); } }); }
 const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', KeyQ: 'tl', KeyE: 'tr' };
 let lastKey = null, imeSaid = false;
 addEventListener('keydown', (e) => {
@@ -988,7 +1004,7 @@ const STEP = 1 / 60, LOOK = new THREE.Vector3();
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), now = nowS();
   // 歩く：床をタップした所へ。キーなら W/S＝前後・A/D＝横・←→（Q/E）＝向き
-  readKeys(now); const K = (k) => (keys.has(k) ? 1 : 0), kz = K('f') - K('b'), kx = K('r') - K('l'); tYaw += (K('tl') - K('tr')) * dt * 1.7;
+  readKeys(now); const K = (k) => (keys.has(k) ? 1 : 0), dz = (v) => (Math.abs(v) > 0.12 ? v : 0), kz = K('f') - K('b') - dz(joy.y), kx = K('r') - K('l') + dz(joy.x); tYaw += (K('tl') - K('tr')) * dt * 1.7;
   const fw = V3.set(Math.sin(yaw), 0, Math.cos(yaw)); let moved = 0;
   if (kx || kz) { walkTo = null; const st = dt * 2.4; me.addScaledVector(fw, kz * st).add(V2.set(-fw.z, 0, fw.x).multiplyScalar(kx * st)); moved = st; }
   else if (walkTo) { const d = V2.copy(walkTo).sub(me).setY(0), L = d.length(); if (L < 0.03) walkTo = null; else { const st = Math.min(L, dt * Math.min(2.6, 0.7 + L * 1.6)); me.addScaledVector(d.multiplyScalar(1 / L), st); moved = st; } }
@@ -1056,10 +1072,10 @@ function frame() {
   for (const o of tree.orns) { const tw = Math.pow(Math.max(0, Math.sin(now * 1.3 + o.i * 1.7)), 24); if (tw > 0.05) put(GLINT, V2.copy(o.p).add(tree.grp.position), o.col, tw); }
   for (const f of flares) if (f.t < f.T) { f.t += dt; const u = f.t / f.T; f.s.scale.setScalar(f.max * (0.3 + 0.7 * Math.sin(Math.min(1, u * 1.5) * Math.PI * 0.5))); f.s.material.opacity = Math.sin(u * Math.PI); if (f.t >= f.T) f.s.visible = false; }
   if (shardMat.emissiveIntensity > 0) shardMat.emissiveIntensity = Math.max(0, shardMat.emissiveIntensity - dt * 0.5);
-  stepCrystal(dt, now); stepLighting(dt, now);
+  stepCrystal(dt, now); stepLighting(dt, now); cullFaint();
   for (const L of [GLINT, SPARK, HEARTS, BUBBLES, FLAME, FLAMEC, DUST, HALO]) { L.g.setDrawRange(0, L.n); L.g.attributes.position.needsUpdate = L.g.attributes.color.needsUpdate = true; } GLINT.n = 0;
   sky.update(cam.position, now); renderer.render(scene, cam);
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } else if ((fAcc / fN) * 1000 > 24 && SRC[0].mat.uniforms.uN.value > 5) for (const src of SRC) src.mat.uniforms.uN.value = 5; fAcc = 0; fN = 0; } }
+  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } else if ((fAcc / fN) * 1000 > 24 && SRC[0].mat.uniforms.uN.value > 5) for (const src of SRC) src.mat.uniforms.uN.value = 5; fAcc = 0; fN = 0; } }
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles}\n${exhibits.map((e) => e.state[0]).join('')} tree ${tree.state} win ${winPainted}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }
@@ -1074,10 +1090,12 @@ rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticCo
   LOADT.push(["windows", performance.now()]); buildMoon(); LOADT.push(["moon", performance.now()]);
   // 絵の具（シェーダー）を、先にまとめて用意する（歩いて初めて見えた宝石の所で、画面が引っかからないように）
   { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3)); const m = new THREE.Mesh(g, shardMat); m.frustumCulled = false; scene.add(m); }   // ガラスのかけらの絵の具も（大きさのない三角1枚で、先に用意させる）
+  scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; });   // 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
+  scene.traverse((o) => { const m = o.material; if (!m || Array.isArray(m)) return; if (m.transparent && m.blending === THREE.AdditiveBlending && (o.isSprite || o.isMesh) && !o.isInstancedMesh) FADERS.push(m); if (o.userData.plaque) PLAQUES.push(o); });
   try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
   LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; ready = true; window.__ok = true; clock.getDelta(); frame(); setTimeout(readMoon, 1200);
 })();
-if (fpsEl) window.__dbg = { exhibits, tree, cam, freeze: (v) => { FREEZE = v; }, loadT: () => LOADT.map(([k, t], i) => [k, Math.round(t - (i ? LOADT[i - 1][1] : 0))]),
+if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer, freeze: (v) => { FREEZE = v; }, loadT: () => LOADT.map(([k, t], i) => [k, Math.round(t - (i ? LOADT[i - 1][1] : 0))]),
   // 展示 i の前（通路の側 2.2m）に立って、宝石を見る
   face: (i) => { const p = exhibits[i].holder.getWorldPosition(new THREE.Vector3()), st = standFor(exhibits[i]); if (st) me.copy(st); else { me.set(p.x - Math.sign(p.x || 1) * 2.2, 0, p.z); walkable(me); } walkTo = null; yaw = tYaw = Math.atan2(p.x - me.x, p.z - me.z); pitch = tPitch = Math.atan2(p.y - EYE, Math.hypot(p.x - me.x, p.z - me.z)); return !!st; },
   faceTree: () => { me.set(0, 0, TREE.z + 5.2); walkTo = null; yaw = tYaw = Math.PI; pitch = tPitch = 0.12; },
@@ -1097,5 +1115,6 @@ if (fpsEl) window.__dbg = { exhibits, tree, cam, freeze: (v) => { FREEZE = v; },
   shardOrder: (i) => (exhibits[i].shards ? exhibits[i].shards.map((s) => [s.edge, s.delay]) : []),
   press: (i) => exhibits[i].press, glassVisible: (i) => !!(exhibits[i].glass && exhibits[i].glass.visible), timbres: () => SND.TIMBRES,
   hit: (x, y) => { const h = hitAt(x, y); return h ? (h.ex ? [h.ex.i, h.onFloor] : h.crystal ? 'crystal' : h.tree ? 'tree' : h.decor ? h.decor.kind : h.bench ? 'bench' : 'floor') : null; },
-  crystal: () => ({ state: CRY.state, stress: +CRY.stress.toFixed(3), notes: CRY.notes, falls: CRY.falls, restores: CRY.restores, frags: CRY_FRAG.length, vis: CRY_IM.visible, quake: +CRY.quake.toFixed(2) }), crystalW: () => [CRY.x, 1.7, CRY.z], crystalTap: () => crystalTap(), smash: (i) => disaster(exhibits[i], 'tap') };
+  crystal: () => ({ state: CRY.state, stress: +CRY.stress.toFixed(3), notes: CRY.notes, falls: CRY.falls, restores: CRY.restores, frags: CRY_FRAG.length, vis: CRY_MESH.visible, quake: +CRY.quake.toFixed(2), y: +cryPivot.position.y.toFixed(2) }), crystalW: () => [CRY.x, CRY.y0 + 1.0, CRY.z],
+  crystalTint: () => { const c = CRY_GEO.attributes.color, p = CRY_GEO.attributes.position; let lo = null, hi = null; for (let i = 0; i < p.count; i++) { if (!lo || p.getY(i) < lo[0]) lo = [p.getY(i), c.getX(i), c.getY(i), c.getZ(i)]; if (!hi || p.getY(i) > hi[0]) hi = [p.getY(i), c.getX(i), c.getY(i), c.getZ(i)]; } return [lo.slice(1).map((v) => +v.toFixed(2)), hi.slice(1).map((v) => +v.toFixed(2)), CRY.front, CRY.up]; }, crystalTap: () => crystalTap(), smash: (i) => disaster(exhibits[i], 'tap') };
 </script></body></html>

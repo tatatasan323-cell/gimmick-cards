@@ -522,17 +522,22 @@ function surfaceAt(x, z) { const p = GROUND.geometry.attributes.position, fx = (
   return Math.max(h, r); }
 const BLOB_B = 0.688;   // ぷよの形の底（中心から、半径1あたり）
 // ぷよを何度もつつくと（5秒に7回）、羽が生えて天使の輪がつき、空へ昇って消える。しばらくすると、空から落ちてきて元どおり
-const WING_G = (() => { const w = new THREE.Shape(); w.moveTo(0, 0); w.bezierCurveTo(0.25, 0.34, 0.75, 0.42, 1.0, 0.26); w.bezierCurveTo(0.84, 0.16, 0.88, 0.08, 0.7, 0.02); w.bezierCurveTo(0.62, -0.05, 0.62, -0.12, 0.46, -0.12); w.bezierCurveTo(0.36, -0.17, 0.3, -0.2, 0.14, -0.14); w.closePath();
-  return new THREE.ExtrudeGeometry(w, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 10 }).translate(0, 0, -0.02); })();
-const WING_M = gel('#ffffff', { glow: '#fff2cc', gl: 1.1 }), HALO_GEO = new THREE.TorusGeometry(0.42, 0.055, 8, 36).rotateX(Math.PI / 2), HALO_M = new THREE.MeshBasicMaterial({ color: '#ffe07a' }); WING_M.side = THREE.DoubleSide;
+// 翼：羽根を3列（長い風切り羽・中の羽・短い雨覆い）、扇に重ねる。根元が原点、外（+x）へ広がり、先へ行くほど長い。1つの形にまとめる
+const WING_G = (() => { const acc = new SW.Acc(), feather = (len, wid) => { const f = new THREE.Shape(); f.moveTo(0, 0); f.quadraticCurveTo(wid, len * 0.35, wid * 0.5, len * 0.86); f.quadraticCurveTo(0.02, len * 1.04, -wid * 0.35, len * 0.82); f.quadraticCurveTo(-wid * 0.6, len * 0.3, 0, 0); return new THREE.ShapeGeometry(f, 6); };
+  for (const [n, len, wid, z, a0, a1] of [[8, 1.0, 0.17, -0.012, -0.45, -1.75], [7, 0.66, 0.17, 0, -0.35, -1.55], [6, 0.38, 0.15, 0.012, -0.2, -1.3]]) for (let k = 0; k < n; k++) { const u = k / (n - 1), L = len * (0.7 + 0.45 * u);
+    acc.add('w', feather(L, wid).rotateZ(a0 + (a1 - a0) * u).translate(u * 0.85 * (1 - 0.25 * z * 40), 0.28 * Math.sin(u * Math.PI * 0.9) + 0.12 * u, z)); }
+  return acc.build({ w: null })[0].geometry; })();
+const WING_M = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.4, sheen: 1, sheenColor: new THREE.Color('#fff2d6'), sheenRoughness: 0.4, emissive: '#fff0d4', emissiveIntensity: 0.38, side: THREE.DoubleSide });
+const HALO_GEO = new THREE.TorusGeometry(0.42, 0.055, 8, 36).rotateX(Math.PI / 2), HALO_M = new THREE.MeshBasicMaterial({ color: '#ffe07a' });
 function angelize(b) {
-  if (!b.wings) { b.wings = [-1, 1].map((sd) => { const piv = new THREE.Group(); piv.position.set(sd * b.r * 0.5, b.r * 0.8, -b.r * 0.4); const m = new THREE.Mesh(WING_G, WING_M); m.scale.set(sd * b.r * 0.95, b.r * 0.95, b.r * 0.95); piv.add(m); b.grp.add(piv); return piv; });
+  if (!b.wings) { b.wings = [-1, 1].map((sd) => { const piv = new THREE.Group(); piv.position.set(sd * b.r * 0.3, b.r * 1.0, -b.r * 0.72); const m = new THREE.Mesh(WING_G, WING_M); m.scale.set(sd * b.r * 1.35, b.r * 1.35, b.r * 1.35); piv.add(m); b.grp.add(piv); return piv; });   // 付け根は背中の表面の少し内側（体の中心から0.84r）
     b.halo = new THREE.Group(); b.halo.add(new THREE.Mesh(HALO_GEO, HALO_M), sprite('#ffe9a0', 1.6, 0.55)); b.halo.scale.setScalar(b.r); b.grp.add(b.halo); }
   for (const w of b.wings) w.visible = true; b.halo.visible = true; b.grp.quaternion.setFromAxisAngle(UP, b.yaw ?? 0);
-  b.angel = { st: 'up', t: 0, y0: b.grp.position.y }; b.hop = 0; b.hv = 0; SND.ascend(); counts.angels++;
+  b.body.position.y = b.face.position.y = b.r * BLOB_B - 0.02; b.body.scale.setScalar(b.r); b.face.scale.setScalar(b.r);   // 跳ねた途中の体を元へ（そのままだと、体だけ1.7m上に浮いて、羽と輪から離れていた）
+  b.angel = { st: 'up', t: 0, y0: b.grp.position.y }; b.hop = 0; b.hv = 0; b.v = 0; b.s = 0; SND.ascend(); counts.angels++;
 }
 function stepAngel(b, dt, t) { const A = b.angel, P = b.grp.position; A.t += dt;
-  if (A.st === 'up') { const k = A.t; P.y = A.y0 + 0.42 * k * k + 0.5 * k; P.x += Math.sin(k * 1.7 + b.t0) * dt * 0.5; b.wings.forEach((w, i) => { const sd = i ? 1 : -1; w.rotation.set(0, -sd * 0.55, sd * (0.2 + 0.6 * Math.sin(t * 13))); });
+  if (A.st === 'up') { const k = A.t; P.y = A.y0 + 0.42 * k * k + 0.5 * k; P.x += Math.sin(k * 1.7 + b.t0) * dt * 0.5; b.wings.forEach((w, i) => { const sd = i ? 1 : -1, f = Math.sin(t * 8); w.rotation.set(0.15, -sd * (0.6 + 0.12 * f), sd * (0.3 + 0.5 * f)); });   // ゆったり大きくはばたく
     b.halo.position.y = b.r * 1.7 + Math.sin(t * 3) * 0.05; b.halo.rotation.z = Math.sin(t * 2) * 0.12; b.grp.scale.setScalar(clamp(8 - A.t, 0.01, 1));
     if (A.t > 8) { A.st = 'gone'; A.t = 0; b.grp.visible = false; } }
   else if (A.st === 'gone') { if (A.t > 18) { A.st = 'fall'; A.t = 0; A.v = 0; b.grp.visible = true; b.grp.scale.setScalar(1); for (const w of b.wings) w.visible = false; b.halo.visible = false; P.set(b.home[0] + rnd(-1, 1), A.y0 + 38, b.home[1] + rnd(-1, 1)); SND.fall(); } }
@@ -759,7 +764,8 @@ function tapAt(x, y) {
   if (hit.kind === 'sea') { seaWave(hit.point.x, hit.point.z); return { kind: 'sea' }; }
   if (hit.kind === 'house') { bite(hit.point, hit.normal); return { kind: 'house' }; }
   const o = hit.o;
-  if (o && o.kind === 'trivia') { const first = !found.has(o.id); found.add(o.id); $('fN').textContent = found.size; o.mk.material.color.set('#9fd0ff'); showTrivia(o, first); if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
+  // 鐘・空のサンタ・ツリーは、豆知識を見たあとは、さわるたびに鳴る・光るだけ（毎回、綿あめの雲が画面をおおうと、続けて叩けなかった）
+  if (o && o.kind === 'trivia') { const first = !found.has(o.id), play = o.id === 'silent' || o.id === 'norad' || o.id === 'tree'; if (first || !play) { found.add(o.id); $('fN').textContent = found.size; o.mk.material.color.set('#9fd0ff'); showTrivia(o, first); } if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
   if (o && o.kind === 'gb') { gbBite(o); return o; }
   if (o && o.kind === 'puyo') { if (o.angel) return o; o.v += 7; o.hv = 4.2; SND.boing(o.r * 2); counts.boing++; const n = nowS(); o.taps = (o.taps || []).filter((x) => n - x < 5); o.taps.push(n); if (o.walk && o.taps.length >= 7) { o.taps = []; angelize(o); } return o; }
   if (o && o.kind === 'area') { SND.whoosh(); counts.focus++; o.seen = true; if (o.id === 'teddy') { TEDDY.userData.squish = 1; TOY.g.userData.wob = 1; counts.teddy++; SND.boing(3); } const c = o.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + o.view.h * 0.4); flyTo(look, look, o.view.d, o.view.h); showCard(o.name, o.sub, o.text, o.link || o.id === 'teddy' ? '' : '準備中', o.link); return o; }
@@ -900,7 +906,7 @@ function frame() {
   { const W = TOY.g.userData; if (W.base == null) W.base = TOY.g.scale.x; if (W.wob > 0) { W.wob = Math.max(0, W.wob - dt * 0.55); const w = Math.sin(t * 12) * 0.045 * W.wob; TOY.g.scale.set(W.base * (1 - w * 0.6), W.base * (1 + w), W.base * (1 - w * 0.6)); for (const m of GUMMY_HOUSE.all) m.userData.U.uWob.value = W.wob * 0.5; } }   // グミの店：触ると、建物ごとぷるんぷるん
   // かじり跡は、45秒たつと少しずつふさがる
   for (let k = 0; k < 32; k++) { const B = SW.BITES[k]; if (B.w <= 0) continue; const age = t - BITE_T[k];
-    if (age > 10 && !BITE_M[k]) { BITE_M[k] = 1; const c = new THREE.Vector3(B.x, B.y, B.z), home = { pull: true, m: { getWorldPosition: (v) => v.copy(c) } }; for (let i = 0; i < 12; i++) crumbs(c.clone().add(V1.set(rnd(-0.9, 0.9), rnd(-0.4, 0.5), rnd(-0.9, 0.9))), 1, home, 0.02); SND.chime(5); counts.heals++; }
+    if (age > 10 && !BITE_M[k]) { BITE_M[k] = 1; const c = new THREE.Vector3(B.x, B.y, B.z), home = { pull: true, m: { getWorldPosition: (v) => v.copy(c) } }; for (let i = 0; i < 12; i++) crumbs(c.clone().add(V1.set(rnd(-0.9, 0.9), rnd(-0.4, 0.5), rnd(-0.9, 0.9))), 1, home, 0.02); SND.suzu(); counts.heals++; }
     if (age > 10.6) B.w = BITE_R[k] * Math.max(0, 1 - (age - 10.6) / 1.2); CAV[k].scale.setScalar(B.w * 1.12); CAV[k].visible = B.w > 0; }
   // 仕掛けのある建物の電球：色が順に流れる
   if (((t * 3) | 0) !== FESTOONS.step) { FESTOONS.step = (t * 3) | 0; for (const geo of FESTOONS) { const c = geo.attributes.color; for (let i = 0; i < c.count; i++) { const B = BULB[(i + FESTOONS.step) % BULB.length], k = (i + FESTOONS.step) % 3 ? 0.9 : 1.4; c.setXYZ(i, B.r * k, B.g * k, B.b * k); } c.needsUpdate = true; } }
@@ -922,13 +928,13 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   cotCover: (pts) => { const c = document.createElement('canvas'); c.width = COT.cv.width; c.height = COT.cv.height; const g = c.getContext('2d', { willReadFrequently: true }), d = COT.B.dpr; g.drawImage(COT.cv, 0, 0);   // 写しから読む（雲の絵そのものから読むと、読み出しの警告が出る）
     if (pts) return pts.map(([x, y]) => g.getImageData(x * d, y * d, 1, 1).data[3]); const D = g.getImageData(0, 0, c.width, c.height).data; let n = 0, m = 0; for (let i = 3; i < D.length; i += 64) { m++; if (D[i] > 128) n++; } return n / m; },
   puyoGround: () => { const rc = new THREE.Raycaster(), B = new THREE.Box3(), seen = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; }; scene.updateMatrixWorld(); const M = []; scene.traverse((o) => { if (o.isMesh) M.push(o); });
-    // ぷよごとに、体のいちばん低い4点の真下の、見える地面との差（いちばん深い所）。坂では底のふちが下がるので、中心の真下では測らない
+    // 散ったくず（並べて描く物）は地面に数えない。ぷよごとに、体のいちばん低い4点の真下の、見える地面との差（いちばん深い所）。坂では底のふちが下がるので、中心の真下では測らない
     const mine = (o) => PUYOS.some((p) => { for (let q = o; q; q = q.parent) if (q === p.grp) return true; return false; }), down = new THREE.Vector3(0, -1, 0);
     return PUYOS.map((b, i) => { const pa = b.body.geometry.attributes.position, W = []; for (let k = 0; k < pa.count; k++) W.push(new THREE.Vector3().fromBufferAttribute(pa, k).applyMatrix4(b.body.matrixWorld)); W.sort((p, q) => p.y - q.y);
-      let d = 9, kind = null; for (const v of W.slice(0, 4)) { rc.set(new THREE.Vector3(v.x, v.y + 0.6, v.z), down); const h = rc.intersectObjects(M, false).find((h) => seen(h.object) && h.object.material.visible !== false && !h.object.material.transparent && !mine(h.object)); if (h && v.y - h.point.y < d) { d = v.y - h.point.y; kind = [h.object.geometry.type, +(h.point.y - surfaceAt(v.x, v.z)).toFixed(3), '#' + (h.object.material.color ? h.object.material.color.getHexString() : '')]; } }
+      let d = 9, kind = null; for (const v of W.slice(0, 4)) { rc.set(new THREE.Vector3(v.x, v.y + 0.6, v.z), down); const h = rc.intersectObjects(M, false).find((h) => seen(h.object) && !h.object.isInstancedMesh && h.object.material.visible !== false && !h.object.material.transparent && !mine(h.object)); if (h && v.y - h.point.y < d) { d = v.y - h.point.y; kind = [h.object.geometry.type, +(h.point.y - surfaceAt(v.x, v.z)).toFixed(3), '#' + (h.object.material.color ? h.object.material.color.getHexString() : '')]; } }
       return [i, +d.toFixed(3), kind, b.walk, +b.hop.toFixed(3)]; }); },
-  toyWob: () => TOY.g.userData.wob, gbWallMax: () => GBS[0].m.geometry.attributes.aWall ? Math.max(...GBS[0].m.geometry.attributes.aWall.array.filter((v, i) => i % 4 === 3)) : 0,
-  angel: (i) => { const b = PUYOS[i]; return { st: b.angel ? b.angel.st : null, y: +b.grp.position.y.toFixed(2), vis: b.grp.visible, wings: !!(b.wings && b.wings[0].visible), halo: !!(b.halo && b.halo.visible) }; }, angelT: (i, t) => { if (PUYOS[i].angel) PUYOS[i].angel.t = t; },
+  toyWob: () => TOY.g.userData.wob, bellSwing: () => BELL.userData.swing || 0, gbWallMax: () => GBS[0].m.geometry.attributes.aWall ? Math.max(...GBS[0].m.geometry.attributes.aWall.array.filter((v, i) => i % 4 === 3)) : 0,
+  angel: (i) => { const b = PUYOS[i]; return { st: b.angel ? b.angel.st : null, y: +b.grp.position.y.toFixed(2), vis: b.grp.visible, wings: !!(b.wings && b.wings[0].visible), halo: !!(b.halo && b.halo.visible) }; }, angelT: (i, t) => { if (PUYOS[i].angel) PUYOS[i].angel.t = t; }, angelParts: (i) => { const b = PUYOS[i], w = (o) => o.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)); return { grp: w(b.grp), body: w(b.body), halo: b.halo ? w(b.halo) : null, wingL: b.wings ? w(b.wings[0]) : null, wingR: b.wings ? w(b.wings[1]) : null, scale: +b.grp.scale.x.toFixed(2) }; },
   cotAt: (t) => { cancelAnimationFrame(COT.raf); COT.t0 = performance.now() - t * 1000; cotDraw(t); },
   cotClose: (now) => closeTrivia(now), found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href }),
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, p.z]; },
@@ -943,6 +949,7 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
 // 仕掛けの「港町へもどる」で来た時（#museum など）は、その建物の前から
 { const A = AREAS.find((a) => '#' + a.id === location.hash); if (A) { A.seen = true; saveProgress(); const c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; counts.flights--; } }
 queueClear();
-(async () => { size(); stepDrone(0, nowS()); await prepare(); try { await renderer.compileAsync(scene, cam); } catch (e) { /* 古いブラウザは最初のコマで用意 */ } ready = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); frame(); })();
+// 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
+(async () => { size(); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); try { await renderer.compileAsync(scene, cam); } catch (e) { /* 古いブラウザは最初のコマで用意 */ } ready = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); frame(); })();
 </script>
 </body></html>
