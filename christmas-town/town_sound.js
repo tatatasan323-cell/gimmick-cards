@@ -85,12 +85,36 @@ export function glassTink() { for (let i = 0; i < 4; i++) { const f = r(2200, 34
 export function candle(k = 0) { hiss(0.03, 0, 0.12, 'bandpass', 2600, 1.2); const f = PENTA[k % PENTA.length] / 2; tone(f, f, 0.035, 0.05, 0.9); }
 // 吹き消す「ふーっ」
 export function blow() { hiss(0.06, 0, 0.7, 'bandpass', 900, 0.6); hiss(0.03, 0.05, 0.5, 'lowpass', 600); }
-// キャンディの街灯が折れる「ポキッ、ポキッ」（かたい飴が割れる乾いた高い音と、短い芯の音を2回）
-export function candySnap() { for (const [d, f] of [[0, 1], [0.12, 1.18]]) { hiss(0.12, d, 0.035, 'highpass', 3200, 0.7); hiss(0.07, d, 0.06, 'bandpass', 1900 * f, 2.2); tone(1250 * f, 600 * f, 0.05, d, 0.07, 'triangle'); } }
-// 飴のかけらが地面に当たる「カツン」
-export function candyClack(s = 1) { tone(r(2400, 3200), r(1800, 2200), 0.03 * s, 0, 0.06, 'triangle'); hiss(0.03 * s, 0, 0.025, 'highpass', 4000); }
-// 戻る時の「カリカリ」（細かく乾いた音を、間をつめて）
-export function candyCrunch() { const n = 5 + ((Math.random() * 3) | 0); for (let i = 0; i < n; i++) { const d = i * r(0.035, 0.06); hiss(r(0.05, 0.09), d, r(0.012, 0.025), 'bandpass', r(3000, 6000), 2.5); if (i % 2 === 0) tone(r(1800, 2600), r(1400, 1800), 0.018, d, 0.03, 'triangle'); } }
+// キャンディの街灯の音：硬い飴の「カチッ」を、波形の上で直接つくる（発振器と雑音の短い音を重ねた前の版は、「てってって」と聞こえて、カリカリにならなかった）
+//   1粒＝数ミリ秒で消える雑音＋澄んだ共鳴（2〜5kHz）。それを不ぞろいな間隔で重ね、ときどき低い芯（かみしめる手ごたえ）を入れる
+let candyBufs = null;
+function candyBank() { if (candyBufs) return candyBufs; const sr = ac.sampleRate;
+  const mk = (sec, fill) => { const b = ac.createBuffer(1, Math.round(sr * sec), sr), d = b.getChannelData(0); fill(d); let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i])); if (m > 0) for (let i = 0; i < d.length; i++) d[i] /= m; return b; };
+  const click = (d, at, amp, f, tau) => { const i0 = Math.round(at * sr), n = Math.round(tau * 8 * sr); for (let i = 0; i < n && i0 + i < d.length; i++) { const t = i / sr; d[i0 + i] += amp * Math.exp(-t / tau) * (0.55 * (Math.random() * 2 - 1) + 0.45 * Math.sin(6.2832 * f * t)); } };
+  const body = (d, at, amp, f, tau) => { const i0 = Math.round(at * sr), n = Math.round(tau * 6 * sr); for (let i = 0; i < n && i0 + i < d.length; i++) { const t = i / sr; d[i0 + i] += amp * Math.exp(-t / tau) * Math.sin(6.2832 * f * t); } };
+  candyBufs = {
+    crunch: [0, 1, 2, 3].map(() => mk(0.72, (d) => { let t = 0.005; while (t < 0.62) { const amp = 0.4 + Math.random() * 0.6, m = 3 + ((Math.random() * 4) | 0); body(d, t, amp * 0.45, 260 + Math.random() * 320, 0.012); for (let k = 0; k < m; k++) click(d, t + k * (0.002 + Math.random() * 0.006), amp * (0.5 + Math.random() * 0.5), 2200 + Math.random() * 3000, 0.0012 + Math.random() * 0.002); t += 0.035 + Math.random() * 0.055; } })),
+    snap: [0, 1, 2].map(() => mk(0.38, (d) => { for (const [at, a] of [[0.005, 1], [0.11 + Math.random() * 0.05, 0.8]]) { click(d, at, a, 1800 + Math.random() * 900, 0.004); click(d, at + 0.001, a * 0.8, 3800 + Math.random() * 1200, 0.002); body(d, at, a * 0.5, 900 + Math.random() * 300, 0.02); for (let k = 0; k < 6; k++) click(d, at + 0.01 + Math.random() * 0.06, a * 0.3, 3000 + Math.random() * 3000, 0.001); } })),
+    shatter: [0, 1].map(() => mk(0.7, (d) => { click(d, 0.004, 1, 2000, 0.005); body(d, 0.004, 0.6, 700, 0.025); for (let k = 0; k < 46; k++) click(d, 0.01 + Math.pow(Math.random(), 1.6) * 0.6, 0.2 + Math.random() * 0.5, 2500 + Math.random() * 4500, 0.0008 + Math.random() * 0.0015); })),
+  };
+  return candyBufs; }
+function playBuf(buf, vol, rate = 1, delay = 0) { if (!live()) return; try { const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = buf; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(out); track(s); s.start(ac.currentTime + delay); } catch (e) { /* 音が出なくても遊べる */ } }
+// ポキッ、ポキッ（折れる）
+export function candySnap() { if (!live()) return; playBuf(candyBank().snap[(Math.random() * 3) | 0], 0.34, r(0.92, 1.08)); }
+// バキバキッ（細かく砕けて散る）
+export function candyShatter() { if (!live()) return; const B = candyBank(); playBuf(B.shatter[(Math.random() * 2) | 0], 0.32, r(0.95, 1.05)); playBuf(B.crunch[0], 0.12, 1.3, 0.05); }
+// カリカリ（戻ってはまる）。vol＝大きさ
+export function candyCrunch(vol = 0.3) { if (!live()) return; playBuf(candyBank().crunch[(Math.random() * 4) | 0], vol, r(0.9, 1.12)); }
+// カツン（かけらが地面に当たる。高く短く）
+export function candyClack(s = 1) { if (!live()) return; playBuf(candyBank().snap[0], 0.09 * s, r(1.4, 1.8)); }
+// ぐにゃ～（温まった飴がのびる）
+export function candyBend() { tone(330, 170, 0.05, 0, 1.0, 'sawtooth'); tone(240, 130, 0.04, 0.05, 1.0, 'triangle'); hiss(0.02, 0, 0.9, 'lowpass', 800); }
+// ポンッ（栓が抜けるように飛ぶ）と、回る「ひゅるる」
+export function candyPop() { tone(260, 110, 0.13, 0, 0.18); hiss(0.08, 0, 0.06, 'bandpass', 1200, 1.2); for (let i = 0; i < 7; i++) tone(900 + i * 140, 900 + i * 140, 0.012, 0.06 + i * 0.07, 0.08, 'triangle'); }
+// ビヨヨン（ばねのように起きる）
+export function candySpring() { for (let i = 0; i < 6; i++) { const f = 540 - i * 45; tone(f * 0.6, f, 0.055 * (1 - i * 0.14), i * 0.13, 0.16); } }
+// 生えなおす：きらめきが昇りながら、カリカリと伸びる
+export function candyGrow() { if (!live()) return; [1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.025, i * 0.3, 0.5)); const B = candyBank(); for (let i = 0; i < 4; i++) playBuf(B.crunch[i], 0.13, r(1.0, 1.25), i * 0.4); }
 // かき氷をすくう「シャクッ」（細かい氷の、乾いた高い音を3つ）
 export function shaku() { for (let i = 0; i < 3; i++) hiss(r(0.05, 0.08), i * r(0.02, 0.035), r(0.04, 0.07), 'bandpass', r(3500, 7000), 1.2); hiss(0.04, 0.01, 0.12, 'highpass', 6000); tone(r(900, 1200), r(500, 700), 0.025, 0, 0.08, 'triangle'); }
 // 大きなスプーンが降りてくる「キラキラ…」（高い音から順に下りてくる）

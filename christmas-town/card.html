@@ -25,7 +25,12 @@ main{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:calc(18px
 @keyframes tw{0%,100%{opacity:1}50%{opacity:.35}}
 .hero{text-align:center;padding:6px 0 4px}
 .kicker{margin:0;font-size:12px;font-weight:800;letter-spacing:.28em;color:var(--gold)}
-h1{margin:6px 0 0;font-size:clamp(40px,12vw,58px);line-height:1.1;font-weight:900;letter-spacing:.06em;background:linear-gradient(180deg,#fff 0%,#ffe2ee 45%,#ff9ec0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 rgba(160,40,90,.55)) drop-shadow(0 8px 18px rgba(255,90,160,.35));animation:jel 4.5s ease-in-out infinite;transform-origin:50% 90%}
+h1{margin:4px auto 0;max-width:460px;font-size:44px;line-height:1.1;font-weight:900;color:#ffe2ee}
+h1 svg{display:block;width:100%;height:auto;overflow:visible}
+h1 .gl{transform-box:fill-box;transform-origin:50% 100%;animation:gj 3.6s ease-in-out infinite;cursor:pointer}
+h1 .gl.boing{animation:gb .7s ease-out}
+@keyframes gj{0%,70%,100%{transform:scale(1,1)}76%{transform:scale(1.12,.86)}82%{transform:scale(.92,1.1)}88%{transform:scale(1.05,.95)}94%{transform:scale(.98,1.02)}}
+@keyframes gb{0%{transform:scale(1.3,.68)}30%{transform:scale(.8,1.28) translateY(-6%)}55%{transform:scale(1.12,.9)}78%{transform:scale(.96,1.05)}100%{transform:scale(1,1)}}
 @keyframes jel{0%,82%,100%{transform:scale(1,1)}86%{transform:scale(1.06,.93)}90%{transform:scale(.97,1.04)}94%{transform:scale(1.02,.98)}}
 .sub{margin:8px 0 0;font-size:15px;font-weight:800;letter-spacing:.12em;color:var(--sub)}
 .puyos{display:flex;justify-content:center;gap:12px;margin:16px 0 12px;height:62px;align-items:flex-end}
@@ -115,7 +120,7 @@ h1{margin:6px 0 0;font-size:clamp(40px,12vw,58px);line-height:1.1;font-weight:90
   <div class="garland" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header class="hero">
     <p class="kicker">X'mas Greeting Card</p>
-    <h1>ぷるとろ聖夜</h1>
+    <h1 id="brand" aria-label="ぷるとろ聖夜">ぷるとろ聖夜</h1>
     <p class="sub">はじいて、こわして、とろける。</p>
   </header>
   <div class="puyos" aria-label="ゼリーの住人（さわると、ぷるん）">
@@ -237,7 +242,8 @@ h1{margin:6px 0 0;font-size:clamp(40px,12vw,58px);line-height:1.1;font-weight:90
 </section>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script>
+<script type="module">
+import { GLYPHS } from './title_glyphs.js';
 (() => {
   'use strict';
   // GitHub の公開版をまとめる時に true になる（港町と同じフォルダ）。false＝claude.ai の非公開の試作（#c= を運べないので、送るリンクは公開版のアドレスで作る）
@@ -257,6 +263,22 @@ h1{margin:6px 0 0;font-size:clamp(40px,12vw,58px);line-height:1.1;font-weight:90
       tap() { tone(1400, 1100, 0.03, 0, 0.06); },
       chime() { [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, f, 0.05, i * 0.09, 0.9)); },
     }; })();
+
+  // ---------- 0. 題字：ぷるぷるのグミ文字。骨組み（共通/title_glyphs.js）を、影・濃いふち・本体・つやの4層の太い線でなぞる。字ごとにキャンディの色 ----------
+  {
+    const NS2 = 'http://www.w3.org/2000/svg', COLS = [['#ff6fa8', '#c2185b', '#ffd0e2'], ['#3fd890', '#14834e', '#c8ffe0'], ['#ffc83a', '#c2780a', '#fff2b8'], ['#a07aff', '#5a32c0', '#e2d6ff'], ['#ff5468', '#b0102a', '#ffd0d6'], ['#4ac2ff', '#1468b0', '#d0f0ff']];
+    const STEP = 0.93, svg = document.createElementNS(NS2, 'svg'), defs = document.createElementNS(NS2, 'defs'); svg.setAttribute('viewBox', '-0.08 -0.04 ' + (GLYPHS.length * STEP + 0.16) + ' 1.12'); svg.setAttribute('aria-hidden', 'true'); svg.appendChild(defs);
+    const el2 = (tag, at) => { const e = document.createElementNS(NS2, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+    const pathOf = (st) => 'M' + st.map(([x, y]) => x.toFixed(3) + ' ' + y.toFixed(3)).join('L');
+    GLYPHS.forEach((strokes, k) => { const [c, dark, light] = COLS[k % COLS.length], gid = 'gg' + k, x0 = k * STEP - 0.04;
+      const gr = el2('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }); gr.appendChild(el2('stop', { offset: 0, 'stop-color': light })); gr.appendChild(el2('stop', { offset: 0.45, 'stop-color': c })); gr.appendChild(el2('stop', { offset: 1, 'stop-color': dark })); defs.appendChild(gr);
+      const g = el2('g', { class: 'gl' }); g.style.animationDelay = (k * 0.16) + 's'; const inner = el2('g', { transform: 'translate(' + x0 + ' 0)' }); g.appendChild(inner);
+      const layer = (stroke, w, dx, dy, op) => { const L = el2('g', { fill: 'none', stroke, 'stroke-width': w, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: op, transform: 'translate(' + dx + ' ' + dy + ')' }); for (const st of strokes) L.appendChild(el2('path', { d: pathOf(st) })); inner.appendChild(L); };
+      layer('#3a0a28', 0.2, 0.012, 0.034, 0.45); layer(dark, 0.185, 0, 0, 1); layer('url(#' + gid + ')', 0.14, 0, 0, 1); layer('#ffffff', 0.036, -0.014, -0.024, 0.7);
+      g.addEventListener('click', () => { Snd.unlock(); Snd.boing(k); g.classList.remove("boing"); void g.getBoundingClientRect(); g.classList.add("boing"); });
+      svg.appendChild(g); });
+    const h = document.getElementById('brand'); h.textContent = ''; h.appendChild(svg);
+  }
 
   // ---------- 1. カードの中身（入力 → 検査 → リンクの中へ）。画面には textContent でしか出さない ----------
   const MAX = { t: 28, to: 24, vn: 40, va: 60, c: 60, m: 200, f: 24, dc: 40 };

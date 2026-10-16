@@ -512,6 +512,7 @@ function crystalTap() { if (CRY.state !== 'ok') return; const now = nowS(); CRY.
   crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, CRY.to, 50, 1.4, true); flare(p, STAR6, '#ffffff', 2.6, 1.3);
   if (CRY.stress >= 1) crystalTopple(); else if (CRY.stress > 0.45) SND.creakBig(CRY.stress); }
 // 落ちる：見る人の向こうへ傾きながら、床へ
+let cryChinkT = 0;   // かけらが戻ってはまる音は、40ミリ秒に1つまで
 function crystalTopple() { if (CRY.state !== 'ok') return; CRY.state = 'toppling'; CRY.vy = 0; CRY.tilt = 0; CRY.falls++; SND.groan();
   CRY.dir.set(CRY.x - cam.position.x, 0, CRY.z - cam.position.z); if (CRY.dir.lengthSq() < 0.01) CRY.dir.set(0, 0, -1); CRY.dir.normalize(); }
 function crystalImpact() {
@@ -543,9 +544,9 @@ function stepCrystal(dt, now) {
     for (const f of CRY_FRAG) { if (f.rest) continue; f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); f.r.addScaledVector(f.w, dt); if (f.p.y < f.s.y) { f.p.y = f.s.y; f.v.y = Math.abs(f.v.y) * 0.3; f.v.x *= 0.62; f.v.z *= 0.62; f.w.multiplyScalar(0.6); if (Math.abs(f.v.y) < 0.2 && Math.hypot(f.v.x, f.v.z) < 0.1) f.rest = true; else if (Math.random() < 0.05) SND.tinkle(); } f.p.x = clamp(f.p.x, -HW + 0.2, HW - 0.2); f.p.z = clamp(f.p.z, -HL + 0.2, HL - 0.2); }
     if (CRY.t > 9) { CRY.state = 'restoring'; CRY.t = 0; for (const f of CRY_FRAG) f.from = f.p.clone(); SND.crystalRise(); } }
   else if (CRY.state === 'restoring') { CRY.t += dt; const ease = (u) => u * u * (3 - 2 * u);
-    for (const f of CRY_FRAG) { const u = clamp((CRY.t - 0.6 - f.order * 1.4) / 0.9, 0, 1), e = ease(u); f.p.copy(f.from).lerp(f.home, e); f.p.y += Math.sin(u * Math.PI) * 0.8; f.k = u >= 1 ? 0 : 1; if (u > 0 && u < 1 && Math.random() < 0.15) put(SPARK, f.p, HSL.setHSL(f.order, 0.9, 0.7), 1); }
+    for (const f of CRY_FRAG) { const u = clamp((CRY.t - 0.6 - f.order * 1.4) / 0.9, 0, 1), e = ease(u); f.p.copy(f.from).lerp(f.home, e); f.p.y += Math.sin(u * Math.PI) * 0.8; f.k = u >= 1 ? 0 : 1; if (u >= 1 && !f.arr) { f.arr = true; const now = performance.now(); if (now - cryChinkT > 40) { cryChinkT = now; SND.crystalChink(f.order); } } if (u > 0 && u < 1 && Math.random() < 0.15) put(SPARK, f.p, HSL.setHSL(f.order, 0.9, 0.7), 1); }
     if (CRY.t > 0.9) { CRY.tilt = 0; cryPivot.position.y = CRY.y0; CRY_MESH.visible = true; CRY_MESH.scale.set(1, clamp((CRY.t - 0.9) / 2.2, 0.001, 1), 1); }
-    if (CRY.t > 3.2) { CRY.state = 'ok'; CRY.stress = 0; CRY.creakK = 0; CRY.restores++; CRY_MESH.scale.set(1, 1, 1); for (const f of CRY_FRAG) CRY_FR.setMatrixAt(f.slot, ZERO); CRY_FRAG.length = 0; CRY_FR.instanceMatrix.needsUpdate = true; CRY.glow = 1; SND.crystalPhrase(0.7);
+    if (CRY.t > 3.2) { CRY.state = 'ok'; CRY.stress = 0; CRY.creakK = 0; CRY.restores++; CRY_MESH.scale.set(1, 1, 1); for (const f of CRY_FRAG) CRY_FR.setMatrixAt(f.slot, ZERO); CRY_FRAG.length = 0; CRY_FR.instanceMatrix.needsUpdate = true; CRY.glow = 1; SND.crystalRing(); SND.crystalPhrase(0.7);
       CRY.from.setRGB(1, 1, 1); CRY.to.setRGB(1, 1, 1); CRY.front = 9; tintCrystal(); crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, WHITE, 80, 2.2, true); flare(p, STAR6, '#ffffff', 3.5, 1.6); } }
   cryPivot.quaternion.setFromAxisAngle(V1.set(CRY.dir.z, 0, -CRY.dir.x), CRY.state === 'toppling' || CRY.state === 'fallen' ? CRY.tilt : 0);
   if (CRY_FRAG.length) { for (const f of CRY_FRAG) { M4.compose(f.p, Q.setFromEuler(E.set(f.r.x, f.r.y, f.r.z)), V2.copy(f.s).multiplyScalar(f.k ?? 1)); CRY_FR.setMatrixAt(f.slot, M4); } CRY_FR.instanceMatrix.needsUpdate = true; }

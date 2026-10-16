@@ -86,5 +86,15 @@ export const megaCrash = hi(() => { const t = ac.currentTime;
   hiss(0.32, t + 0.02, 1.3, 'bandpass', 2600, 0.6); hiss(0.2, t + 0.02, 0.7, 'highpass', 6000);
   for (let i = 0; i < 60; i++) partial(r(1800, 9500), r(0.008, 0.035), t + r(0, 2.4), r(0.05, 0.4));
   for (const n of [72, 76, 79, 83, 86]) TIMBRE.crystal(MIDI(n), 0.03, t + 0.4); });
-// よみがえる：虹のかけらが集まって、上っていく響きと和音
-export const crystalRise = hi(() => { const t = ac.currentTime; for (let i = 0; i < 10; i++) TIMBRE.celesta(MIDI(60 + [0, 4, 7, 12, 16, 19, 24, 28, 31, 36][i]), 0.05, t + i * 0.18); for (const n of [60, 64, 67, 72]) TIMBRE.glass(MIDI(n + 12), 0.04, t + 1.9); });
+// よみがえる（3秒）：歌うグラスの響きが、少し低い所から音の高さを上げながら、だんだん大きく集まる。高いきらめきの粒も、だんだん多く
+// まわりの展示より遅れて戻るので、大クリスタルだけの音をはっきり（前の版は、まわりの戻る音にまぎれて、ほとんど聞こえなかった）
+export const crystalRise = hi(() => { const t = ac.currentTime;
+  for (const [f0, v] of [[523.25, 0.055], [784, 0.04], [1046.5, 0.032], [1568, 0.018]]) for (const det of [1, 1.004]) { if (!room()) break; const o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(f0 * 0.94 * det, t); o.frequency.exponentialRampToValueAtTime(f0 * det, t + 3.0);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 2.9); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.7); o.connect(g); g.connect(out); o.start(t); o.stop(t + 3.8); go(o); }
+  for (let i = 0; i < 28; i++) { const u = i / 28; partial(r(3500, 8000) * (0.85 + u * 0.4), 0.01 + u * 0.014, t + 0.3 + u * u * 2.8, r(0.15, 0.4), 0.004); } });
+// かけらが1つ戻って、はまる：チン（澄んだ高い音に、ずれた倍音）。下のかけらほど低く、上ほど高い（k＝0〜1）
+export const crystalChink = hi((k) => { const t = ac.currentTime, f = 1500 + k * 1700 + r(-60, 60); partial(f, 0.05, t, 0.4, 0.001); partial(f * 2.32, 0.02, t, 0.22, 0.001); partial(f * 3.9, 0.009, t, 0.12, 0.001); });
+// よみがえった瞬間：大きな水晶の器をはじいたような、長く澄んだ響き（ゆっくりうなる）と、高いきらめき
+export const crystalRing = hi(() => { const t = ac.currentTime;
+  for (const [m, v, d] of [[1, 0.1, 5], [2.0, 0.045, 3.4], [2.76, 0.035, 2.6], [3.9, 0.02, 1.8], [5.4, 0.012, 1.2]]) { partial(523.25 * m, v, t, d, 0.002); partial(523.25 * m * 1.003, v * 0.6, t, d * 0.9, 0.002); }
+  for (let i = 0; i < 10; i++) partial(r(4000, 9000), 0.012, t + r(0, 0.5), r(0.2, 0.5), 0.003); });
