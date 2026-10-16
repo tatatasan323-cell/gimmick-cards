@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>グミのつみき</title>
+<style>
+html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.tx{position:fixed;left:0;right:0;text-align:center;color:#fff6ea;text-shadow:0 2px 12px rgba(60,20,30,.75);pointer-events:none}
+#top{top:calc(14px + env(safe-area-inset-top));font-size:22px;font-weight:800;letter-spacing:.12em}
+#top small{display:block;margin-top:4px;font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.85}
+#hint{top:calc(72px + env(safe-area-inset-top));font-size:13px;font-weight:800;line-height:1.7;transition:opacity .8s}
+.btn{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom));font:800 15px/1 inherit;font-family:inherit;padding:12px 18px;border-radius:999px;border:2px solid rgba(255,255,255,.6);background:rgba(90,30,50,.45);color:#fff6ea;letter-spacing:.06em}
+#add{left:16px}#reset{right:16px}
+#fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
+</head><body><canvas id="c"></canvas>
+<!-- 港町（町の全景）へもどる -->
+<a id="toTown" href="./#blocks">‹ 港町へもどる</a>
+<div class="tx" id="top">グミのつみき<small id="sub">じゅんびちゅう…</small></div>
+<div class="tx" id="hint">ドラッグで もって つむ・タップで はじく<br>なにもない所を なぞると まわる・2本指で ちかく／とおく ♪音あり</div>
+<button class="btn" id="add">＋ ブロック</button><button class="btn" id="reset">もとにもどす</button>
+<div id="fps" hidden></div>
+<script type="module">
+// 重力のあるテーブルで、グミの積み木。当たりと重さは Rapier（物理の部品・同梱）、見た目は距離の式で起こしたグミ。ぶつかるとプルンと揺れる（見た目だけ）
+import * as THREE from 'three';
+import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
+import { BLOCKS } from './blocks.js';
+import { buildType, instantiate } from './gummy.js';
+import { glowTex } from './mat.js';
+import * as SND from './block_sound.js';
+import { makeSky } from './space.js';
+import { makeFarTown } from './town_far.js';
+const q = new URLSearchParams(location.search), cvs = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
+let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene();
+// 町の上空に浮かぶテーブル。下に雪の夜の町、水平線の上にオーロラ（本人 2026-10-15）
+scene.background = new THREE.Color('#03050f'); scene.fog = new THREE.FogExp2('#0a0f24', 0.003);
+const sky = makeSky(scene, { aurora: 1 }); makeFarTown(scene, -90, 80, 330);
+{ const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#4a2a3a', side: THREE.BackSide })));
+  const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
+  box(14, 8, -10, 12, 8, '#fff2dc', 5); box(8, 8, 12, 6, 6, '#ffc8e0', 3); box(10, 4, 0, 14, -10, '#fff6e8', 3); box(6, 6, 2, 3, 14, '#ffffff', 2);
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.03).texture; }
+scene.add(new THREE.HemisphereLight('#fff0e0', '#6a3a40', 0.9));
+const sun = new THREE.DirectionalLight('#fff2e0', 2.0); sun.position.set(-4, 9, 5); scene.add(sun);
+// 遠くの、ぼんやりした飾りの灯り
+for (let i = 0; i < 40; i++) { const a = Math.random() * Math.PI * 2, r = 14 + Math.random() * 10, s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: ['#ffcf6a', '#ff8ab8', '#8ae0ff', '#ffffff'][i % 4], transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })); s.scale.setScalar(0.8 + Math.random() * 1.2); s.position.set(Math.cos(a) * r, 1 + Math.random() * 6, Math.sin(a) * r); scene.add(s); }
+
+// ---------- テーブル ----------
+const TR = 5, matTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#fff1e2'; g.fillRect(0, 0, 512, 512); g.strokeStyle = 'rgba(230,150,170,.35)'; g.lineWidth = 10; for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(256, 256, 30 + i * 28, 0, Math.PI * 2); g.stroke(); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const table = new THREE.Mesh(new THREE.CylinderGeometry(TR, TR, 0.3, 72), [new THREE.MeshStandardMaterial({ color: '#c88a6a', roughness: 0.5 }), new THREE.MeshPhysicalMaterial({ map: matTex, roughness: 0.35, clearcoat: 0.6 }), new THREE.MeshStandardMaterial({ color: '#c88a6a' })]);
+table.position.y = -0.15; scene.add(table);
+const rim = new THREE.Mesh(new THREE.TorusGeometry(TR, 0.13, 16, 96), new THREE.MeshPhysicalMaterial({ color: '#e8a0b0', roughness: 0.3, clearcoat: 0.8 })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.06; scene.add(rim);
+// テーブルの下の、うすい雲
+for (let i = 0; i < 16; i++) { const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 14, c = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: '#9aa8d8', transparent: true, opacity: 0.12 + Math.random() * 0.1, depthWrite: false })); c.scale.set(10 + Math.random() * 10, 4 + Math.random() * 3, 1); c.position.set(Math.cos(a) * r, -5 - Math.random() * 12, Math.sin(a) * r); scene.add(c); }
+const shTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 4, 64, 64, 62); gr.addColorStop(0, 'rgba(90,30,40,.75)'); gr.addColorStop(1, 'rgba(90,30,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+
+// ---------- 物理 ----------
+const G = -18;   // おもちゃの大きさに見えるよう、重力を強めにする
+let world, bonkN = 0; const blocks = [], byCollider = new Map(), pickables = [], types = [];
+function colliderDescs(b, type) {
+  const c = b.col, out = [];
+  const rc = (h, r) => RAPIER.ColliderDesc.roundCuboid(Math.max(0.01, h[0] - r), Math.max(0.01, h[1] - r), Math.max(0.01, h[2] - r), r);
+  if (c.t === 'cuboid') out.push(rc(c.h, c.r));
+  else if (c.t === 'cylinder') out.push(RAPIER.ColliderDesc.roundCylinder(c.hh - c.rr, c.r - c.rr, c.rr));
+  else if (c.t === 'ball') out.push(RAPIER.ColliderDesc.ball(c.r));
+  else if (c.t === 'parts') for (const p of c.parts) out.push(rc(p.h, 0.06).setTranslation(...p.at));
+  else { const pos = type.parts[0].m.pos, pts = []; for (let i = 0; i < pos.length; i += 3 * 7) pts.push(pos[i], pos[i + 1], pos[i + 2]); const d = RAPIER.ColliderDesc.convexHull(new Float32Array(pts)); out.push(d || RAPIER.ColliderDesc.cuboid(0.3, 0.3, 0.3)); }
+  return out.map((d) => d.setFriction(1.0).setRestitution(0.12).setDensity(1));
+}
+function spawn(k, x, y, z, rot) {
+  const b = BLOCKS[k], type = types[k], g = instantiate(type, b.variants[(Math.random() * b.variants.length) | 0]), holder = new THREE.Group(); holder.add(g); scene.add(holder);
+  const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y, z).setRotation(rot || new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6))).setLinearDamping(0.1).setAngularDamping(2.2).setCcdEnabled(true));   // グミはべたっとして転がりにくい（回転を強めに止める）
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false })); sh.rotation.x = -Math.PI / 2; scene.add(sh);
+  const bl = { k, b, holder, g, body, sh, s: 0, sv: 0, size: Math.max(...(b.col.h || [b.col.r || 0.4, b.col.hh || 0.4, 0.4])) + 0.2, held: false };
+  for (const d of colliderDescs(b, type)) byCollider.set(world.createCollider(d, body).handle, bl);
+  for (const mm of g.userData.meshes) { mm.m.userData.block = bl; if (mm.kind === 'o') pickables.push(mm.m); }
+  blocks.push(bl); return bl;
+}
+// 端から落ちたブロックは、空からまた降ってくる（向きも置き場所も新しく）
+let lastSpawnSnd = 0;
+function respawn(bl) {
+  const a = Math.random() * Math.PI * 2, r = Math.random() * 2.2, B = bl.body; B.setTranslation({ x: Math.cos(a) * r, y: 7 + Math.random() * 3, z: Math.sin(a) * r }, true); B.setLinvel({ x: 0, y: -2, z: 0 }, true); B.setAngvel({ x: (Math.random() - 0.5) * 3, y: (Math.random() - 0.5) * 3, z: (Math.random() - 0.5) * 3 }, true);
+  B.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6)), true); bl.respawns = (bl.respawns || 0) + 1;
+  if (performance.now() - lastSpawnSnd > 300) { SND.spawn(); lastSpawnSnd = performance.now(); }
+}
+function removeBlock(bl) { world.removeRigidBody(bl.body); scene.remove(bl.holder); scene.remove(bl.sh); for (const mm of bl.g.userData.meshes) { const i = pickables.indexOf(mm.m); if (i >= 0) pickables.splice(i, 1); } blocks.splice(blocks.indexOf(bl), 1); }
+const NB = 30;   // 最初の数
+function startPile() {
+  for (const bl of [...blocks]) removeBlock(bl);
+  const n = NB; for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 * 3.3, r = 0.4 + (i / n) * 2.2; spawn(i % BLOCKS.length, Math.cos(a) * r, 1.2 + i * 0.3, Math.sin(a) * r); }
+}
+document.getElementById('add').addEventListener('click', () => { if (!world) return; if (blocks.length >= 70) removeBlock(blocks[0]); spawn((Math.random() * BLOCKS.length) | 0, (Math.random() - 0.5) * 2, 5, (Math.random() - 0.5) * 2); SND.spawn(); });
+document.getElementById('reset').addEventListener('click', () => { if (!world) return; startPile(); SND.spawn(); });
+
+// ---------- カメラ（テーブルのまわりを回る） ----------
+const cam = new THREE.PerspectiveCamera(50, 1, 0.1, 700); let yaw = 0.5, pitch = 0.62, dist = 10, tYaw = yaw, tPitch = pitch, tDist = dist;
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w / h < 0.8 ? 62 : 48; cam.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+function placeCam() { cam.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, 0.6 + Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(0, 0.6, 0); }
+
+// ---------- 指 ----------
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), holds = new Map(), tmp = new THREE.Vector3(), tq = new THREE.Quaternion();
+function setRay(x, y) { const r = cvs.getBoundingClientRect(); ptr.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, cam); }
+const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
+cvs.addEventListener('pointerdown', (e) => {
+  cvs.setPointerCapture(e.pointerId); hideHint(); SND.audio(); setRay(e.clientX, e.clientY);
+  const hit = ray.intersectObjects(pickables, false)[0];
+  if (!hit) { holds.set(e.pointerId, { bg: true, x: e.clientX, y: e.clientY, yaw: tYaw, pitch: tPitch }); return; }
+  const bl = hit.object.userData.block, t = bl.body.translation(), r = bl.body.rotation(); tq.set(r.x, r.y, r.z, r.w);
+  const local = hit.point.clone().sub(tmp.set(t.x, t.y, t.z)).applyQuaternion(tq.clone().invert()), n = cam.getWorldDirection(new THREE.Vector3());
+  holds.set(e.pointerId, { bl, local, hit: hit.point.clone(), dir: ray.ray.direction.clone(), x: e.clientX, y: e.clientY, t: performance.now(), moved: false, target: hit.point.clone(), carryY: hit.point.y + 0.6, sx: e.clientX, sy: e.clientY });
+});
+cvs.addEventListener('pointermove', (e) => {
+  const h = holds.get(e.pointerId); if (!h) return;
+  if (e.pointerType === 'mouse' && e.buttons === 0) { release(e); return; }
+  const bgs = [...holds.values()].filter((v) => v.bg);
+  if (h.bg) {
+    if (bgs.length === 2) { const [a, b] = [...holds.entries()].filter(([, v]) => v.bg); const other = a[0] === e.pointerId ? b[1] : a[1]; h.cx = e.clientX; h.cy = e.clientY; const d = Math.hypot((h.cx ?? h.x) - (other.cx ?? other.x), (h.cy ?? h.y) - (other.cy ?? other.y)); if (h.pinch) tDist = Math.max(5, Math.min(18, h.pinchDist * (h.pinch / d))); else { h.pinch = d; h.pinchDist = tDist; } return; }
+    tYaw = h.yaw - (e.clientX - h.x) * 0.006; tPitch = Math.max(0.15, Math.min(1.35, h.pitch + (e.clientY - h.y) * 0.004)); return;
+  }
+  if (!h.moved && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 8) { h.moved = true; h.bl.held = true; SND.grab(); h.bl.sv += 2; }
+  h.sx = e.clientX; h.sy = e.clientY;
+});
+function release(e) {
+  const h = holds.get(e.pointerId); if (!h) return; holds.delete(e.pointerId); if (h.bg) return;
+  const bl = h.bl; bl.held = false;
+  if (!h.moved && performance.now() - h.t < 500) {   // タップ：押した所を、押した向きと少し上へ、はじく
+    const m = bl.body.mass(), flat = h.dir.clone().setY(0).normalize(), imp = flat.multiplyScalar(6 * m).add(new THREE.Vector3(0, 7 * m, 0));   // 押した向き（水平）と上へ
+    bl.body.applyImpulseAtPoint({ x: imp.x, y: imp.y, z: imp.z }, { x: h.hit.x, y: h.hit.y, z: h.hit.z }, true); bl.sv += 6; bl.flickAt = performance.now(); SND.flick();
+  } else if (h.moved) { SND.drop(); bl.sv += 2; bl.stick = 0.8; bl.body.setLinearDamping(3.5); bl.body.setAngularDamping(7); }   // 置いた直後は、グミらしくべたっと止まる
+}
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, release));
+addEventListener('blur', () => { for (const id of [...holds.keys()]) release({ pointerId: id }); });
+cvs.addEventListener('wheel', (e) => { tDist = Math.max(5, Math.min(18, tDist * (1 + Math.sign(e.deltaY) * 0.08))); e.preventDefault(); }, { passive: false });
+cvs.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ---------- 毎コマ ----------
+const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
+let acc = 0, frames = 0, tf = performance.now(), physMs = 0, ready = false, fAcc = 0, fN = 0, fTot = 0;
+const STEP = 1 / 60, UP = new THREE.Vector3(0, 1, 0), upV = new THREE.Vector3(), AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map((a) => new THREE.Vector3(...a));
+function topAt(x, z, exclude) { const hit = world.castRay(new RAPIER.Ray({ x, y: 12, z }, { x: 0, y: -1, z: 0 }), 20, true, undefined, undefined, undefined, exclude); return hit ? 12 - (hit.toi ?? hit.timeOfImpact) : 0; }   // その場所の上面の高さ
+function frame() {
+  const raw = clock.getDelta(), dt = Math.min(0.05, raw);
+  yaw += (tYaw - yaw) * Math.min(1, dt * 6); pitch += (tPitch - pitch) * Math.min(1, dt * 6); dist += (tDist - dist) * Math.min(1, dt * 6); placeCam();
+  if (world) {
+    const a0 = performance.now(); acc += dt;
+    while (acc >= STEP) {
+      // 持っている：つまんだ所を、指の位置へ、ばねで引く（ぶら下がるように自然に回る）。重さの分は打ち消す
+      for (const h of holds.values()) { if (h.bg || !h.moved) continue;
+        // 指が指している物（テーブル・積んだ山のてっぺん。運んでいる物は除く）の真上に、ブロックの大きさ＋0.3 浮かせる
+        setRay(h.sx, h.sy); const o = ray.ray.origin, dv = ray.ray.direction, hit = world.castRay(new RAPIER.Ray({ x: o.x, y: o.y, z: o.z }, { x: dv.x, y: dv.y, z: dv.z }), 60, true, undefined, undefined, undefined, h.bl.body);
+        const p = hit ? o.clone().addScaledVector(dv, hit.toi ?? hit.timeOfImpact) : null, on = hit && byCollider.get(hit.collider.handle);
+        // ブロックを指したら、そのブロックの真ん中の上へ寄せる（積みやすい）
+        if (p && on) { const c = on.body.translation(); p.x += (c.x - p.x) * 0.75; p.z += (c.z - p.z) * 0.75; }
+        if (p) { const r2 = Math.hypot(p.x, p.z); if (r2 > TR - 0.4) p.multiplyScalar((TR - 0.4) / r2); h.top = topAt(p.x, p.z, h.bl.body); h.carryY += (Math.max(0.9, h.top + h.bl.size + 0.3) - h.carryY) * 0.15; h.target.set(p.x, h.carryY, p.z); }
+        // ブロックの中心を、運ぶ点へ（離した時、狙った所の真上から真下へ落ちる）
+        const B = h.bl.body, m = B.mass(), t = B.translation(), v = B.linvel(), f = h.target.clone().sub(tmp.set(t.x, t.y, t.z)).multiplyScalar(70).sub(new THREE.Vector3(v.x, v.y, v.z).multiplyScalar(11)).multiplyScalar(m * STEP);
+        B.applyImpulse({ x: f.x, y: f.y - G * m * STEP, z: f.z }, true);
+        // いちばん上を向いている面を、まっすぐ上へ起こす（平らな面どうしで積める。屋根・アーチ・かまぼこは平らな底を下へ、星・ハートは寝かせる）。水平の回転は、ゆっくり止める
+        const r = B.rotation(), w = B.angvel(); tq.set(r.x, r.y, r.z, r.w); let up = null;
+        for (const ax of h.bl.b.up === 'y' ? AXES.slice(2, 3) : h.bl.b.up === 'z' ? AXES.slice(4) : AXES) { const u = upV.copy(ax).applyQuaternion(tq); if (!up || u.y > up.y) up = u.clone(); }
+        const turn = upV.crossVectors(up, UP), ang = Math.asin(Math.min(1, turn.length())) * 7; if (turn.lengthSq() > 1e-8) turn.normalize().multiplyScalar(ang);
+        B.setAngvel({ x: turn.x, y: w.y * 0.88, z: turn.z }, true); }
+      for (const bl of blocks) bl.pv = bl.body.linvel();
+      world.step(); acc -= STEP;
+      // ぶつかった＝速さが急に変わった時だけ、ぽよんと鳴ってプルン。積んだ重さがずっとかかっているのは、ぶつかったのではない（高く積むと、毎コマ鳴りつづけた）
+      const tn = performance.now();
+      for (const bl of blocks) { if (bl.held || tn - (bl.flickAt || 0) < 150) continue; const v = bl.body.linvel(), dv = Math.hypot(v.x - bl.pv.x, v.y - bl.pv.y, v.z - bl.pv.z); if (dv > 1.2 && tn - (bl.bonkAt || 0) > 120) { bl.bonkAt = tn; bl.sv += Math.min(5, dv * 0.6); SND.bonk(Math.min(1, dv * 0.12), bl.size); bonkN++; } }
+    }
+    physMs += performance.now() - a0;
+    for (const bl of [...blocks]) {
+      const t = bl.body.translation(), r = bl.body.rotation(); bl.holder.position.set(t.x, t.y, t.z); bl.holder.quaternion.set(r.x, r.y, r.z, r.w);
+      bl.sv += (-200 * bl.s - 8 * bl.sv) * dt; bl.s += bl.sv * dt; const s = Math.max(-0.25, Math.min(0.25, bl.s)); bl.g.scale.set(1 + s * 0.5, 1 - s, 1 + s * 0.5);   // プルン（見た目だけ）
+      const hd = [...holds.values()].find((v) => v.bl === bl && v.moved), onTable = t.x * t.x + t.z * t.z < TR * TR, base = hd ? hd.top ?? 0 : onTable ? 0 : -3, hgt = Math.max(0, t.y - base); bl.sh.position.set(t.x, base + 0.006, t.z); bl.sh.scale.setScalar(bl.size * 2.2 * (1 + hgt * 0.15)); bl.sh.material.opacity = 0.6 * Math.exp(-hgt * 0.45);
+      if (bl.stick > 0 && (bl.stick -= dt) <= 0) { bl.body.setLinearDamping(0.1); bl.body.setAngularDamping(2.2); }
+      if (t.y < -1.6 && !bl.held) respawn(bl);
+    }
+  }
+  sky.update(cam.position, performance.now() / 1000); renderer.render(scene, cam);
+  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} phys ${(physMs / frames).toFixed(1)}ms blocks ${blocks.length} calls ${renderer.info.render.calls}`; frames = 0; physMs = 0; tf = performance.now(); }
+  requestAnimationFrame(frame);
+}
+frame();
+(async () => {
+  try { await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; } world = new RAPIER.World({ x: 0, y: G, z: 0 });
+  world.createCollider(RAPIER.ColliderDesc.cylinder(0.15, TR).setTranslation(0, -0.15, 0).setFriction(0.9));
+  for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; world.createCollider(RAPIER.ColliderDesc.cuboid((TR * Math.PI) / 40 + 0.05, 0.35, 0.12).setTranslation(Math.cos(a) * TR, 0.2, Math.sin(a) * TR).setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -a + Math.PI / 2)).setFriction(0.6)); }   // ふちの当たり（低い。ゆっくり転がっただけでは落ちない）
+  for (const b of BLOCKS) types.push(buildType(b, 0.04));
+  startPile(); document.getElementById('sub').textContent = '12しゅるいの グミブロック'; ready = true; window.__ok = true;
+})();
+if (fpsEl) window.__dbg = { look: (y, p, d) => { yaw = tYaw = y; pitch = tPitch = p; if (d) dist = tDist = d; }, project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, carry: () => { const h = [...holds.values()].find((v) => !v.bg); return h ? h.carryY : null; }, pickIndex: (x, y) => { setRay(x, y); const h = ray.intersectObjects(pickables, false)[0]; return h ? blocks.indexOf(h.object.userData.block) : -1; }, heldIndex: () => { const h = [...holds.values()].find((v) => !v.bg); return h ? blocks.indexOf(h.bl) : -1; }, blocks, cam, holds, screenOf: (i) => { const t = blocks[i].body.translation(), v = new THREE.Vector3(t.x, t.y, t.z).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, pos: (i) => { const t = blocks[i].body.translation(); return [t.x, t.y, t.z]; }, speed: (i) => { const v = blocks[i].body.linvel(); return Math.hypot(v.x, v.y, v.z); }, sleeping: () => blocks.filter((b) => b.body.isSleeping()).length, bonks: () => bonkN, tower: () => { for (const bl of [...blocks]) removeBlock(bl); const q0 = new THREE.Quaternion(); for (let i = 0; i < 7; i++) spawn(0, 0, 0.37 + i * 0.74, 0, q0); }, svMax: () => Math.max(...blocks.map((b) => Math.abs(b.sv))), pushOff: (i) => { blocks[i].body.setTranslation({ x: TR + 1.2, y: 1, z: 0 }, true); blocks[i].body.setLinvel({ x: 2, y: 0, z: 0 }, true); }, respawns: (i) => blocks[i].respawns || 0, restsOn: (i, j) => { let on = false; const A = blocks[i], B = blocks[j]; for (let k = 0; k < A.body.numColliders(); k++) world.contactPairsWith(A.body.collider(k), (c2) => { if (byCollider.get(c2.handle) === B) on = true; }); return on && A.body.translation().y > B.body.translation().y + 0.1; }, count: () => blocks.length, name: (i) => blocks[i].b.name, flatTop: (i) => { const r = blocks[i].body.rotation(), q = new THREE.Quaternion(r.x, r.y, r.z, r.w), ys = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map((a) => Math.abs(new THREE.Vector3(...a).applyQuaternion(q).y)); return blocks[i].b.name === 'えんちゅう' ? ys[1] > 0.95 : Math.max(...ys) > 0.95; } };
+</script></body></html>

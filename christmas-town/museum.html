@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>宝石の美術館</title>
+<style>
+html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.tx{position:fixed;left:0;right:0;text-align:center;color:#fff4dc;text-shadow:0 2px 12px rgba(20,8,0,.85);pointer-events:none}
+#top{top:calc(14px + env(safe-area-inset-top));font-size:22px;font-weight:800;letter-spacing:.12em}
+#top small{display:block;margin-top:4px;font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.85}
+#hint{bottom:calc(24px + env(safe-area-inset-bottom));font-size:13px;font-weight:800;line-height:1.7;transition:opacity .8s}
+#card{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top));transform:translateX(-50%);min-width:220px;max-width:min(86vw,340px);padding:12px 16px;border-radius:16px;background:rgba(255,250,240,.95);color:#2a1a10;box-shadow:0 8px 30px rgba(0,0,0,.4);text-align:center;pointer-events:none;transition:opacity .4s}
+#card b{display:block;font-size:20px;letter-spacing:.08em}#card small{display:block;font-size:12px;font-weight:700;color:#7a5a3a;margin-top:2px}#card p{margin:8px 0 0;font-size:12.5px;line-height:1.6;text-align:left}
+#card i{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.2)}
+#fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
+</head><body><canvas id="c"></canvas>
+<!-- 港町（町の全景）へもどる -->
+<a id="toTown" href="./#museum">‹ 港町へもどる</a>
+<div class="tx" id="top">宝石の美術館<small id="sub">じゅんびちゅう…</small></div>
+<div class="tx" id="hint">床を タップ＝そこへ歩く・なぞる＝見まわす・2本指＝拡大縮小<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
+<div id="card" hidden><b id="cardName"></b><small id="cardSub"></small><p id="cardFact" hidden></p></div>
+<div id="fps" hidden></div>
+<script type="module">
+// 夜の大ホール。真ん中に大きな虹色のクリスタル（触るとワルツ・なかなか割れないが、倒れると衝撃でまわりも崩れる）。宝石48種（誕生石を中心に、よく知られた宝石・光り方に特徴のある石・鉱物）が、ホールのあちこちの台座の上・光の台の上・宙を飛びまわって（指輪とピアスだけガラスケース）、突き当たりの天窓とバラ窓の下に宝石のクリスマスツリー
+// 照明は落としてある：展示は天井のレールの細いスポットだけが照らし、浮かぶろうそくの灯りが揺れ、左のステンドグラス・バラ窓・天窓から月明かりが差しこむ（月は少しずつ動き、雲で明るさが変わる）。ときどき宝石が自分で光る
+// 一人称で歩きまわり（床をタップ・キー）、なぞって見まわし、2本指で拡大縮小。宝石は光の屈折と中の跳ね返りを計算して描く（虹色のファイア・きらめき）
+// やさしく触ると、その宝石の音色で歌い、回って煌く。激しく連打・長押しすると大惨事（運が悪いと宝石も砕ける）。しばらくすると、端から・根元から元の姿へ
+import * as THREE from 'three';
+import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
+import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
+import { gemEnv, gemMaterial } from './gemshader.js';
+import * as SND from './museum_sound.js';
+import { makeSky } from './space.js';
+import * as RM from './real_mats.js';
+import { DESIGNS, CEILING, ARCH, ROSE, paint } from './designs.js';
+const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp;
+const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
+let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#05060d');
+const sky = makeSky(scene, { aurora: 0.5 });   // 天井の丸い天窓から見える空
+const GEM_ENV = gemEnv(renderer);   // きらめき用の環境（宝石・ガラスのかけら・飾り玉）
+// 映り込み：大きな白い灯り・あたたかいシャンデリア・青い窓（台座や床など、宝石以外）。照明を落としたホールなので、明るさは1割あまり（床が鏡のように白く光らない）
+{ const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#1a1424', side: THREE.BackSide })));
+  const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s * 0.13), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
+  box(10, 4, 0, 16, 0, '#fff4e0', 7); box(3, 3, -12, 6, 8, '#ffe2b0', 6); box(3, 5, 13, 4, -4, '#ffffff', 6); box(2, 2, 6, 3, 13, '#ffffff', 9); box(2, 2, -8, 2, -12, '#a0c8ff', 6); box(2, 2, 10, 8, 10, '#ffd0f0', 5); box(8, 2, 0, -10, 8, '#604030', 2);
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.02).texture; }
+scene.add(new THREE.HemisphereLight('#c8c4ff', '#2a1e18', 0.07));
+
+// ---------- 大ホール：大理石の床に赤い敷物・腰板・紺の壁・丸い柱・展示の後ろのアーチのくぼみ・ステンドグラス・梁のある格天井に丸い天窓3つ ----------
+const HW = 7, HL = 13, HH = 7, TREE = { x: 0, z: -10.2, H: 4.5, R0: 1.35, TURNS: 6.5 }, OCULI = [5.2, -2.4, TREE.z];
+const ctex = (w, h, draw, rep) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); } return t; };
+const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), V3 = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1);
+const gold = new THREE.MeshStandardMaterial({ color: '#d9ae55', metalness: 1, roughness: 0.28, envMapIntensity: 1.4 });
+const mergeGeo = (parts) => { const ps = parts.map((g) => (g.index ? g.toNonIndexed() : g)), n = ps.reduce((s, g) => s + g.attributes.position.array.length, 0), pos = new Float32Array(n), nrm = new Float32Array(n), uv = new Float32Array((n / 3) * 2); let o = 0, ou = 0;
+  for (const g of ps) { pos.set(g.attributes.position.array, o); nrm.set(g.attributes.normal.array, o); if (g.attributes.uv) uv.set(g.attributes.uv.array, ou); o += g.attributes.position.array.length; ou += (g.attributes.position.array.length / 3) * 2; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g; };
+// ---------- 本物らしい内装：磨いた大理石の床（1枚ずつの石板と目地・黒い縁石・金の象嵌）／毛足のある赤い絨毯／絹のダマスクの壁／クルミ材の腰板 ----------
+const MARB = RM.marble(512);
+// ---------- 部屋の光：照明を落としたホールで、材質に足す光（月明かり＝窓の色の光・床の光だまり・展示を照らす細いスポット） ----------
+// 月明かりは、光の入口の面（左の壁の窓の帯・突き当たりの壁・天井の天窓）ごとに「その面の絵」を持ち、照らされる点から月の向きに逆にたどって、入口の絵の色を拾う
+const BLACK = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); BLACK.needsUpdate = true;
+const MOON_U = { uMD: { value: new THREE.Vector3(0, -1, 0) }, uMK: { value: new THREE.Vector3() }, uSpotMap: { value: BLACK } };
+for (let k = 0; k < 3; k++) { MOON_U['uMO' + k] = { value: new THREE.Vector3() }; MOON_U['uMI' + k] = { value: new THREE.Matrix3() }; MOON_U['uMT' + k] = { value: BLACK }; }
+const ROOM_VS = 'vec4 rwp = vec4(transformed, 1.0); mat3 rnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\nrwp = instanceMatrix * rwp; rnm = rnm * mat3(instanceMatrix);\n#endif\nrwp = modelMatrix * rwp; vWP = rwp.xyz; vWN = rnm * objectNormal;';
+const ROOM_H = `uniform vec3 uMD; uniform vec3 uMK; uniform vec3 uMO0; uniform vec3 uMO1; uniform vec3 uMO2; uniform mat3 uMI0; uniform mat3 uMI1; uniform mat3 uMI2; uniform sampler2D uMT0; uniform sampler2D uMT1; uniform sampler2D uMT2; uniform sampler2D uSpotMap;
+uniform vec3 uSpP; uniform vec3 uSpD; uniform vec3 uSpC; uniform vec2 uSpCos; uniform vec4 uSpSh;
+varying vec3 vWP; varying vec3 vWN;
+vec3 moonTex(sampler2D T, mat3 I, vec3 O, vec3 p, float k) { vec3 s = I * (p - O); return (s.z > 0.0 && s.x > 0.0 && s.x < 1.0 && s.y > 0.0 && s.y < 1.0) ? texture2D(T, s.xy).rgb * k : vec3(0.0); }
+`;
+const ROOM_FS = `{ vec3 nW = normalize(vWN), lit = (moonTex(uMT0, uMI0, uMO0, vWP, uMK.x) + moonTex(uMT1, uMI1, uMO1, vWP, uMK.y) + moonTex(uMT2, uMI2, uMO2, vWP, uMK.z)) * max(dot(nW, -uMD), 0.0);
+#ifdef ROOM_FLOOR
+  lit += texture2D(uSpotMap, vec2((vWP.x + ${HW.toFixed(1)}) / ${(2 * HW).toFixed(1)}, (vWP.z + ${HL.toFixed(1)}) / ${(2 * HL).toFixed(1)})).rgb * 1.6;
+#endif
+#ifdef ROOM_SPOT
+  vec3 Ls = normalize(uSpP - vWP); float cone = smoothstep(uSpCos.x, uSpCos.y, dot(-Ls, uSpD));
+  if (vWP.y < uSpSh.y - 0.005 && distance(vWP.xz, uSpSh.xz) < uSpSh.w + 0.02) cone = 0.0;
+  lit += uSpC * cone * max(dot(nW, Ls), 0.0);
+  totalEmissiveRadiance += uSpC * cone * pow(max(dot(nW, normalize(Ls + normalize(cameraPosition - vWP))), 0.0), 40.0) * 0.3;
+#endif
+  totalEmissiveRadiance += diffuseColor.rgb * lit; }`;
+// m を「部屋の光」を受ける材質にする（m そのものを書きかえる）。spot＝その展示だけのスポット（材質ごとに位置を持つので、展示ごとに写しを作る）
+function roomify(m, { floor = false, spot = false } = {}) {
+  const S = spot ? { uSpP: { value: new THREE.Vector3(0, 99, 0) }, uSpD: { value: new THREE.Vector3(0, -1, 0) }, uSpC: { value: new THREE.Color(0, 0, 0) }, uSpCos: { value: new THREE.Vector2(0.99, 1) }, uSpSh: { value: new THREE.Vector4(0, -9, 0, 0) } } : null;   // uSpSh＝天板（中心・高さ・半径）。天板より下の台の胴は、天板の影に入る
+  m.defines = { ...(m.defines || {}), ...(floor ? { ROOM_FLOOR: '' } : {}), ...(spot ? { ROOM_SPOT: '' } : {}) };
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, MOON_U, S || {});
+    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + ROOM_VS);
+    sh.fragmentShader = ROOM_H + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + ROOM_FS);
+  };
+  m.customProgramCacheKey = () => 'room' + (floor ? 'F' : '') + (spot ? 'S' : '');
+  m.userData.spot = S; return m;
+}
+// 床：目地（少し暗い下地）の上に、白い大理石の石板を少しすき間をあけて並べる。石板ごとに模様の場所と向きを変える（同じ模様のくり返しに見せない）
+{ const grout = new THREE.Mesh(new THREE.PlaneGeometry(2 * HW, 2 * HL), roomify(new THREE.MeshStandardMaterial({ color: '#77736c', roughness: 0.9 }), { floor: true })); grout.rotation.x = -Math.PI / 2; scene.add(grout);
+  const B = 0.55, nx = 10, nz = 19, tw = (2 * (HW - B)) / nx, td = (2 * (HL - B)) / nz, gap = 0.006, PER = 2.6, pos = [], uv = [], nrm = [];
+  const quad = (x0, z0, w, d, u0, v0, rot, sc, y = 0.002) => { const P = [[x0, z0], [x0 + w, z0], [x0 + w, z0 + d], [x0, z0 + d]], c = Math.cos(rot), sn = Math.sin(rot), U = P.map(([x, z]) => { const lx = (x - x0) / sc, lz = (z - z0) / sc; return [u0 + lx * c - lz * sn, v0 + lx * sn + lz * c]; });
+    for (const k of [0, 2, 1, 0, 3, 2]) { pos.push(P[k][0], y, P[k][1]); uv.push(...U[k]); nrm.push(0, 1, 0); } };
+  for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) quad(-HW + B + i * tw + gap / 2, -HL + B + j * td + gap / 2, tw - gap, td - gap, Math.random(), Math.random(), ((Math.random() * 4) | 0) * Math.PI / 2, PER);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  scene.add(new THREE.Mesh(g, roomify(new THREE.MeshPhysicalMaterial({ map: MARB.white, roughness: 0.09, clearcoat: 0.7, clearcoatRoughness: 0.04, envMapIntensity: 0.75 }), { floor: true })));
+  // 黒い大理石の縁石（壁ぞいの帯）と、金の象嵌の線
+  pos.length = uv.length = nrm.length = 0;
+  const bands = [[-HW, -HL, 2 * HW, B], [-HW, HL - B, 2 * HW, B], [-HW, -HL + B, B, 2 * (HL - B)], [HW - B, -HL + B, B, 2 * (HL - B)]];
+  for (const [x0, z0, w, d] of bands) { const n = Math.max(1, Math.round(Math.max(w, d) / 1.6)); for (let k = 0; k < n; k++) { const long = w > d, ww = long ? w / n : w, dd = long ? d : d / n; quad(x0 + (long ? k * ww : 0) + gap / 2, z0 + (long ? 0 : k * dd) + gap / 2, ww - gap, dd - gap, Math.random(), Math.random(), long ? 0 : Math.PI / 2, PER); } }
+  const gb = new THREE.BufferGeometry(); gb.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gb.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); gb.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  scene.add(new THREE.Mesh(gb, roomify(new THREE.MeshPhysicalMaterial({ map: MARB.black, roughness: 0.08, clearcoat: 0.8, clearcoatRoughness: 0.03, envMapIntensity: 0.9 }), { floor: true })));
+  const inlay = []; for (const s of [-1, 1]) { inlay.push(new THREE.BoxGeometry(0.025, 0.004, 2 * (HL - B) + 0.025).translate(s * (HW - B), 0.003, 0), new THREE.BoxGeometry(2 * (HW - B) + 0.025, 0.004, 0.025).translate(0, 0.003, s * (HL - B))); }
+  scene.add(new THREE.Mesh(mergeGeo(inlay), gold));
+  // ツリーのまわりの象嵌：金の二重の輪と、16の先の星（床に埋めた真鍮）
+  const st = new THREE.Shape(); for (let i = 0; i < 16; i++) { const a = (i / 16) * TAU, r = i % 2 ? 1.0 : 2.15; i ? st.lineTo(Math.cos(a) * r, Math.sin(a) * r) : st.moveTo(Math.cos(a) * r, Math.sin(a) * r); } st.closePath();
+  const star = new THREE.Mesh(new THREE.ShapeGeometry(st, 4), new THREE.MeshStandardMaterial({ color: '#c9a050', metalness: 1, roughness: 0.32, envMapIntensity: 1.1 })); star.rotation.x = -Math.PI / 2; star.position.set(TREE.x, 0.004, TREE.z); scene.add(star);
+  for (const r of [2.25, 2.4]) { const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.02, r + 0.02, 96), gold); ring.rotation.x = -Math.PI / 2; ring.position.set(TREE.x, 0.004, TREE.z); scene.add(ring); } }
+// 赤い絨毯：入口からツリーへ。床から少し厚みを持たせ、毛足の凹凸と、角度で光るビロードのつや（磨いた床のような映り込みはない）
+{ const L = HL - 0.3 - (TREE.z + 2.45), W = 2.4, C = RM.carpet(512, W);
+  const mat = roomify(new THREE.MeshPhysicalMaterial({ map: C.map, normalMap: C.normal, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.96, metalness: 0, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ff5a6a'), envMapIntensity: 0.25 }), { floor: true });
+  const g = new THREE.BoxGeometry(W, 0.016, L), uv = g.attributes.uv, p = g.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) + W / 2) / W, (p.getZ(i) + L / 2) / W);
+  const rug = new THREE.Mesh(g, mat); rug.position.set(0, 0.008, (HL - 0.3 + TREE.z + 2.45) / 2); scene.add(rug);
+  const cord = mergeGeo([-1, 1].map((sd) => new THREE.CylinderGeometry(0.011, 0.011, L, 8).rotateX(Math.PI / 2).translate(sd * (W / 2 + 0.004), 0.012, 0)));
+  const c = new THREE.Mesh(cord, new THREE.MeshStandardMaterial({ color: '#c9a050', metalness: 0.7, roughness: 0.45 })); c.position.z = rug.position.z; scene.add(c); }
+// 壁：絹のダマスク（同じ色の濃淡の唐草が、見る角度で光る）
+{ const D = RM.damask(512); for (const [w, x, z, ry] of [[2 * HL, -HW, 0, Math.PI / 2], [2 * HL, HW, 0, -Math.PI / 2], [2 * HW, 0, -HL, 0], [2 * HW, 0, HL, Math.PI]]) {
+    const map = D.map.clone(), nm = D.normal.clone(); map.repeat.set(w / 1.3, HH / 1.3); nm.repeat.set(w / 1.3, HH / 1.3); map.needsUpdate = nm.needsUpdate = true;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, HH), new THREE.MeshPhysicalMaterial({ map, normalMap: nm, normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.7, sheen: 0.8, sheenRoughness: 0.35, sheenColor: new THREE.Color('#5a6ab0'), envMapIntensity: 0.4 })); m.position.set(x, HH / 2, z); m.rotation.y = ry; scene.add(m); } }
+// 腰板：クルミ材の浮き彫りの鏡板（木目・ニスのつや）と、金の笠木
+const DOORW = 1.95;   // 入口の扉（枠と柱形）の幅の半分。腰板はここをあける
+{ const panel = (u, v) => { const x = (u * 2) % 1, e = Math.min(x, 1 - x, v, 1 - v), f = Math.min(Math.abs(x - 0.5) * 2, Math.abs(v - 0.5) * 2); return e < 0.06 ? 0.9 : e < 0.11 ? 0.55 - (e - 0.06) * 6 : f > 0.72 ? 0.25 + (f - 0.72) * 2.4 : 0.92; };
+  const WD = RM.walnut(512, 256, panel), parts = [], ins = 0.05, H = 1.15;
+  for (const s of [-1, 1]) { const b = new THREE.BoxGeometry(0.08, H, 2 * HL - 0.2); woodUV(b, 2 * HL / 2.4); parts.push(b.translate(s * (HW - ins), H / 2, 0)); } for (const [x0, x1, z] of [[-HW + 0.1, HW - 0.1, -HL + ins], [-HW + 0.1, -DOORW, HL - ins], [DOORW, HW - 0.1, HL - ins]]) { const b = new THREE.BoxGeometry(x1 - x0, H, 0.08); woodUV(b, (x1 - x0) / 2.4); parts.push(b.translate((x0 + x1) / 2, H / 2, z)); }
+  scene.add(new THREE.Mesh(mergeGeo(parts), new THREE.MeshPhysicalMaterial({ map: WD.map, normalMap: WD.normal, roughness: 0.42, clearcoat: 0.55, clearcoatRoughness: 0.12, envMapIntensity: 0.6 })));
+  const rails = []; for (const s of [-1, 1]) rails.push(new THREE.BoxGeometry(0.14, 0.06, 2 * HL - 0.2).translate(s * (HW - 0.07), H + 0.03, 0)); for (const [x0, x1, z] of [[-HW + 0.1, HW - 0.1, -HL + 0.07], [-HW + 0.1, -DOORW, HL - 0.07], [DOORW, HW - 0.1, HL - 0.07]]) rails.push(new THREE.BoxGeometry(x1 - x0, 0.06, 0.14).translate((x0 + x1) / 2, H + 0.03, z)); for (const [y, t] of [[4.3, 0.08], [HH - 0.06, 0.1]]) for (const s of [-1, 1]) rails.push(new THREE.BoxGeometry(0.06, t, 2 * HL).translate(s * (HW - 0.03), y, 0), new THREE.BoxGeometry(2 * HW, t, 0.06).translate(0, y, s * (HL - 0.03)));
+  scene.add(new THREE.Mesh(mergeGeo(rails), gold)); }
+function woodUV(b, rep) { const uv = b.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * rep); }
+const SIDE_Z = Array.from({ length: 8 }, (_, k) => 8.4 - k * 2.3), COL_Z = Array.from({ length: 9 }, (_, k) => 8.4 + 1.15 - k * 2.3);   // 壁ぞいの展示・柱の位置
+// 丸い柱：台座・胴・柱頭（金の帯）
+const colMarb = MARB.white.clone(); colMarb.repeat.set(1, 2.4); colMarb.needsUpdate = true;
+const marble2 = new THREE.MeshPhysicalMaterial({ map: colMarb, color: '#f6efe2', roughness: 0.18, clearcoat: 0.5, clearcoatRoughness: 0.08, envMapIntensity: 0.9 });
+{ const col = mergeGeo([new THREE.BoxGeometry(0.62, 0.14, 0.62).translate(0, 0.07, 0), new THREE.CylinderGeometry(0.29, 0.31, 0.14, 32).translate(0, 0.21, 0), new THREE.CylinderGeometry(0.2, 0.225, 5.1, 32).translate(0, 2.83, 0), new THREE.CylinderGeometry(0.33, 0.21, 0.38, 32).translate(0, 5.57, 0), new THREE.BoxGeometry(0.7, 0.12, 0.7).translate(0, 5.82, 0)]);
+  const rings = mergeGeo([new THREE.TorusGeometry(0.235, 0.035, 8, 32).rotateX(Math.PI / 2).translate(0, 0.32, 0), new THREE.TorusGeometry(0.215, 0.03, 8, 32).rotateX(Math.PI / 2).translate(0, 5.36, 0)]);
+  const cols = new THREE.InstancedMesh(col, marble2, 18), rg = new THREE.InstancedMesh(rings, gold, 18); let n = 0;
+  for (const s of [-1, 1]) for (const z of COL_Z) { M4.compose(V1.set(s * (HW - 0.36), 0, z), Q.identity(), ONE); cols.setMatrixAt(n, M4); rg.setMatrixAt(n++, M4); } scene.add(cols, rg); }
+// 展示の後ろのアーチのくぼみ（深い紺・金の縁）
+const nicheTex = ctex(128, 256, (g) => { g.beginPath(); g.moveTo(8, 256); g.lineTo(8, 64); g.arc(64, 64, 56, Math.PI, 0); g.lineTo(120, 256); g.closePath(); const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#0a0f26'); gr.addColorStop(1, '#1a2048'); g.fillStyle = gr; g.fill(); g.lineWidth = 7; g.strokeStyle = '#d9ae55'; g.stroke(); g.lineWidth = 2; g.strokeStyle = 'rgba(217,174,85,.5)'; g.beginPath(); g.moveTo(18, 256); g.lineTo(18, 64); g.arc(64, 64, 46, Math.PI, 0); g.lineTo(110, 256); g.stroke(); });
+{ const ni = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.1, 3.2), new THREE.MeshStandardMaterial({ map: nicheTex, transparent: true, roughness: 0.8 }), 16); let n = 0;
+  for (const s of [-1, 1]) for (const z of SIDE_Z) { M4.compose(V1.set(s * (HW - 0.1), 1.6, z), Q.setFromEuler(E.set(0, -s * Math.PI / 2, 0)), ONE); ni.setMatrixAt(n++, M4); } scene.add(ni); }
+// 入口の扉：大理石のアーチの枠（柱形・要石）、クルミ材の両開き（浮き彫りの鏡板・真鍮の取っ手と蹴り板）、扇形の明かり取り（鉛の桟のガラスに夜の青）
+{ const G = new THREE.Group(); G.position.set(0, 0, HL - 0.02); G.rotation.y = Math.PI; scene.add(G);
+  const R = 1.2, H0 = 2.6, stone = new THREE.MeshPhysicalMaterial({ map: MARB.white, color: '#f3ece0', roughness: 0.2, clearcoat: 0.5, envMapIntensity: 0.8 });
+  const arch = (r, w) => { const s = new THREE.Shape(); s.moveTo(-w, 0); s.lineTo(w, 0); s.lineTo(w, H0); s.absarc(0, H0, r, 0, Math.PI, false); s.lineTo(-w, 0); return s; };
+  const fr = arch(R + 0.32, R + 0.32), hole = new THREE.Path(); hole.moveTo(-R, 0); hole.lineTo(-R, H0); hole.absarc(0, H0, R, Math.PI, 0, true); hole.lineTo(R, 0); hole.lineTo(-R, 0); fr.holes.push(hole);
+  G.add(new THREE.Mesh(new THREE.ExtrudeGeometry(fr, { depth: 0.14, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 3, curveSegments: 40 }), stone));
+  const key = new THREE.Shape(); key.moveTo(-0.14, 0); key.lineTo(0.14, 0); key.lineTo(0.2, 0.42); key.lineTo(-0.2, 0.42); key.closePath(); const km = new THREE.Mesh(new THREE.ExtrudeGeometry(key, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 }), stone); km.position.set(0, H0 + R - 0.04, 0); G.add(km);
+  for (const sd of [-1, 1]) { const pil = new THREE.Mesh(new THREE.BoxGeometry(0.3, H0 + 0.5, 0.2), stone); pil.position.set(sd * (R + 0.55), (H0 + 0.5) / 2, 0.06); G.add(pil); const cap = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.28), gold); cap.position.set(sd * (R + 0.55), H0 + 0.56, 0.06); G.add(cap); const base = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.16, 0.28), stone); base.position.set(sd * (R + 0.55), 0.08, 0.06); G.add(base); }
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(2 * R + 0.7, 0.04, 0.5), stone); sill.position.set(0, 0.02, 0.12); G.add(sill);
+  // 扉の板（2枚）：浮き彫りの鏡板つき
+  const pnl = (u, v) => { const yy = (1 - v) * 2.6, inU = Math.min(u, 1 - u) > 0.15, top = yy > 1.25 && yy < 2.42, bot = yy > 0.22 && yy < 1.05, inside = inU && (top || bot); if (!inside) return 0.9; const e = Math.min(Math.min(u, 1 - u) - 0.15, top ? Math.min(yy - 1.25, 2.42 - yy) : Math.min(yy - 0.22, 1.05 - yy)); return e < 0.05 ? 0.9 - e * 10 : 0.5 + Math.min(0.42, (e - 0.05) * 6); };
+  const WD = RM.walnut(256, 512, pnl, true); WD.map.repeat.set(1, 1); WD.normal.repeat.set(1, 1);
+  const wood = new THREE.MeshPhysicalMaterial({ map: WD.map, normalMap: WD.normal, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.1, envMapIntensity: 0.7 });
+  const brass = new THREE.MeshPhysicalMaterial({ color: '#d4aa5a', metalness: 1, roughness: 0.22, clearcoat: 0.3, envMapIntensity: 1.3 });
+  for (const sd of [-1, 1]) { const lf = new THREE.Group(); lf.position.set(sd * R / 2, 0, 0); G.add(lf);
+    const bg = new THREE.BoxGeometry(R - 0.02, H0, 0.07), uv = bg.attributes.uv, pp = bg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, (pp.getX(i) + R / 2) / R, pp.getY(i) / H0 + 0.5); const lm = new THREE.Mesh(bg, wood); lm.position.y = H0 / 2; lf.add(lm);
+    const pull = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.55, 16), brass); pull.position.set(-sd * (R / 2 - 0.13), 1.15, 0.1); lf.add(pull);
+    for (const yy of [0.9, 1.4]) { const so = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.07, 10).rotateX(Math.PI / 2), brass); so.position.set(-sd * (R / 2 - 0.13), yy, 0.065); lf.add(so); }
+    const kick = new THREE.Mesh(new THREE.BoxGeometry(R - 0.1, 0.22, 0.006), brass); kick.position.set(0, 0.13, 0.04); lf.add(kick); }
+  const mid = new THREE.Mesh(new THREE.BoxGeometry(0.04, H0, 0.09), brass); mid.position.set(0, H0 / 2, 0.01); G.add(mid);
+  const transom = new THREE.Mesh(new THREE.BoxGeometry(2 * R, 0.08, 0.1), wood); transom.position.set(0, H0 + 0.02, 0.01); G.add(transom);
+  // 扇形の明かり取り：鉛の放射の桟と、夜の青いガラス（外の雪明かりで少し明るい）
+  const fan = ctex(512, 256, (g, w, h) => { const cx = w / 2, cy = h; for (let i = 0; i < 9; i++) { const a0 = Math.PI + (i / 9) * Math.PI, a1 = Math.PI + ((i + 1) / 9) * Math.PI; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, w / 2, a0, a1); g.closePath(); const gr = g.createRadialGradient(cx, cy, 20, cx, cy, w / 2); gr.addColorStop(0, i % 2 ? '#22386e' : '#1a2e62'); gr.addColorStop(1, i % 2 ? '#0b1430' : '#0e1a3c'); g.fillStyle = gr; g.fill(); }
+    g.strokeStyle = '#1a140c'; g.lineWidth = 7; for (let i = 0; i <= 9; i++) { const a = Math.PI + (i / 9) * Math.PI; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * w / 2, cy + Math.sin(a) * w / 2); g.stroke(); } for (const r of [70, 150]) { g.beginPath(); g.arc(cx, cy, r, Math.PI, TAU); g.stroke(); }
+    g.fillStyle = '#8a6a30'; g.beginPath(); g.arc(cx, cy, 52, Math.PI, TAU); g.fill(); g.fillStyle = 'rgba(255,240,200,.5)'; for (let i = 0; i < 26; i++) { g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1.5, 0, TAU); g.fill(); } });
+  const fm = new THREE.Mesh(new THREE.CircleGeometry(R, 48, 0, Math.PI), new THREE.MeshBasicMaterial({ map: fan, color: new THREE.Color(1.1, 1.1, 1.2) })); fm.position.set(0, H0 + 0.06, 0.0); G.add(fm);
+  const fu = fm.geometry.attributes.uv, fp = fm.geometry.attributes.position; for (let i = 0; i < fu.count; i++) fu.setXY(i, fp.getX(i) / (2 * R) + 0.5, fp.getY(i) / R); }
+// 格天井：紺の格子に、木の梁（下に金の線）。丸い天窓の所は梁を通さない
+const ceilTex = ctex(256, 256, (g) => { g.fillStyle = '#121a38'; g.fillRect(0, 0, 256, 256); g.strokeStyle = 'rgba(217,174,85,.35)'; g.lineWidth = 3; g.strokeRect(30, 30, 196, 196); g.fillStyle = 'rgba(240,200,110,.7)'; g.beginPath(); g.arc(128, 128, 10, 0, TAU); g.fill(); });
+ceilTex.wrapS = ceilTex.wrapT = THREE.RepeatWrapping; ceilTex.repeat.set(1 / 2, 1 / 2);
+{ const s = new THREE.Shape(); s.moveTo(-HW, -HL); s.lineTo(HW, -HL); s.lineTo(HW, HL); s.lineTo(-HW, HL); s.closePath(); for (const z of OCULI) { const hp = new THREE.Path(); hp.absarc(0, z, 1.5, 0, TAU, true); s.holes.push(hp); }   // x軸で90度起こすと、形のyが部屋のzになる
+  const c = new THREE.Mesh(new THREE.ShapeGeometry(s, 48), new THREE.MeshStandardMaterial({ map: ceilTex, roughness: 0.9, side: THREE.DoubleSide })); c.rotation.x = Math.PI / 2; c.position.y = HH; scene.add(c);
+  for (const z of OCULI) { const t = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 10, 64), gold); t.rotation.x = Math.PI / 2; t.position.set(0, HH - 0.02, z); scene.add(t); }
+  const beams = [], strips = [], clear = (x0, x1, z, w) => { const segs = [[x0, x1]]; for (const oz of OCULI) { const dz = Math.abs(z - oz); if (dz < 1.6 + w) { const hx = Math.sqrt(Math.max(0, (1.6 + w) ** 2 - dz * dz)); const out = []; for (const [a, b] of segs) { if (b <= -hx || a >= hx) out.push([a, b]); else { if (a < -hx) out.push([a, -hx]); if (b > hx) out.push([hx, b]); } } segs.splice(0, segs.length, ...out); } } return segs; };
+  for (let z = -HL + 1; z <= HL - 1; z += 2) for (const [a, b] of clear(-HW, HW, z, 0.1)) { beams.push(new THREE.BoxGeometry(b - a, 0.2, 0.18).translate((a + b) / 2, HH - 0.1, z)); strips.push(new THREE.BoxGeometry(b - a, 0.03, 0.2).translate((a + b) / 2, HH - 0.2, z)); }
+  for (const x of [-4.6, -2.3, 2.3, 4.6]) { beams.push(new THREE.BoxGeometry(0.18, 0.2, 2 * HL).translate(x, HH - 0.1, 0)); strips.push(new THREE.BoxGeometry(0.2, 0.03, 2 * HL).translate(x, HH - 0.2, 0)); }
+  scene.add(new THREE.Mesh(mergeGeo(beams), new THREE.MeshStandardMaterial({ color: '#2a1c12', roughness: 0.6 })), new THREE.Mesh(mergeGeo(strips), gold)); }
+const glowTex = ctex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+const sprite = (col, s, op = 1) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending })); m.scale.setScalar(s); return m; };
+// シャンデリア（金の輪・ろうそくの灯り・しずくのクリスタル）
+const dropMat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.02, metalness: 0, envMap: GEM_ENV, envMapIntensity: 0.9, clearcoat: 1, transparent: true, opacity: 0.85, flatShading: true }), bulbMat = new THREE.MeshStandardMaterial({ color: '#fff0d0', emissive: '#ffcc80', emissiveIntensity: 0.45 });
+const CHANDS = [(OCULI[0] + OCULI[1]) / 2, (OCULI[1] + OCULI[2]) / 2 + 1.2], CH_L = [], CH_G = [];   // シャンデリアはろうそくの灯り：暗めで、ゆらぐ
+for (const z of CHANDS) {
+  const ch = new THREE.Group(); ch.position.set(0, 5.4, z); scene.add(ch); CH_G.push(ch);
+  const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.035, 8, 64), gold), r2 = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 48), gold); r1.rotation.x = r2.rotation.x = Math.PI / 2; r2.position.y = 0.38; ch.add(r1, r2);
+  const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, HH - 5.8), gold); chain.position.y = 0.38 + (HH - 5.8) / 2; ch.add(chain);
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU, b = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), bulbMat); b.position.set(Math.cos(a), 0.09, Math.sin(a)); ch.add(b); const s = sprite('#ffc880', 0.45, 0.25); s.position.copy(b.position); ch.add(s); }
+  const drops = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), dropMat, 36);
+  for (let i = 0; i < 36; i++) { const ring = i < 24, a = ((ring ? i : i - 24) / (ring ? 24 : 12)) * TAU + (ring ? 0.13 : 0), r = ring ? 1.0 : 0.55; M4.compose(V1.set(Math.cos(a) * r, (ring ? -0.14 : 0.24) - Math.random() * 0.06, Math.sin(a) * r), Q.identity(), V2.set(0.03, 0.08, 0.03)); drops.setMatrixAt(i, M4); } ch.add(drops);
+  const L = new THREE.PointLight('#ffc890', 1.2, 12, 1.4); L.position.set(0, -0.2, 0); ch.add(L); CH_L.push(L); }
+
+// ---------- ステンドグラス（壊れない飾り）：ステンドグラスの試作と同じ絵柄。月の光で透け、床に色の光が落ちる ----------
+const winTex = ctex(128, 192, (g) => { g.beginPath(); g.moveTo(8, 190); g.lineTo(8, 64); g.arc(64, 64, 56, Math.PI, 0); g.lineTo(120, 190); g.closePath(); const gr = g.createLinearGradient(0, 0, 0, 192); gr.addColorStop(0, '#0b1a48'); gr.addColorStop(1, '#2a3f86'); g.fillStyle = gr; g.fill(); g.lineWidth = 6; g.strokeStyle = '#d9ae55'; g.stroke(); });   // 描きあがるまでの仮の窓
+const WINDOWS = [];   // { mesh, design, frame, w, h, pos, ry, lit }（lit＝月の側の窓：左の壁と突き当たり）
+const ARCH_S = { ...ARCH, W: 384, H: 653 }, ROSE_S = { ...ROSE, W: 1024, H: 1024 };   // 美術館の窓は、試作の半分の細かさで描く（読み込みを軽く）
+function addWindow(design, frame, w, pos, ry, lit) {
+  const h = (w * (frame.y1 - frame.y0)) / (frame.x1 - frame.x0), mat = new THREE.MeshBasicMaterial({ map: winTex, transparent: true, color: new THREE.Color(1.15, 1.15, 1.15) }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  mesh.position.set(...pos); mesh.rotation.y = ry; scene.add(mesh);
+  const frameM = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.08, h * 1.05), new THREE.MeshStandardMaterial({ color: '#0c0f1e', roughness: 0.6 })); frameM.position.copy(mesh.position).add(V1.set(0, 0, -0.01).applyEuler(E.set(0, ry, 0))); frameM.rotation.y = ry; scene.add(frameM);
+  WINDOWS.push({ mesh, design, frame, w, h, pos, ry, lit });
+}
+SIDE_Z.forEach((z, k) => { for (const s of [-1, 1]) addWindow(DESIGNS[s < 0 ? k : 7 - k], ARCH_S, 1.15, [s * (HW - 0.09), 5.15, z], -s * Math.PI / 2, s < 0); });
+addWindow(CEILING, ROSE_S, 4.4, [0, 4.75, -HL + 0.1], 0, true);   // ツリーの星の後ろの大きなバラ窓（サンタのそり）
+addWindow(DESIGNS[8], ARCH_S, 1.4, [-4.1, 3.4, -HL + 0.09], 0, true); addWindow(DESIGNS[9], ARCH_S, 1.4, [4.1, 3.4, -HL + 0.09], 0, true);
+addWindow(DESIGNS[10], ARCH_S, 1.2, [-4.3, 4.2, HL - 0.09], Math.PI, false); addWindow(DESIGNS[11], ARCH_S, 1.2, [4.3, 4.2, HL - 0.09], Math.PI, false);
+function paintWindow(W, seed) {
+  const F = W.frame, P = paint({ ...W.design, frame: F }, seed), sx = F.W / (F.x1 - F.x0), c = document.createElement('canvas'); c.width = F.W; c.height = F.H; const g = c.getContext('2d');
+  g.beginPath(); F.outline.forEach(([x, y], i) => (i ? g.lineTo((x - F.x0) * sx, (F.y1 - y) * sx) : g.moveTo((x - F.x0) * sx, (F.y1 - y) * sx))); g.closePath(); g.save(); g.clip(); g.drawImage(P.color, 0, 0); g.drawImage(P.lead, 0, 0); g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; W.mesh.material.map = t; W.mesh.material.needsUpdate = true; W.canvas = c;
+}
+
+const grad = (stops) => ctex(4, 128, (g) => { const gr = g.createLinearGradient(0, 128, 0, 0); for (const [o, a] of stops) gr.addColorStop(o, `rgba(255,255,255,${a})`); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); });
+
+// ---------- 通路のベンチ：ヘアラインのステンレスの脚と、厚い強化ガラスの座面（ふちは緑がかって見える） ----------
+// 敷物の両脇（宙に浮かぶ宝石を、座って見上げられる所）
+const BENCHES = [{ x: -1.95, z: 3.2 }, { x: 1.95, z: 3.2 }, { x: -1.95, z: -4.4 }, { x: 1.95, z: -4.4 }];
+{ // 金属とガラスは、明るい部屋の映り込み（宝石と同じ環境）で。ホールの暗い映り込みだと、鋼が黒く見えた
+  const steel = new THREE.MeshPhysicalMaterial({ color: '#d8dde4', metalness: 1, roughness: 0.34, roughnessMap: RM.brushed(256), clearcoat: 0.2, envMap: GEM_ENV, envMapIntensity: 0.9 });
+  const clear = new THREE.MeshPhysicalMaterial({ color: '#e2f6ee', metalness: 0, roughness: 0.02, transparent: true, opacity: 0.38, clearcoat: 1, clearcoatRoughness: 0.02, envMap: GEM_ENV, envMapIntensity: 1.2, specularIntensity: 1, ior: 1.5, depthWrite: false });
+  const edge = new THREE.MeshPhysicalMaterial({ color: '#58c8a0', metalness: 0, roughness: 0.04, transparent: true, opacity: 0.88, clearcoat: 1, envMapIntensity: 1.8, emissive: '#1f7a5a', emissiveIntensity: 0.45 });
+  const rr = (w, h, r) => { const s = new THREE.Shape(); s.moveTo(-w / 2 + r, -h / 2); s.lineTo(w / 2 - r, -h / 2); s.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s.lineTo(w / 2, h / 2 - r); s.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s.lineTo(-w / 2 + r, h / 2); s.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s.lineTo(-w / 2, -h / 2 + r); s.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s; };
+  // 脚：角の丸い四角の輪（平たい鋼の帯）。座面の下に、2本の脚をつなぐ細い背骨
+  const ring = rr(0.48, 0.42, 0.07), inner = new THREE.Path(rr(0.4, 0.34, 0.035).getPoints(24).reverse()); ring.holes.push(inner);
+  const legG = new THREE.ExtrudeGeometry(ring, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 2, curveSegments: 10 }).translate(0, 0.215, -0.02);
+  const spine = new THREE.BoxGeometry(0.05, 0.03, 1.32).translate(0, 0.415, 0);
+  const seatG = new THREE.BoxGeometry(0.54, 0.05, 1.78);
+  for (const b of BENCHES) { const g = new THREE.Group(); g.position.set(b.x, 0, b.z); scene.add(g);
+    for (const sd of [-1, 1]) { const l = new THREE.Mesh(legG, steel); l.position.z = sd * 0.66; g.add(l); }
+    g.add(new THREE.Mesh(spine, steel));
+    const seat = new THREE.Mesh(seatG, [edge, edge, clear, clear, edge, edge]); seat.position.y = 0.455; seat.renderOrder = 2; g.add(seat);
+    Object.assign(b, { g, seat, state: 'ok', taps: [], press: 0, creakK: 0, wob: 0, bT: 0, pressing: false }); seat.userData.bench = b;
+    for (const sd of [-1, 1]) for (const sz of [-1, 1]) { const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.012, 12), steel); pad.position.set(sd * 0.17, 0.432, sz * 0.66); g.add(pad); } } }
+
+// ---------- 宙に舞う飾り：浮かぶろうそく・ガラスの飾り玉・金の星。柱には、ろうそくの壁灯 ----------
+const waxMat = new THREE.MeshStandardMaterial({ color: '#f6ecd8', emissive: '#ffc880', emissiveIntensity: 0.18, roughness: 0.55 });
+const CANDLES = [], SCONCES = [];
+for (let t = 0; CANDLES.length < 56 && t < 3000; t++) { const x = rnd(-5.6, 5.6), y = rnd(3.5, 5.9), z = rnd(-11.5, 11.8); if (Math.abs(x) < 2.4 && z < -7.4) continue; if (CHANDS.some((cz) => Math.abs(x) < 1.6 && Math.abs(z - cz) < 1.6 && y > 4.6)) continue; if (CANDLES.some((c) => Math.hypot(c.x - x, c.z - z) < 0.9 && Math.abs(c.y - y) < 0.6)) continue; CANDLES.push({ x, y, z, h: rnd(0.16, 0.34), ph: Math.random() * 10, flare: 0 }); }
+for (const s of [-1, 1]) for (const z of COL_Z) SCONCES.push({ x: s * (HW - 0.66), y: 2.62, z, h: 0.16, ph: Math.random() * 10, flare: 0, fixed: true });
+const candleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.034, 0.038, 1, 12).translate(0, 0.5, 0), waxMat, CANDLES.length + SCONCES.length); candleMesh.frustumCulled = false; scene.add(candleMesh);
+{ const arm = new THREE.InstancedMesh(mergeGeo([new THREE.CylinderGeometry(0.06, 0.07, 0.04, 16).translate(0, -0.02, 0), new THREE.BoxGeometry(0.03, 0.03, 0.3).translate(0, -0.05, -0.15)]), gold, SCONCES.length);
+  SCONCES.forEach((c, i) => { M4.compose(V1.set(c.x, c.y, c.z), Q.setFromEuler(E.set(0, c.x < 0 ? Math.PI / 2 : -Math.PI / 2, 0)), ONE); arm.setMatrixAt(i, M4); }); scene.add(arm); }
+const ALL_CANDLES = CANDLES.concat(SCONCES);
+const baubleMat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', metalness: 0.85, roughness: 0.06, envMap: GEM_ENV, envMapIntensity: 2.2, clearcoat: 1, clearcoatRoughness: 0.03 });
+const ORN_COLS = ['#d8142e', '#e8b440', '#1f8a4c', '#2a5ad8', '#e6e8ee', '#d84a8a', '#7a3ad0'], BAUBLES = [], STARS = [];
+for (let i = 0; i < 30; i++) BAUBLES.push({ c: new THREE.Vector3(rnd(-4.8, 4.8), rnd(2.7, 4.6), rnd(-9.5, 10.5)), r: rnd(0.2, 0.7), w: rnd(0.15, 0.35) * (Math.random() < 0.5 ? -1 : 1), ph: Math.random() * TAU, s: rnd(0.075, 0.12), col: new THREE.Color(ORN_COLS[i % ORN_COLS.length]), spin: 0, rot: Math.random() * TAU });
+for (let i = 0; i < 10; i++) STARS.push({ c: new THREE.Vector3(rnd(-4.5, 4.5), rnd(3.0, 5.0), rnd(-9, 10)), r: rnd(0.2, 0.6), w: rnd(0.12, 0.3) * (Math.random() < 0.5 ? -1 : 1), ph: Math.random() * TAU, s: rnd(0.12, 0.18), spin: 0, rot: Math.random() * TAU });
+const baubleMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 28, 18), baubleMat, BAUBLES.length), capMesh = new THREE.InstancedMesh(mergeGeo([new THREE.CylinderGeometry(0.22, 0.22, 0.26, 12).translate(0, 1.02, 0), new THREE.TorusGeometry(0.14, 0.04, 6, 12).translate(0, 1.22, 0)]), gold, BAUBLES.length);
+BAUBLES.forEach((b, i) => baubleMesh.setColorAt(i, b.col)); baubleMesh.frustumCulled = capMesh.frustumCulled = false; scene.add(baubleMesh, capMesh);
+const starGeo = (() => { const ss = new THREE.Shape(); for (let i = 0; i <= 10; i++) { const a = (i / 10) * TAU + Math.PI / 2, r = i % 2 ? 0.42 : 1; i ? ss.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ss.moveTo(Math.cos(a) * r, Math.sin(a) * r); } const g = new THREE.ExtrudeGeometry(ss, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.08, bevelSegments: 2 }); g.center(); return g; })();
+const starMesh = new THREE.InstancedMesh(starGeo, gold, STARS.length); starMesh.frustumCulled = false; scene.add(starMesh);
+function drawDecor(now) {
+  now = flyT;   // 宙の飾りは、飛ぶ時計で動く（検査の時だけ止められる）
+  ALL_CANDLES.forEach((c, i) => { const y = c.fixed ? c.y : c.y + Math.sin(now * 0.6 + c.ph) * 0.06; M4.compose(V1.set(c.x, y, c.z), Q.identity(), V2.set(1, c.h, 1)); candleMesh.setMatrixAt(i, M4); c.top = V1.y + c.h; c.flare *= Math.exp(-0.05);
+    const fl = 0.75 + 0.25 * Math.sin(now * 13 + c.ph * 3) * Math.sin(now * 7.3 + c.ph), k = fl * (1 + c.flare * 2); c.fl = fl;
+    put(FLAME, V1.set(c.x, c.top + 0.06, c.z), FLAME_C, k * 0.9); put(FLAMEC, V1.set(c.x, c.top + 0.045, c.z), FLAME_W, k); put(HALO, V1.set(c.x, c.top + 0.05, c.z), FLAME_C, k * 0.14); }); candleMesh.instanceMatrix.needsUpdate = true;
+  BAUBLES.forEach((b, i) => { const a = now * b.w + b.ph; b.spin *= 0.97; b.rot += (0.3 + b.spin) * 0.016; V1.set(b.c.x + Math.cos(a) * b.r, b.c.y + Math.sin(now * 0.5 + b.ph) * 0.12, b.c.z + Math.sin(a) * b.r); b.p = (b.p || new THREE.Vector3()).copy(V1);
+    Q.setFromEuler(E.set(Math.sin(now * 0.4 + b.ph) * 0.2, b.rot, 0)); M4.compose(V1, Q, V2.setScalar(b.s)); baubleMesh.setMatrixAt(i, M4); capMesh.setMatrixAt(i, M4); }); baubleMesh.instanceMatrix.needsUpdate = capMesh.instanceMatrix.needsUpdate = true;
+  STARS.forEach((s, i) => { const a = now * s.w + s.ph; s.spin *= 0.97; s.rot += (0.5 + s.spin) * 0.016; V1.set(s.c.x + Math.cos(a) * s.r, s.c.y + Math.sin(now * 0.45 + s.ph) * 0.15, s.c.z + Math.sin(a) * s.r); s.p = (s.p || new THREE.Vector3()).copy(V1); M4.compose(V1, Q.setFromEuler(E.set(0, s.rot, 0)), V2.setScalar(s.s)); starMesh.setMatrixAt(i, M4); }); starMesh.instanceMatrix.needsUpdate = true;
+}
+
+// ---------- 展示：どの宝石を、どう飾り、どんな音色で、何が起こるか ----------
+// [飾り方, 音色, 音の高さ（音階の何番目）, やさしく触った時の仕掛け]。ケースは指輪とピアスだけ。あとは裸で触れる（台座・光の台・宙を飛ぶ）
+const PLAN = {
+  diamond: ['case', 'celesta', 10, 'fire'], ruby: ['case', 'bell', 7, 'glow'], pearl: ['case', 'musicbox', 5, 'glow'], sapphire: ['case', 'celesta', 6, 'star'],
+  emerald: ['pedestal', 'harp', 3, 'sparkle'], opal: ['pedestal', 'vibes', 5, 'iri'], alexandrite: ['pedestal', 'vibes', 7, 'shift'], tanzanite: ['pedestal', 'crystal', 6, 'shift'],
+  jade: ['pedestal', 'kalimba', 2, 'glow'], turquoise: ['pedestal', 'marimba', 4, 'ripple'], lapis: ['pedestal', 'bell', 3, 'gold'], rosequartz: ['pedestal', 'musicbox', 8, 'hearts'],
+  tourmaline: ['float', 'vibes', 3, 'twotone'], garnet: ['float', 'bell', 0, 'glow'], spinel: ['float', 'celesta', 4, 'sparkle'], citrine: ['float', 'harp', 8, 'gold'],
+  amethyst: ['free', 'crystal', 2, 'sparkle'], aquamarine: ['free', 'glass', 4, 'bubbles'], morganite: ['free', 'glass', 6, 'hearts'], moonstone: ['free', 'glass', 8, 'glow'],
+  peridot: ['free', 'kalimba', 6, 'sparkle'], amber: ['free', 'marimba', 7, 'glow'], coral: ['free', 'marimba', 1, 'bubbles'], topaz: ['free', 'harp', 6, 'gold'],
+  // 美術館だけの24種
+  kunzite: ['pedestal', 'musicbox', 2, 'sparkle'], iolite: ['pedestal', 'crystal', 4, 'shift'], sphene: ['pedestal', 'celesta', 8, 'fire'], rhodolite: ['pedestal', 'bell', 5, 'glow'],
+  labradorite: ['pedestal', 'vibes', 1, 'iri'], malachite: ['pedestal', 'marimba', 5, 'ripple'], rhodochrosite: ['pedestal', 'musicbox', 6, 'hearts'], tigereye: ['pedestal', 'marimba', 2, 'gold'],
+  starsapphire: ['pedestal', 'celesta', 9, 'star'], catseye: ['pedestal', 'kalimba', 4, 'sparkle'], hematite: ['pedestal', 'bell', 1, 'sparkle'], sunstone: ['pedestal', 'harp', 4, 'gold'],
+  zircon: ['float', 'celesta', 7, 'fire'], tsavorite: ['float', 'kalimba', 8, 'sparkle'], paraiba: ['float', 'glass', 2, 'glow'], imperialtopaz: ['float', 'harp', 5, 'gold'],
+  heliodor: ['free', 'harp', 10, 'gold'], rockcrystal: ['free', 'crystal', 9, 'sparkle'], smokyquartz: ['free', 'crystal', 0, 'sparkle'], fluorite: ['free', 'glass', 10, 'glow'],
+  pyrite: ['free', 'bell', 9, 'gold'], agate: ['free', 'marimba', 9, 'ripple'], obsidian: ['free', 'vibes', 0, 'sparkle'], chrysoberyl: ['free', 'kalimba', 10, 'gold'],
+};
+const ALL_GEMS = [...GEMS, ...MORE_GEMS];
+// 宙を飛ぶ宝石：ホールの上の空間を、ゆったり大きく飛びまわる（ときどき手の届く高さまで降りてくる）
+const FREE_AT = Array.from({ length: 16 }, (_, k) => [k % 2 ? 2.6 : -2.6, 2.4 + (k % 3) * 0.3, 10 - k * 1.15]);
+const SHIFT = { alexandrite: '#b0306a', tanzanite: '#9a4fe0', iolite: '#c8b890' }, GLOWC = { ruby: '#ff1a40', pearl: '#fff0f6', garnet: '#ff2a3a', jade: '#6dffa8', moonstone: '#8ab8ff', amber: '#ffad3a', paraiba: '#40fff0', fluorite: '#6a80ff', rhodolite: '#ff3a7a' };
+const pedMarb = MARB.white.clone(); pedMarb.repeat.set(1, 1.5); pedMarb.needsUpdate = true;
+const marble = new THREE.MeshPhysicalMaterial({ map: pedMarb, color: '#f6f1ea', roughness: 0.16, clearcoat: 0.5, clearcoatRoughness: 0.06, envMapIntensity: 0.8 }), velvet = new THREE.MeshPhysicalMaterial({ color: '#4a0e22', roughness: 0.85, sheen: 1, sheenColor: '#ff7aa0', sheenRoughness: 0.4 });
+const lacquer = new THREE.MeshPhysicalMaterial({ color: '#1d1532', roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1 }), plinthMat = new THREE.MeshPhysicalMaterial({ color: '#141a2c', roughness: 0.35, clearcoat: 1, envMapIntensity: 1 }), ringMat = new THREE.MeshStandardMaterial({ color: '#cfe8ff', emissive: '#9fd0ff', emissiveIntensity: 2 });
+roomify(marble); roomify(velvet);   // ツリーの台（元の材質）は、月明かりだけ受ける。展示の台は、写しにスポットを足す
+const G_PED = mergeGeo([new THREE.CylinderGeometry(0.36, 0.39, 0.08, 40).translate(0, 0.04, 0), new THREE.CylinderGeometry(0.26, 0.3, 1.0, 40).translate(0, 0.58, 0), new THREE.CylinderGeometry(0.33, 0.33, 0.06, 40).translate(0, 1.1, 0)]);
+const G_CUSH = new THREE.SphereGeometry(1, 28, 14).scale(0.2, 0.05, 0.2), G_CASE = new THREE.BoxGeometry(0.62, 0.95, 0.62).translate(0, 0.475, 0), G_TRIM = new THREE.BoxGeometry(0.66, 0.04, 0.66).translate(0, 0.95, 0);
+const G_PLINTH = new THREE.CylinderGeometry(0.3, 0.34, 0.5, 40).translate(0, 0.25, 0), G_RING = new THREE.TorusGeometry(0.27, 0.018, 8, 48).rotateX(Math.PI / 2).translate(0, 0.505, 0), G_BEAM = new THREE.CylinderGeometry(0.17, 0.27, 1.8, 32, 1, true).translate(0, 1.4, 0);
+const BEAM_ALPHA = grad([[0, 0.9], [0.6, 0.35], [1, 0]]);
+// 光の柱は、ふちへ行くほど薄く（正面から見て真ん中が濃い）。一様な濃さだと、暗いホールでは灰色の筒に見えた
+const softEdge = (m) => { m.onBeforeCompile = (sh) => { sh.vertexShader = 'varying vec3 vBN; varying vec3 vBV;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvBN = normalize(normalMatrix * normal); vBV = -mvPosition.xyz;'); sh.fragmentShader = 'varying vec3 vBN; varying vec3 vBV;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', 'diffuseColor.a *= pow(abs(dot(normalize(vBN), normalize(vBV))), 2.0);\n#include <opaque_fragment>'); }; m.customProgramCacheKey = () => 'soft-edge'; return m; };
+// ガラスケース：5枚の板（前・後・左・右・上）。割れる時は、同じ板を三角のかけら（厚みあり）に分ける
+const CY0 = 0.97, CY1 = 1.6, CH = 0.295, PANELS = [
+  [[-CH, CY0, CH], [2 * CH, 0, 0], [0, CY1 - CY0, 0]], [[CH, CY0, -CH], [-2 * CH, 0, 0], [0, CY1 - CY0, 0]], [[-CH, CY0, -CH], [0, 0, 2 * CH], [0, CY1 - CY0, 0]], [[CH, CY0, CH], [0, 0, -2 * CH], [0, CY1 - CY0, 0]], [[-CH, CY1, CH], [2 * CH, 0, 0], [0, 0, -2 * CH]]];
+const G_GLASS = (() => { const pos = []; for (const [o, u, v] of PANELS) { const p = (s, t) => [o[0] + u[0] * s + v[0] * t, o[1] + u[1] * s + v[1] * t, o[2] + u[2] * s + v[2] * t]; pos.push(...p(0, 0), ...p(1, 0), ...p(1, 1), ...p(0, 0), ...p(1, 1), ...p(0, 1)); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return g; })();
+const G_FRAME = (() => { const parts = [], add = (w, h, d, x, y, z) => parts.push(new THREE.BoxGeometry(w, h, d).translate(x, y, z)), t = 0.018;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(t, CY1 - CY0, t, sx * CH, (CY0 + CY1) / 2, sz * CH);
+  for (const s of [-1, 1]) { add(2 * CH + t, t, t, 0, CY1, s * CH); add(t, t, 2 * CH + t, s * CH, CY1, 0); add(2 * CH + t, t, t, 0, CY0, s * CH); add(t, t, 2 * CH + t, s * CH, CY0, 0); }
+  return mergeGeo(parts); })();
+const glassMat = () => new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.02, metalness: 0, transparent: true, opacity: 0.13, envMap: GEM_ENV, envMapIntensity: 1.6, clearcoat: 1, specularIntensity: 1, side: THREE.DoubleSide, depthWrite: false, emissive: '#ffffff', emissiveIntensity: 0 });
+const CRACK = ctex(256, 256, (g) => { g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineCap = 'round'; const cx = 120, cy = 140;
+  for (let i = 0; i < 11; i++) { let x = cx, y = cy, a = (i / 11) * TAU + Math.random() * 0.4; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 9; k++) { a += (Math.random() - 0.5) * 0.5; x += Math.cos(a) * 16; y += Math.sin(a) * 16; g.lineTo(x, y); } g.stroke(); }
+  g.lineWidth = 1.2; for (const rr of [26, 52, 80]) { g.beginPath(); for (let k = 0; k <= 22; k++) { const a = (k / 22) * TAU, w = rr * (0.85 + Math.random() * 0.3); k ? g.lineTo(cx + Math.cos(a) * w, cy + Math.sin(a) * w) : g.moveTo(cx + Math.cos(a) * w, cy + Math.sin(a) * w); } g.stroke(); } });
+// 札：宝石の名前を、金の板に
+function plaque(text) { const t = ctex(512, 128, (g) => { const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#f3d98f'); gr.addColorStop(1, '#b88a3a'); g.fillStyle = gr; g.fillRect(0, 0, 512, 128); g.strokeStyle = '#7a5520'; g.lineWidth = 6; g.strokeRect(6, 6, 500, 116); g.fillStyle = '#3a2408'; g.textAlign = 'center'; g.textBaseline = 'middle'; let fs = 62; g.font = `800 ${fs}px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif`; while (g.measureText(text).width > 470 && fs > 24) { fs -= 4; g.font = `800 ${fs}px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif`; } g.fillText(text, 256, 68); });
+  return new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.065), new THREE.MeshStandardMaterial({ map: t, metalness: 0.5, roughness: 0.35, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.3 })); }   // 札は、暗い中でも読めるように少し自分で光る
+
+let world = null; const exhibits = [], OBST = [];   // OBST＝床の展示の台（歩く時に入らない円）
+// 床の展示の置き場所：壁ぞいの2列ではなく、ホールのあちこちに散らす（となりと1.7m以上・敷物とベンチ・ツリーのまわり・入口はあける）。毎回同じ並びになるよう、決まった種から
+function scatter(n) {
+  const open = (x, z) => Math.abs(x) >= 1.8 && Math.abs(x) <= 5.9 && z <= 10.3 && z >= -HL + 1.2 && Math.hypot(x - TREE.x, z - TREE.z) >= 3.2 && Math.hypot(x - CRY.x, z - CRY.z) >= 3.4 && !BENCHES.some((b) => Math.abs(x - b.x) < 0.95 && Math.abs(z - b.z) < 1.55);
+  for (let r = 2.3; r > 1.5; r -= 0.05) for (let seed = 1; seed < 40; seed++) {
+    let st = seed * 7919; const R = () => ((st = (st * 16807) % 2147483647) / 2147483647), pts = [], act = [], far = (x, z) => pts.every((q) => Math.hypot(q[0] - x, q[1] - z) >= r);
+    for (let t = 0; pts.length < 2 && t < 999; t++) { const x = (R() * 2 - 1) * 5.9, z = -HL + 1.2 + R() * (HL + 9.1); if (open(x, z) && far(x, z)) { pts.push([x, z]); act.push(pts.length - 1); } }
+    while (act.length) { const ai = (R() * act.length) | 0, [px, pz] = pts[act[ai]]; let put = false;
+      for (let k = 0; k < 40 && !put; k++) { const a = R() * TAU, d = r * (1 + R()), x = px + Math.cos(a) * d, z = pz + Math.sin(a) * d; if (open(x, z) && far(x, z)) { pts.push([x, z]); act.push(pts.length - 1); put = true; } }
+      if (!put) act.splice(ai, 1); }
+    const left = pts.filter((q) => q[0] < 0).length;
+    if (pts.length < n || Math.abs(2 * left - pts.length) > 2) continue;
+    // 多い分は、いちばん混んでいる所（となりがいちばん近い点）から外す
+    const nn = (q) => Math.min(...pts.filter((o) => o !== q).map((o) => Math.hypot(o[0] - q[0], o[1] - q[1])));
+    while (pts.length > n) { let j = 0, jd = 1e9; pts.forEach((q, i) => { const d = nn(q); if (d < jd) { jd = d; j = i; } }); pts.splice(j, 1); }
+    return pts;
+  }
+}
+function buildExhibits() {
+  const by = { pedestal: [], case: [], float: [], free: [] }; for (const s of ALL_GEMS) by[PLAN[s.id][0]].push(s);
+  // 指輪とピアスのケースは、敷物ぞいの目立つ所（ホールの真ん中あたりと、入口側）。光の台は、奥から手前まで、まんべんなく。残りが台座
+  const pts = scatter(32).map(([x, z]) => ({ x, z })), places = [];
+  const pick = (tx, tz) => { let j = 0; for (let i = 1; i < pts.length; i++) if (Math.hypot(pts[i].x - tx, pts[i].z - tz) < Math.hypot(pts[j].x - tx, pts[j].z - tz)) j = i; return pts.splice(j, 1)[0]; };
+  const slots = { case: [[-2.6, -0.6], [2.6, -0.6], [-2.6, 6.0], [2.6, 6.0]].map(([x, z]) => pick(x, z)) };
+  slots.float = pts.filter((_, i) => i % 3 === 1).slice(0, 8); slots.pedestal = pts.filter((q) => !slots.float.includes(q));
+  for (const t of ['pedestal', 'case', 'float']) by[t].forEach((spec, k) => { const q = slots[t][k]; places.push({ spec, pos: [q.x, 0, q.z], ry: Math.atan2(-q.x, 1.2) }); OBST.push({ x: q.x, z: q.z, r: t === 'case' ? 0.8 : t === 'float' ? 0.68 : 0.72 }); });   // 敷物の方（少し入口寄り）を向く
+  by.free.forEach((spec, k) => { const [x, y, z] = FREE_AT[k]; places.push({ spec, pos: [x, y, z], ry: -Math.sign(x) * Math.PI / 2 }); });
+  places.forEach(({ spec, pos, ry }, i) => {
+    const [type, timbre, k, fx] = PLAN[spec.id], grp = new THREE.Group(); grp.position.set(...pos); grp.rotation.y = ry; scene.add(grp); grp.updateMatrixWorld(true);
+    const base = new THREE.Group(); grp.add(base);
+    const ex = { i, spec, type, timbre, k, fx, grp, base, state: 'ok', spin: 0, rattle: 0, press: 0, pressing: false, taps: [], wob: 0, ph: Math.random() * 10, fxT: 9, body: null, shards: null, shardMesh: null, frags: [], creakK: 0 };
+    grp.userData.ex = ex;
+    if (type === 'free') { ex.fly = { c: new THREE.Vector3(...pos), w: [rnd(0.09, 0.15), rnd(0.12, 0.2), rnd(0.06, 0.11)], ph: [rnd(0, TAU), rnd(0, TAU), rnd(0, TAU)] }; }
+    // 台・クッション・札は、この展示だけのスポットで照らす（材質ごとに、光の位置を持つ）
+    const sp = (m) => { const c = roomify(m.clone(), { spot: true }); ex.spotMats.push(c); return c; }; ex.spotMats = [];
+    if (type === 'pedestal') { base.add(new THREE.Mesh(G_PED, sp(marble))); const c = new THREE.Mesh(G_CUSH, sp(velvet)); c.position.y = 1.15; base.add(c); const p = plaque(spec.name); p.material = sp(p.material); p.position.set(0, 0.86, 0.292); base.add(p); }
+    else if (type === 'case') { base.add(new THREE.Mesh(G_CASE, sp(lacquer)), new THREE.Mesh(G_TRIM, sp(gold))); const c = new THREE.Mesh(G_CUSH, sp(velvet)); c.position.y = 0.99; base.add(c); const p = plaque(spec.name); p.material = sp(p.material); p.position.set(0, 0.78, 0.312); base.add(p);
+      ex.glassMat = glassMat(); ex.glass = new THREE.Mesh(G_GLASS, ex.glassMat); ex.glass.renderOrder = 3; ex.frame = new THREE.Mesh(G_FRAME, gold); ex.crackMat = new THREE.MeshBasicMaterial({ map: CRACK, transparent: true, opacity: 0, depthWrite: false }); ex.crack = new THREE.Mesh(new THREE.PlaneGeometry(2 * CH, CY1 - CY0), ex.crackMat); ex.crack.position.set(0, (CY0 + CY1) / 2, CH + 0.002); ex.crack.renderOrder = 3; base.add(ex.glass, ex.frame, ex.crack); }
+    else if (type === 'float') { base.add(new THREE.Mesh(G_PLINTH, sp(plinthMat)), new THREE.Mesh(G_RING, ringMat)); const p = plaque(spec.name); p.material = sp(p.material); p.position.set(0, 0.3, 0.335); base.add(p);
+      ex.beamMat = softEdge(new THREE.MeshBasicMaterial({ color: '#cfe6ff', alphaMap: BEAM_ALPHA, transparent: true, opacity: 0.13, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); ex.beam = new THREE.Mesh(G_BEAM, ex.beamMat); ex.beam.renderOrder = 4; base.add(ex.beam); }
+    // 宝石：光の屈折で描く。回る台（holder）の上に、こちらへ少し傾けて置く（宙を飛ぶものは、そのまま）
+    ex.tilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(spec.kind || type === 'free' ? 0 : 0.55, 0, 0));
+    const size = spec.kind ? 0.19 : type === 'free' ? 0.27 : 0.235, obj = makeGem(spec, size, { env: GEM_ENV, assemble: 30, up: new THREE.Vector3(0, 1, 0).applyQuaternion(ex.tilt.clone().invert()) }); ex.gem = obj; obj.group.userData.ex = ex; obj.group.traverse((o) => { if (o.isMesh) o.renderOrder = 1; });
+    obj.group.quaternion.copy(ex.tilt);
+    ex.home = new THREE.Vector3(0, type === 'pedestal' ? 1.16 + obj.radius * 0.78 : type === 'case' ? 1.0 + obj.radius * 0.82 : type === 'float' ? 1.55 : 0, 0);
+    ex.holder = new THREE.Group(); ex.holder.position.copy(ex.home); ex.holder.userData.ex = ex; grp.add(ex.holder); ex.holder.add(obj.group);
+    ex.halo = sprite(spec.color, 0.9, 0); ex.holder.add(ex.halo);
+    if (type === 'free') { ex.aura = sprite(spec.color, 1.2, 0.35); ex.holder.add(ex.aura); }   // 宙の宝石は、うっすら色の光をまとう
+    const c = new THREE.Color(spec.color); ex.col = c; ex.colW = c.clone().lerp(new THREE.Color('#ffffff'), 0.45);
+    ex.mats = []; ex.gmats = []; obj.group.traverse((o) => { if (!o.isMesh) return; if (o.material.isShaderMaterial) { if (!ex.gmats.includes(o.material)) ex.gmats.push(o.material); } else if (o.material.isMeshPhysicalMaterial && !ex.mats.includes(o.material)) ex.mats.push(o.material); });
+    ex.asmU = []; obj.group.traverse((o) => { if (!o.isMesh) return; const u = o.material.isShaderMaterial ? o.material.uniforms.uAsm : o.material.userData.asm; if (u && !ex.asmU.includes(u)) ex.asmU.push(u); });
+    ex.base0 = ex.mats.map((m) => ({ color: m.color.clone(), emissive: m.emissive.clone(), ei: m.emissiveIntensity })); ex.envI0 = ex.mats.map((m) => m.envMapIntensity);
+    obj.group.traverse((o) => { if (o.isMesh && !o.material.isShaderMaterial && !o.material.envMap) o.material.envMap = GEM_ENV; });   // 指輪の金・プラチナも、ホールの暗い映り込みでなく、きらめき用の環境を映す
+    exhibits.push(ex);
+  });
+}
+
+// ---------- 宝石のクリスマスツリー：金のらせんの枝に、宝石のオーナメント48こ・てっぺんに星・らせんの小さな灯り ----------
+const helix = (t, out = new THREE.Vector3()) => { const r = TREE.R0 * (1 - t) + 0.07, a = t * TREE.TURNS * TAU; return out.set(Math.cos(a) * r, 0.62 + t * (TREE.H - 0.7), Math.sin(a) * r); };
+const tree = { grp: new THREE.Group(), orns: [], meshes: [], state: 'ok', taps: [], press: 0, pressing: false, creakK: 0, casc: -1, bT: 0, rT: 0, star: null };
+tree.grp.position.set(TREE.x, 0, TREE.z); scene.add(tree.grp); tree.grp.userData.tree = true;
+{ const G = tree.grp; G.add(new THREE.Mesh(new THREE.CylinderGeometry(1.85, 1.95, 0.1, 64).translate(0, 0.05, 0), marble), new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.75, 0.22, 64).translate(0, 0.21, 0), marble), new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.62, 0.1, 64).translate(0, 0.37, 0), velvet));
+  G.add(new THREE.Mesh(new THREE.TorusGeometry(1.74, 0.025, 8, 96).rotateX(Math.PI / 2).translate(0, 0.32, 0), gold));
+  const pts = Array.from({ length: 260 }, (_, i) => helix(i / 259)); G.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 900, 0.024, 6), gold));
+  const ribs = []; for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; ribs.push(new THREE.TubeGeometry(new THREE.LineCurve3(new THREE.Vector3(Math.cos(a) * (TREE.R0 + 0.07), 0.42, Math.sin(a) * (TREE.R0 + 0.07)), new THREE.Vector3(0, TREE.H, 0)), 8, 0.012, 5)); }
+  G.add(new THREE.Mesh(mergeGeo(ribs), gold), new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.06, TREE.H - 0.3).translate(0, (TREE.H - 0.3) / 2 + 0.4, 0), gold));
+  const ss = new THREE.Shape(); for (let i = 0; i <= 10; i++) { const a = (i / 10) * TAU + Math.PI / 2, r = i % 2 ? 0.15 : 0.36; i ? ss.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ss.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  const sg = new THREE.ExtrudeGeometry(ss, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.04, bevelSegments: 2 }); sg.center();
+  tree.star = new THREE.Group(); tree.star.position.set(0, TREE.H + 0.3, 0); { const sm = gemMaterial(sg, GEM_ENV, { color: '#ffd75a', ior: 1.6, disp: 0.02, dens: 0.18, bright: 1.25 }); sm.uniforms.uEmis.value.set('#6a4210'); tree.star.add(new THREE.Mesh(sg, sm)); }   // てっぺんの星は、ほんのり自分でも光る
+  tree.starGlow = sprite('#ffd27a', 2.2, 0.8); tree.star.add(tree.starGlow); G.add(tree.star); tree.starHome = tree.star.position.clone();
+  const L = new THREE.PointLight('#ffe0b0', 6, 9, 1.5); L.position.set(0, 2.4, 1.6); G.add(L); }
+// オーナメント：形3種（ブリリアント・八面体・多面の玉）を、宝石の絵の具でまとめ描き。色は1こずつ（GEMSの色）
+{ const lat = new THREE.LatheGeometry([[0.001, -0.64], [1, -0.02], [1, 0.05], [0.76, 0.24], [0.56, 0.33], [0.001, 0.33]].map(([x, y]) => new THREE.Vector2(x, y)), 10);
+  for (const g of [lat, new THREE.OctahedronGeometry(1, 0), new THREE.IcosahedronGeometry(0.9, 1)]) { const im = new THREE.InstancedMesh(g, gemMaterial(g, GEM_ENV, { ior: 1.7, disp: 0.025, dens: 0.28, bright: 1.15 }), 16); im.frustumCulled = false; im.renderOrder = 1; tree.grp.add(im); tree.meshes.push(im); }
+  for (let i = 0; i < 48; i++) { const t = 0.04 + (i / 47) * 0.9, h = helix(t), out = V1.set(h.x, 0, h.z).normalize(), spec = ALL_GEMS[(i * 7) % ALL_GEMS.length], [, timbre] = PLAN[spec.id];
+    const home = h.clone().addScaledVector(out, 0.05).add(V2.set(0, -0.09, 0)), o = { i, shape: i % 3, slot: (i / 3) | 0, home, p: home.clone(), r: new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6)), w: new THREE.Vector3(), v: new THREE.Vector3(), s: 0.07 + (i % 4) * 0.008, col: new THREE.Color(spec.color), timbre, k: Math.round((i / 47) * 10), lit: 0, played: false };
+    if (o.shape === 0) o.r.set(0, rnd(0, 6), 0); tree.orns.push(o); tree.meshes[o.shape].setColorAt(o.slot, o.col); } }
+const FAIRY = Array.from({ length: 150 }, (_, k) => { const h = helix(k / 149), out = V1.set(h.x, 0, h.z).normalize(); return h.clone().addScaledVector(out, 0.035).add(V2.set(0, 0.03, 0)); }), FAIRY_C = new THREE.Color('#ffd9a0');
+function drawTree(now) {
+  for (const o of tree.orns) { const sw = tree.state === 'ok' ? Math.sin(now * 1.6 + o.i) * 0.006 : 0, j = tree.press * 0.02, sc = o.s * (1 + o.lit * 0.5);
+    V1.copy(o.p); if (tree.state === 'ok') V1.add(V2.set(sw + rnd(-j, j), rnd(-j, j), rnd(-j, j)));
+    M4.compose(V1, Q.setFromEuler(E.set(o.r.x, o.r.y + (tree.state === 'ok' ? now * 0.4 : 0), o.r.z)), V2.set(sc, sc, sc)); tree.meshes[o.shape].setMatrixAt(o.slot, M4); }
+  for (const im of tree.meshes) im.instanceMatrix.needsUpdate = true;
+}
+// そっと触る：下から上へ、宝石が順に光って音階を駆け上がり、星が輝く
+function treeTap() {
+  if (tree.state !== 'ok') return; const now = nowS(); tree.taps = tree.taps.filter((t) => now - t < 1.5); tree.taps.push(now);
+  if (tree.taps.length >= 4) { treeFall(); return; }
+  tree.casc = now; tree.starDone = false; for (const o of tree.orns) o.played = false; treeTaps++;
+}
+// 大惨事：オーナメントが雨のように床へ。星も落ちる
+function treeFall() {
+  tree.state = 'fallen'; tree.bT = 0; tree.press = 0; tree.taps = []; tree.casc = -1; SND.fall(); SND.shatter(0.5); shake = Math.max(shake, 0.03); treeFalls++;
+  for (const o of tree.orns) { const out = V1.set(o.p.x, 0, o.p.z).normalize(); o.v.copy(out).multiplyScalar(rnd(0.6, 2.0)).add(V2.set(rnd(-0.4, 0.4), rnd(-0.2, 1.4), rnd(-0.4, 0.4))); o.w.set(rnd(-10, 10), rnd(-10, 10), rnd(-10, 10)); o.lit = 0; }
+  tree.starV = new THREE.Vector3(rnd(-0.6, 0.6), rnd(0.5, 1.5), rnd(0.4, 1.2)); tree.starW = new THREE.Vector3(rnd(-6, 6), rnd(-6, 6), rnd(-6, 6));
+}
+let lastTk = 0;
+function stepFallen(dt) {
+  for (const o of tree.orns) { o.v.y -= 9.8 * dt; o.p.addScaledVector(o.v, dt); o.r.addScaledVector(o.w, dt); const rr = Math.hypot(o.p.x, o.p.z), top = rr < 1.75 ? 0.42 : 0;
+    if (o.p.y < top + o.s * 0.8) { o.p.y = top + o.s * 0.8; if (Math.abs(o.v.y) > 0.9 && performance.now() - lastTk > 28) { lastTk = performance.now(); SND.tinkle(); if (Math.random() < 0.25) SND.clink(7, Math.min(1, Math.abs(o.v.y) / 4)); } o.v.y = Math.abs(o.v.y) * 0.3; o.v.x *= 0.7; o.v.z *= 0.7; o.w.multiplyScalar(0.6); } }
+  const s = tree.star; tree.starV.y -= 9.8 * dt; s.position.addScaledVector(tree.starV, dt); s.rotation.x += tree.starW.x * dt; s.rotation.z += tree.starW.z * dt; const rr = Math.hypot(s.position.x, s.position.z), top = (rr < 1.75 ? 0.42 : 0) + 0.12;
+  if (s.position.y < top) { s.position.y = top; if (Math.abs(tree.starV.y) > 1) SND.clink(8, 0.8); tree.starV.y = Math.abs(tree.starV.y) * 0.3; tree.starV.x *= 0.6; tree.starV.z *= 0.6; tree.starW.multiplyScalar(0.5); }
+  tree.starGlow.material.opacity = 0.25;
+}
+// 戻る：らせんを下から順に、宝石が飛んで元の枝へ（音が上っていく）。最後に星
+function startTreeRestore() { tree.state = 'restoring'; tree.rT = 0; for (const o of tree.orns) { o.from = o.p.clone(); o.fromR = o.r.clone(); o.played = false; } tree.starFrom = tree.star.position.clone(); tree.starFromR = tree.star.rotation.clone(); }
+function stepTreeRestore(dt) {
+  tree.rT += dt; const t = tree.rT, ease = (u) => u * u * (3 - 2 * u);
+  for (const o of tree.orns) { const d = o.i * 0.042, u = clamp((t - d) / 0.8, 0, 1), e = ease(u); o.p.copy(o.from).lerp(o.home, e); o.p.y += Math.sin(u * Math.PI) * 0.6; o.r.lerpVectors(o.fromR, V1.set(o.shape === 0 ? 0 : o.fromR.x, o.fromR.y, o.shape === 0 ? 0 : o.fromR.z), e);
+    if (u > 0 && u < 1 && Math.random() < 0.25) put(SPARK, V2.copy(o.p).add(tree.grp.position), o.col, 1); if (u >= 1 && !o.played) { o.played = true; o.lit = 1; if (o.i % 2 === 0) { SND.note(o.timbre, o.k, 0.7); notes++; } } }
+  const us = clamp((t - 2.0) / 0.8, 0, 1), es = ease(us); tree.star.position.copy(tree.starFrom).lerp(tree.starHome, es); tree.star.position.y += Math.sin(us * Math.PI) * 0.8; tree.star.rotation.set(tree.starFromR.x * (1 - es), tree.starFromR.y * (1 - es), tree.starFromR.z * (1 - es));
+  if (t > 2.85 && tree.state === 'restoring') { tree.state = 'ok'; tree.star.rotation.set(0, 0, 0); tree.starGlow.material.opacity = 0.8; SND.restore('bell', 5); treeRestores++; const p = tree.star.getWorldPosition(new THREE.Vector3()); flare(p, STAR6, '#fff0c0', 2.4, 1.4); burst(p, GOLD, 40, 1.4); }
+}
+
+// 物理：台座・ケースの台・光の台・ツリーの台・ベンチの形（動かない）と床・壁
+function staticColliders() {
+  world.createCollider(RAPIER.ColliderDesc.cuboid(HW, 0.1, HL).setTranslation(0, -0.1, 0).setFriction(0.5).setRestitution(0.25));
+  for (const [hx, hz, x, z] of [[0.1, HL, -HW, 0], [0.1, HL, HW, 0], [HW, 0.1, 0, -HL], [HW, 0.1, 0, HL]]) world.createCollider(RAPIER.ColliderDesc.cuboid(hx, 2, hz).setTranslation(x, 2, z));
+  world.createCollider(RAPIER.ColliderDesc.cylinder(0.21, 1.75).setTranslation(TREE.x, 0.21, TREE.z)); world.createCollider(RAPIER.ColliderDesc.cylinder(0.2, 1.55).setTranslation(CRY.x, 0.2, CRY.z));
+  for (const b of BENCHES) b.col = world.createCollider(RAPIER.ColliderDesc.cuboid(0.3, 0.26, 0.9).setTranslation(b.x, 0.26, b.z));
+  for (const s of [-1, 1]) for (const z of COL_Z) world.createCollider(RAPIER.ColliderDesc.cylinder(3, 0.24).setTranslation(s * (HW - 0.36), 3, z));
+  for (const ex of exhibits) { if (ex.type === 'free') continue; const p = ex.grp.position, qq = ex.grp.quaternion, body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(p.x, p.y, p.z).setRotation({ x: qq.x, y: qq.y, z: qq.z, w: qq.w }));
+    if (ex.type === 'pedestal') { world.createCollider(RAPIER.ColliderDesc.cylinder(0.565, 0.31).setTranslation(0, 0.565, 0), body); world.createCollider(RAPIER.ColliderDesc.cuboid(0.18, 0.03, 0.18).setTranslation(0, 1.16, 0), body); }
+    else if (ex.type === 'case') { world.createCollider(RAPIER.ColliderDesc.cuboid(0.31, 0.485, 0.31).setTranslation(0, 0.485, 0), body); world.createCollider(RAPIER.ColliderDesc.cuboid(0.18, 0.025, 0.18).setTranslation(0, 1.0, 0), body); }
+    else world.createCollider(RAPIER.ColliderDesc.cylinder(0.25, 0.32).setTranslation(0, 0.25, 0), body); }
+}
+
+// ---------- きらめき・粒・炎 ----------
+const STAR = ctex(64, 64, (g) => { g.translate(32, 32); g.shadowColor = '#fff'; g.shadowBlur = 8; g.fillStyle = '#fff'; g.beginPath(); for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4, r = i % 2 ? 4 : 26; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill(); });
+const STAR6 = ctex(128, 128, (g) => { g.translate(64, 64); for (let i = 0; i < 6; i++) { g.rotate(Math.PI / 3); const gr = g.createLinearGradient(0, 0, 0, -62); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(-3, 0); g.lineTo(0, -62); g.lineTo(3, 0); g.fill(); } const gr = g.createRadialGradient(0, 0, 0, 0, 0, 20); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(-20, -20, 40, 40); });
+const HEART = ctex(64, 64, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.moveTo(32, 54); g.bezierCurveTo(4, 36, 6, 10, 22, 10); g.bezierCurveTo(30, 10, 32, 18, 32, 20); g.bezierCurveTo(32, 18, 34, 10, 42, 10); g.bezierCurveTo(58, 10, 60, 36, 32, 54); g.fill(); });
+const BUBBLE = ctex(64, 64, (g) => { g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 3; g.beginPath(); g.arc(32, 32, 26, 0, TAU); g.stroke(); g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(23, 22, 5, 0, TAU); g.fill(); });
+const RING = ctex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 40, 64, 64, 62); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.7, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+const FLAMET = ctex(64, 96, (g) => { const gr = g.createRadialGradient(32, 60, 2, 32, 52, 34); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,230,170,.75)'); gr.addColorStop(1, 'rgba(255,140,40,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(32, 4); g.bezierCurveTo(52, 40, 54, 70, 32, 92); g.bezierCurveTo(10, 70, 12, 40, 32, 4); g.fill(); });
+const pointsLayer = (max, tex, size, order = 5) => { const pos = new Float32Array(max * 3), col = new Float32Array(max * 3), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); const m = new THREE.Points(g, new THREE.PointsMaterial({ map: tex, size, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); m.frustumCulled = false; m.renderOrder = order; scene.add(m); return { pos, col, g, n: 0, max }; };
+const GLINT = pointsLayer(500, STAR, 0.2, 2), SPARK = pointsLayer(1800, glowTex, 0.05), HEARTS = pointsLayer(120, HEART, 0.12), BUBBLES = pointsLayer(160, BUBBLE, 0.09), FLAME = pointsLayer(100, glowTex, 0.34), FLAMEC = pointsLayer(100, FLAMET, 0.075);
+const WHITE = new THREE.Color('#ffffff'), GOLD = new THREE.Color('#ffd27a'), FLAME_C = new THREE.Color('#ff9a3a'), FLAME_W = new THREE.Color('#fff2d0');
+const put = (L, p, c, f) => { if (L.n >= L.max) return; L.pos.set([p.x, p.y, p.z], L.n * 3); L.col.set([c.r * f, c.g * f, c.b * f], L.n * 3); L.n++; };
+const sparks = [], floaters = [];
+function burst(p, c, n, spd, rainbow) { for (let i = 0; i < n && sparks.length < 1800; i++) sparks.push({ p: p.clone(), v: new THREE.Vector3(rnd(-1, 1), rnd(-0.3, 1.2), rnd(-1, 1)).multiplyScalar(spd), c: rainbow ? new THREE.Color().setHSL(Math.random(), 1, 0.65) : c, life: rnd(0.4, 1.0), age: 0 }); }
+function floatUp(L, p, c, n) { for (let i = 0; i < n; i++) floaters.push({ L, p: p.clone().add(V1.set(rnd(-0.15, 0.15), rnd(-0.1, 0.1), rnd(-0.15, 0.15))), v: new THREE.Vector3(rnd(-0.1, 0.1), rnd(0.35, 0.6), rnd(-0.1, 0.1)), c, life: rnd(1.2, 2), age: 0, sw: Math.random() * 6 }); }
+const flares = Array.from({ length: 6 }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: STAR6, transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending })); s.renderOrder = 6; s.visible = false; scene.add(s); return { s, t: 1, T: 1, max: 1 }; });
+function flare(p, tex, col, max, T) { const f = flares.find((x) => x.t >= x.T) || flares[0]; f.s.material.map = tex; f.s.material.color.set(col); f.s.position.copy(p); f.t = 0; f.T = T; f.max = max; f.s.visible = true; }
+// ガラスのかけら：厚みのある三角の板（ふちが光る）。きらめき用の環境を映す
+const shardMat = new THREE.MeshPhysicalMaterial({ color: '#e2f4ec', roughness: 0.015, metalness: 0, transparent: true, opacity: 0.42, envMap: GEM_ENV, envMapIntensity: 2.4, clearcoat: 1, clearcoatRoughness: 0, specularIntensity: 1, ior: 1.52, side: THREE.DoubleSide, flatShading: true, depthWrite: false, emissive: '#ffffff', emissiveIntensity: 0 });
+// 宝石のかけら：宝石と同じ、光の屈折の絵の具（ひとつずつ色）
+const MAXF = 400, FR = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), gemMaterial(new THREE.OctahedronGeometry(1, 0), GEM_ENV, { ior: 1.7, disp: 0.02, dens: 0.3, bright: 1.15 }), MAXF), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+for (let i = 0; i < MAXF; i++) { FR.setMatrixAt(i, ZERO); FR.setColorAt(i, WHITE); } FR.frustumCulled = false; FR.renderOrder = 1; scene.add(FR); let fragI = 0;
+
+// ---------- ホールの真ん中：大きな虹色のクリスタル（天窓の真下の台。月明かりがまっすぐ落ちる） ----------
+// 息をのむきらめき（虹色の面・強いファイア・またたく光・床と天井に散る虹）／触るとワルツが1節ずつ進む（近くにいると、ひとりでに小さく奏でる）
+// なかなか割れない（4回つづけて触っても平気）。連打を続けるか長く押すと、ひびが入って軋み、やがて倒れて床で砕ける＝衝撃で、まわりの展示もツリーも崩れる。しばらくすると、かけらが集まってよみがえる
+const CRY = { x: 0, z: -2.4, top: 0.4, state: 'ok', stress: 0, taps: [], pressing: false, rot: 0, th: 0, w: 0, dir: new THREE.Vector3(), t: 0, glow: 0, notes: 0, falls: 0, restores: 0, quake: 0, lastTap: -99, auto: 0, creakK: 0 };
+const cryG = new THREE.Group(), cryPivot = new THREE.Group(), crySpin = new THREE.Group(); cryG.position.set(CRY.x, 0, CRY.z); scene.add(cryG); cryG.add(cryPivot); cryPivot.add(crySpin); crySpin.position.y = CRY.top + 0.08;
+{ // 台：二段の大理石に金の輪。天窓からの光（細いスポットと同じ仕組み）で照らす
+  const dm = roomify(marble.clone(), { spot: true }), u = dm.userData.spot; u.uSpP.value.set(CRY.x, HH - 0.1, CRY.z); u.uSpD.value.set(0, -1, 0); u.uSpC.value.setRGB(1.1, 1.18, 1.35); u.uSpCos.value.set(Math.cos(0.27), Math.cos(0.15));
+  cryG.add(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.56, 0.2, 64).translate(0, 0.1, 0), dm), new THREE.Mesh(new THREE.CylinderGeometry(1.22, 1.27, 0.2, 64).translate(0, 0.3, 0), dm));
+  for (const [r, y] of [[1.53, 0.2], [1.245, 0.4]]) cryG.add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.022, 8, 96).rotateX(Math.PI / 2).translate(0, y, 0), gold));
+  // 母岩：紫がかった黒い石（結晶が生えている）
+  const rg = new THREE.IcosahedronGeometry(0.72, 3), p = rg.attributes.position; for (let i = 0; i < p.count; i++) { V1.fromBufferAttribute(p, i); const k = 1 + 0.12 * Math.sin(V1.x * 9 + V1.z * 5) * Math.cos(V1.y * 11 + V1.x * 3); V1.multiplyScalar(k); V1.y = V1.y * 0.42; p.setXYZ(i, V1.x, V1.y, V1.z); } rg.computeVertexNormals();
+  crySpin.add(new THREE.Mesh(rg, new THREE.MeshPhysicalMaterial({ color: '#3a2a4c', roughness: 0.5, clearcoat: 0.5, envMap: GEM_ENV, envMapIntensity: 0.7, flatShading: true }))); }
+// 結晶：六角の柱に、とがった先（面ごとに虹の色）。大きな1本と、まわりの8本、ふちの小さな14本
+const CRY_GEO = (() => { const g = new THREE.LatheGeometry([[0.001, -0.3], [1, 0], [1, 2.2], [0.001, 3.1]].map(([x, y]) => new THREE.Vector2(x, y)), 6).toNonIndexed(), n = g.attributes.position.count, col = new Float32Array(n * 3), c = new THREE.Color();
+  for (let i = 0; i < n; i += 3) { c.setHSL(((i / 3) * 0.137) % 1, 0.95, 0.64); for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3); } g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g; })();
+const CRY_MAT = gemMaterial(CRY_GEO, GEM_ENV, { ior: 2.05, disp: 0.09, dens: 0.55, bright: 1.45 }), CRY_PTS = [];
+{ const add = (x, z, rr, hh, tilt, ry) => { const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tilt)); CRY_PTS.push({ p: new THREE.Vector3(x, 0.05, z), q, s: new THREE.Vector3(rr, hh, rr), k: 1 }); };
+  add(0, 0, 0.36, 0.95, 0.05, 0.3);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU + 0.2 * Math.sin(i * 3.1), r = 0.3 + 0.12 * ((i * 7) % 3) / 2; add(Math.cos(a) * r, Math.sin(a) * r, 0.14 + 0.05 * ((i * 5) % 3), 0.36 + 0.1 * ((i * 3) % 4), 0.3 + 0.1 * (i % 3), Math.PI / 2 - a); }
+  for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU + 0.4, r = 0.55 + 0.08 * (i % 2); add(Math.cos(a) * r, Math.sin(a) * r, 0.05 + 0.02 * (i % 3), 0.1 + 0.04 * (i % 4), 0.7, Math.PI / 2 - a); } }
+const CRY_IM = new THREE.InstancedMesh(CRY_GEO, CRY_MAT, CRY_PTS.length); CRY_IM.frustumCulled = false; CRY_IM.renderOrder = 1; crySpin.add(CRY_IM);
+const writeCry = (grow = 1) => { CRY_PTS.forEach((c, i) => { M4.compose(c.p, c.q, V2.copy(c.s).multiply(V3.set(c.k, c.k * grow, c.k))); CRY_IM.setMatrixAt(i, M4); }); CRY_IM.instanceMatrix.needsUpdate = true; }; writeCry();
+// きらめく所（結晶の稜と先）：結晶の形の中の点を、台の上の座標で
+const CRY_GL = []; for (let k = 0; k < 64; k++) { const c = CRY_PTS[k < 26 ? 0 : 1 + (k % 8)], y = k % 5 === 0 ? 3.05 : 0.4 + ((k * 0.37) % 1) * 1.9, a = ((k * 3) % 6) * (TAU / 6), r = y > 2.2 ? (3.1 - y) / 0.9 : 1; CRY_GL.push({ c, l: new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), ph: k * 2.3, w: 1.1 + (k % 7) * 0.23 }); }
+// 床と天井に散る虹（クリスタルが回るにつれて、ゆっくり回る）
+const RAINBOW = ctex(256, 64, (g) => { const gr = g.createLinearGradient(0, 0, 256, 0); ['#ff3040', '#ff9a30', '#ffe840', '#50ff70', '#40c8ff', '#6a60ff', '#c050ff'].forEach((c, i) => gr.addColorStop(i / 6, c)); g.fillStyle = gr; g.fillRect(0, 0, 256, 64); const m = g.createLinearGradient(0, 0, 0, 64); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.5, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = m; g.fillRect(0, 0, 256, 64); const e = g.createLinearGradient(0, 0, 256, 0); e.addColorStop(0, 'rgba(0,0,0,1)'); e.addColorStop(0.15, 'rgba(0,0,0,0)'); e.addColorStop(0.85, 'rgba(0,0,0,0)'); e.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = e; g.fillRect(0, 0, 256, 64); });
+const CAUS = []; for (let i = 0; i < 30; i++) { const ceil = i >= 20; CAUS.push({ a0: (i / 20) * TAU * 1.7 + (i % 3) * 0.4, r: ceil ? 0.6 + (i % 5) * 0.7 : 1.9 + ((i * 7) % 11) * 0.3, y: ceil ? HH - 0.03 : 0.012, len: 0.7 + ((i * 3) % 5) * 0.22, wd: 0.16 + (i % 3) * 0.06, ph: i * 1.7, ceil }); }
+const CAUS_IM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: RAINBOW, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), CAUS.length); CAUS_IM.frustumCulled = false; CAUS_IM.renderOrder = 4; scene.add(CAUS_IM); for (let i = 0; i < CAUS.length; i++) { CAUS_IM.setMatrixAt(i, ZERO); CAUS_IM.setColorAt(i, WHITE); }
+// 天窓からクリスタルへ、まっすぐ落ちる月の光の柱（ふちほど薄く）
+const CRY_BEAM = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.5, HH - CRY.top, 40, 1, true).translate(CRY.x, (HH + CRY.top) / 2, CRY.z), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uK: { value: 0.05 } },
+  vertexShader: `varying vec3 vN; varying vec3 vP; varying float vY; void main() { vY = (position.y - ${CRY.top.toFixed(2)}) / ${(HH - CRY.top).toFixed(2)}; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: 'uniform float uK; varying vec3 vN; varying vec3 vP; varying float vY; void main() { float f = pow(abs(dot(normalize(vN), normalize(cameraPosition - vP))), 2.5); gl_FragColor = vec4(vec3(0.75, 0.85, 1.0) * f * uK * (0.35 + 0.65 * vY), 1.0); }' }));
+CRY_BEAM.renderOrder = 4; scene.add(CRY_BEAM);
+// 砕けたかけら（虹色）と、床を走る衝撃の輪
+const CRY_FN = 170, CRY_FR = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), gemMaterial(new THREE.OctahedronGeometry(1, 0), GEM_ENV, { ior: 1.95, disp: 0.07, dens: 0.3, bright: 1.3 }), CRY_FN), CRY_FRAG = [];
+for (let i = 0; i < CRY_FN; i++) { CRY_FR.setMatrixAt(i, ZERO); CRY_FR.setColorAt(i, new THREE.Color().setHSL(i / CRY_FN, 0.8, 0.72)); } CRY_FR.frustumCulled = false; CRY_FR.renderOrder = 1; scene.add(CRY_FR);
+const SHOCK = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#d8e8ff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); SHOCK.position.y = 0.02; SHOCK.renderOrder = 4; scene.add(SHOCK); let shockT = 9;
+const cryTopW = (out) => out.set(0, 3.1 * 0.95 + 0.05, 0).applyMatrix4(crySpin.matrixWorld);
+// そっと触る：ワルツが1節進み、虹がはじける。続けて触るほど、ひずみがたまる
+function crystalTap() { if (CRY.state !== 'ok') return; const now = nowS(); CRY.taps = CRY.taps.filter((t) => now - t < 1.2); CRY.taps.push(now); CRY.lastTap = now;
+  CRY.stress = Math.min(1.2, CRY.stress + (CRY.taps.length >= 3 ? 0.09 : 0.03)); CRY.glow = 1; CRY.notes++; SND.crystalPhrase(1);
+  crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, WHITE, 50, 1.4, true); flare(p, STAR6, '#ffffff', 2.6, 1.3);
+  if (CRY.stress >= 1) crystalTopple(); else if (CRY.stress > 0.45) SND.creakBig(CRY.stress); }
+// 倒れる：見る人の向こうへ、台の上の端を支点に
+function crystalTopple() {
+  if (CRY.state !== 'ok') return; CRY.state = 'toppling'; CRY.th = 0; CRY.w = 0.2; CRY.falls++; SND.groan();
+  CRY.dir.set(CRY.x - cam.position.x, 0, CRY.z - cam.position.z); if (CRY.dir.lengthSq() < 0.01) CRY.dir.set(0, 0, -1); CRY.dir.normalize();
+  const e = CRY.dir.clone().multiplyScalar(0.62); cryPivot.position.set(e.x, CRY.top + 0.08, e.z); crySpin.position.set(-e.x, 0, -e.z); }
+function crystalImpact() {
+  CRY.state = 'fallen'; CRY.t = 0; CRY_IM.visible = false; crySpin.updateMatrixWorld(true); const hit = cryTopW(new THREE.Vector3()).setY(0.05).lerp(V1.set(CRY.x, 0.05, CRY.z), 0.45);
+  // かけら：倒れた結晶の柱にそって生まれ、ぶつかった所から外へ飛ぶ。戻る時に帰る場所（立っていた時の結晶の中）を覚えておく
+  let n = 0; CRY_PTS.forEach((c, i) => { const m = i === 0 ? 60 : i < 9 ? 10 : 2; for (let j = 0; j < m && n < CRY_FN; j++, n++) { const f = (j + 0.5) / m, l = new THREE.Vector3(0, 0.1 + f * 2.8, 0).multiply(c.s).applyQuaternion(c.q).add(c.p);
+      const p = l.clone().applyMatrix4(crySpin.matrixWorld), v = p.clone().sub(hit).setY(0).normalize().multiplyScalar(rnd(2.5, 7.5) * (0.4 + f)).add(V2.set(rnd(-1.5, 1.5), rnd(1.5, 5.5), rnd(-1.5, 1.5)));
+      CRY_FRAG.push({ slot: n, p, v, r: new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6)), w: new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)), s: new THREE.Vector3(rnd(0.05, 0.1), rnd(0.09, 0.2), rnd(0.05, 0.1)).multiplyScalar(i === 0 ? 1.15 : i < 9 ? 0.8 : 0.5), home: l.clone().add(V2.set(0, CRY.top + 0.08, 0)).add(cryG.position), order: f, rest: false }); } });
+  SND.megaCrash(); CRY.quake = 1; shake = Math.max(shake, 0.06); shockT = 0; SHOCK.position.set(hit.x, 0.02, hit.z);
+  flare(hit.clone().setY(0.8), STAR6, '#ffffff', 7, 0.9); burst(hit.clone().setY(0.6), WHITE, 160, 4.5, true);
+  // 衝撃：近い展示ほど崩れやすい（衝撃が広がる速さで、近い所から順に）。ガラスのベンチ・ツリー・シャンデリア・ろうそくも
+  for (const ex of exhibits) { if (ex.state !== 'ok') continue; const d = ex.grp.position.distanceTo(V1.set(hit.x, ex.grp.position.y, hit.z)), pr = d < 4 ? 0.85 : d < 7 ? 0.6 : d < 10 ? 0.35 : 0.15; if (Math.random() < pr) setTimeout(() => disaster(ex, 'quake'), 60 + d * 70); else ex.rattle = 1; }
+  for (const b of BENCHES) if (Math.hypot(b.x - hit.x, b.z - hit.z) < 6 && Math.random() < 0.7) setTimeout(() => shatterBench(b, 'quake'), 200);
+  if (Math.random() < 0.75) setTimeout(() => { if (tree.state === 'ok') treeFall(); }, 650);
+  for (const ch of CH_G) ch.userData.swing = 0.12; for (const c of ALL_CANDLES) c.flare = 1; }
+function stepCrystal(dt, now) {
+  if (CRY.state === 'ok') {
+    if (CRY.pressing) { CRY.stress += dt * 0.16; for (const th of [0.5, 0.65, 0.8, 0.92]) if (CRY.stress >= th && CRY.creakK < th) { CRY.creakK = th; SND.creakBig(th); } if (CRY.stress >= 1) { crystalTopple(); for (const s of ptrs.values()) if (s.crystal) s.mode = 'none'; } }
+    else { CRY.stress = Math.max(0, CRY.stress - dt * 0.04); if (CRY.stress < 0.45) CRY.creakK = 0; }
+    CRY.rot += dt * 0.07; crySpin.rotation.set(Math.sin(now * 23) * 0.012 * CRY.stress * CRY.stress, CRY.rot, Math.sin(now * 19) * 0.012 * CRY.stress * CRY.stress);
+    // 近くにいると、ひとりでに小さく奏でる（触ってからしばらくは、触った曲のまま）
+    if (Math.hypot(cam.position.x - CRY.x, cam.position.z - CRY.z) < 5 && now - CRY.lastTap > 8 && (CRY.auto -= dt) <= 0) { CRY.auto = 6; SND.crystalPhrase(0.45); CRY.glow = Math.max(CRY.glow, 0.4); }
+  } else if (CRY.state === 'toppling') { CRY.w += (1.4 + 9 * Math.sin(Math.max(0.05, CRY.th))) * dt; CRY.th += CRY.w * dt; if (CRY.th >= 1.42) { CRY.th = 1.42; crystalImpact(); } }
+  else if (CRY.state === 'fallen') { CRY.t += dt;
+    for (const f of CRY_FRAG) { if (f.rest) continue; f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); f.r.addScaledVector(f.w, dt); if (f.p.y < f.s.y) { f.p.y = f.s.y; f.v.y = Math.abs(f.v.y) * 0.3; f.v.x *= 0.62; f.v.z *= 0.62; f.w.multiplyScalar(0.6); if (Math.abs(f.v.y) < 0.2 && Math.hypot(f.v.x, f.v.z) < 0.1) f.rest = true; else if (Math.random() < 0.05) SND.tinkle(); } f.p.x = clamp(f.p.x, -HW + 0.2, HW - 0.2); f.p.z = clamp(f.p.z, -HL + 0.2, HL - 0.2); }
+    if (CRY.t > 9) { CRY.state = 'restoring'; CRY.t = 0; for (const f of CRY_FRAG) f.from = f.p.clone(); SND.crystalRise(); } }
+  else if (CRY.state === 'restoring') { CRY.t += dt; const ease = (u) => u * u * (3 - 2 * u), up = ease(clamp(CRY.t / 1.0, 0, 1));
+    cryPivot.quaternion.setFromAxisAngle(V1.set(CRY.dir.z, 0, -CRY.dir.x), CRY.th * (1 - up));
+    for (const f of CRY_FRAG) { const u = clamp((CRY.t - 0.6 - f.order * 1.4) / 0.9, 0, 1), e = ease(u); f.p.copy(f.from).lerp(f.home, e); f.p.y += Math.sin(u * Math.PI) * 0.8; f.k = u >= 1 ? 0 : 1; if (u > 0 && u < 1 && Math.random() < 0.15) put(SPARK, f.p, HSL.setHSL(f.order, 0.9, 0.7), 1); }
+    if (CRY.t > 0.9) { CRY_IM.visible = true; writeCry(clamp((CRY.t - 0.9) / 2.2, 0.001, 1)); }
+    if (CRY.t > 3.2) { CRY.state = 'ok'; CRY.stress = 0; CRY.th = 0; CRY.creakK = 0; CRY.restores++; cryPivot.position.set(0, 0, 0); cryPivot.quaternion.identity(); crySpin.position.set(0, CRY.top + 0.08, 0); writeCry(); for (const f of CRY_FRAG) CRY_FR.setMatrixAt(f.slot, ZERO); CRY_FRAG.length = 0; CRY_FR.instanceMatrix.needsUpdate = true; CRY.glow = 1; SND.crystalPhrase(1);
+      crySpin.updateMatrixWorld(); const p = cryTopW(new THREE.Vector3()); burst(p, WHITE, 80, 2.2, true); flare(p, STAR6, '#ffffff', 3.5, 1.6); } }
+  if (CRY.state === 'toppling' || CRY.state === 'fallen') cryPivot.quaternion.setFromAxisAngle(V1.set(CRY.dir.z, 0, -CRY.dir.x), CRY.th);
+  if (CRY_FRAG.length) { for (const f of CRY_FRAG) { M4.compose(f.p, Q.setFromEuler(E.set(f.r.x, f.r.y, f.r.z)), V2.copy(f.s).multiplyScalar(f.k ?? 1)); CRY_FR.setMatrixAt(f.slot, M4); } CRY_FR.instanceMatrix.needsUpdate = true; }
+  // 光：触ると虹色に光り、ゆっくり静まる。ひずみがたまると、白い光がちらつく
+  CRY.glow = Math.max(0, CRY.glow - dt * 0.5); CRY.quake = Math.max(0, CRY.quake - dt * 0.7); shake = Math.max(shake, CRY.quake * CRY.quake * 0.05);
+  HSL.setHSL((now * 0.15) % 1, 0.9, 0.6); CRY_MAT.uniforms.uEmis.value.copy(HSL).multiplyScalar(CRY.glow * 0.35).addScalar(CRY.stress > 0.5 && Math.random() < CRY.stress - 0.4 ? 0.25 : 0); CRY_MAT.uniforms.uLight.value.setScalar(1.05 + CRY.glow * 0.5);
+  if (CRY.state === 'ok' || CRY.state === 'toppling') { crySpin.updateMatrixWorld(); for (const g of CRY_GL) { const tw = Math.pow(Math.max(0, Math.sin(now * g.w + g.ph)), 18) * (1 + CRY.glow * 1.5); if (tw < 0.04) continue; V1.copy(g.l).multiply(g.c.s).applyQuaternion(g.c.q).add(g.c.p).applyMatrix4(crySpin.matrixWorld); put(GLINT, V1, HSL.setHSL((g.ph * 0.13 + now * 0.05) % 1, 0.7, 0.8), Math.min(1.8, tw * 1.6)); } }
+  const on = CRY.state === 'ok' ? 1 : CRY.state === 'restoring' ? clamp(CRY.t / 3.2, 0, 1) : 0;
+  CAUS.forEach((c, i) => { const a = c.a0 + CRY.rot * (c.ceil ? -1.6 : 2.0), x = CRY.x + Math.cos(a) * c.r, z = CRY.z + Math.sin(a) * c.r, k = on * (0.55 + 0.25 * Math.sin(now * 1.3 + c.ph) + CRY.glow * 0.6);
+    M4.compose(V1.set(x, c.y, z), Q.setFromEuler(E.set(-Math.PI / 2, 0, -a + (c.ceil ? 0.6 : 0.25))), V2.set(c.len, c.wd, 1)); CAUS_IM.setMatrixAt(i, M4); CAUS_IM.setColorAt(i, HSL.setRGB(k, k, k)); });
+  CAUS_IM.instanceMatrix.needsUpdate = true; if (CAUS_IM.instanceColor) CAUS_IM.instanceColor.needsUpdate = true; CRY_BEAM.material.uniforms.uK.value = 0.035 + 0.03 * MOON.I + CRY.glow * 0.02;
+  if (shockT < 1.2) { shockT += dt; const u = shockT / 1.2; SHOCK.scale.setScalar(0.5 + u * 10); SHOCK.material.opacity = (1 - u) * 0.8; } else SHOCK.material.opacity = 0;
+  for (const ch of CH_G) { const s = ch.userData.swing || 0; if (s > 0.001) { ch.rotation.z = s * Math.sin(now * 2.1); ch.rotation.x = s * 0.6 * Math.sin(now * 1.7 + 1); ch.userData.swing = s * Math.exp(-dt * 0.45); } }
+}
+
+// ---------- やさしく触る：音色・回る・煌く・宝石ごとの仕掛け ----------
+let notes = 0, glassBreaks = 0, gemBreaks = 0, restores = 0, falls = 0, clinks = 0, treeTaps = 0, treeFalls = 0, treeRestores = 0, decorTaps = 0, DOOM = null, shake = 0;
+const holderW = (ex, out) => ex.holder.getWorldPosition(out);
+function tapGem(ex) {
+  if (ex.state !== 'ok') return; const now = nowS(); ex.taps = ex.taps.filter((t) => now - t < 1.5); ex.taps.push(now);
+  if (ex.taps.length >= 4) { disaster(ex, 'tap'); return; }
+  ex.spin = Math.min(ex.spin + 7, 16); ex.fxT = 0; ex.rattle = Math.max(ex.rattle, ex.taps.length >= 3 ? 1 : 0.25); notes++; SND.note(ex.timbre, ex.k);
+  const p = holderW(ex, new THREE.Vector3()); burst(p, ex.colW, 12, 0.7);
+  if (ex.fx === 'fire') burst(p, WHITE, 34, 1.3, true);
+  else if (ex.fx === 'gold') burst(p, GOLD, 28, 1.0);
+  else if (ex.fx === 'sparkle') { burst(p, WHITE, 18, 1.1); flare(p, STAR, ex.colW, 0.8, 0.7); }
+  else if (ex.fx === 'hearts') floatUp(HEARTS, p, ex.colW, 7);
+  else if (ex.fx === 'bubbles') floatUp(BUBBLES, p, ex.colW, 10);
+  else if (ex.fx === 'ripple') { flare(p, RING, ex.colW, 1.4, 1.1); flare(p.clone().add(V1.set(0, 0.001, 0)), RING, WHITE, 0.9, 0.8); }
+  else if (ex.fx === 'star') flare(p, STAR6, '#e8f0ff', 0.75, 1.8);
+  showCard(ex);
+}
+function rollGem(ex) { if (!ex.body) return; const m = ex.body.mass(); ex.body.applyImpulse({ x: rnd(-1, 1) * m * 1.5, y: m * 0.8, z: rnd(-1, 1) * m * 1.5 }, true); ex.body.applyTorqueImpulse({ x: rnd(-1, 1) * m * 0.05, y: rnd(-1, 1) * m * 0.05, z: rnd(-1, 1) * m * 0.05 }, true); SND.note(ex.timbre, ex.k, 0.6); notes++; }
+// 宝石ごとの見た目の仕掛け（毎コマ）。光の屈折で描く宝石は、色の吸い方・光り方の値を動かす
+const HSL = new THREE.Color();
+function gemFx(ex, dt, now) {
+  if (ex.fxT > 9) return; ex.fxT += dt; const u = ex.fxT, fx = ex.fx, M = ex.mats, B = ex.base0; let halo = 0;
+  const env = (T) => (u < T ? Math.sin((u / T) * Math.PI) : 0);
+  M.forEach((m, j) => { m.color.copy(B[j].color); m.emissive.copy(B[j].emissive); m.emissiveIntensity = B[j].ei; }); for (const m of ex.gmats) { m.uniforms.uEmis.value.setRGB(0, 0, 0); m.uniforms.uShiftK.value = 0; }
+  if (fx === 'glow') { const k = env(1.8), c = HSL.set(GLOWC[ex.spec.id] || ex.spec.color); M.forEach((m) => { m.emissive.copy(c); m.emissiveIntensity += k * 2.2; }); for (const m of ex.gmats) m.uniforms.uEmis.value.copy(c).multiplyScalar(k * 0.9); halo = k; ex.halo.material.color.copy(c); }
+  else if (fx === 'shift') { const k = env(2.6), sc = ex.shiftC || (ex.shiftC = new THREE.Color(SHIFT[ex.spec.id])); M.forEach((m) => { m.color.lerp(sc, k * 0.9); m.emissive.lerp(sc, k); m.emissiveIntensity += k * 0.5; }); for (const m of ex.gmats) { m.uniforms.uShift.value.copy(sc); m.uniforms.uShiftK.value = k; } halo = k * 0.6; ex.halo.material.color.copy(sc); }
+  else if (fx === 'iri') { const k = env(2.2); HSL.setHSL((now * 0.6) % 1, 0.9, 0.6); M.forEach((m) => { m.emissive.lerp(HSL, k); m.emissiveIntensity += k * 0.9; }); halo = k * 0.7; ex.halo.material.color.copy(HSL); }
+  else if (fx === 'twotone') { const k = env(2.2), s = 0.5 + 0.5 * Math.sin(u * 7); HSL.set(ex.spec.color).lerp(new THREE.Color(ex.spec.color2), s); for (const m of ex.gmats) m.uniforms.uEmis.value.copy(HSL).multiplyScalar(k * 0.6); halo = k * 0.7; ex.halo.material.color.copy(HSL); }
+  else halo = env(0.8) * 0.5;
+  ex.halo.material.opacity = halo * 0.85; ex.halo.scale.setScalar(0.7 + halo * 0.5);
+  if (u > 3) { M.forEach((m, j) => { m.color.copy(B[j].color); m.emissive.copy(B[j].emissive); m.emissiveIntensity = B[j].ei; }); for (const m of ex.gmats) { m.uniforms.uEmis.value.setRGB(0, 0, 0); m.uniforms.uShiftK.value = 0; } ex.halo.material.opacity = 0; ex.fxT = 99; }
+}
+const cardEl = document.getElementById('card'); let cardTimer = 0;
+function card(name, sub, fact, color) { const nm = document.getElementById('cardName'); nm.textContent = ''; const dot = document.createElement('i'); dot.style.background = color; nm.append(dot, document.createTextNode(name));
+  document.getElementById('cardSub').textContent = sub; const f = document.getElementById('cardFact'); f.textContent = fact || ''; f.hidden = !fact;
+  cardEl.hidden = false; cardEl.style.opacity = 1; clearTimeout(cardTimer); cardTimer = setTimeout(() => { cardEl.style.opacity = 0; setTimeout(() => (cardEl.hidden = true), 400); }, fact ? 5000 : 2400); }
+const showCard = (ex) => card(ex.spec.name + (ex.spec.kind === 'ring' ? 'の指輪' : ex.spec.kind === 'earring' ? 'のピアス' : ''), gemLabel(ex.spec) || ex.spec.sub || '宝石', ex.spec.fact, ex.spec.color);
+// 宙の飾りに触れる：飾り玉・星はくるっと回って鳴り、ろうそくは炎がふわっと大きく
+function tapDecor(kind, i) {
+  decorTaps++; if (kind === 'candle') { const c = ALL_CANDLES[i]; c.flare = 1; SND.note('glass', 6 + (i % 4), 0.6); burst(V1.set(c.x, c.top + 0.08, c.z), FLAME_W, 10, 0.4); return; }
+  const o = kind === 'bauble' ? BAUBLES[i] : STARS[i]; o.spin = 9; SND.note(kind === 'bauble' ? 'celesta' : 'bell', 3 + (i % 8), 0.7); burst(o.p, kind === 'bauble' ? o.col : GOLD, 16, 0.8);
+}
+
+// ---------- 大惨事：ガラスが割れる・台から落ちる・宙の宝石も落ちる。運が悪いと宝石も砕ける ----------
+function gemBody(ex, vel, ang) {
+  const o = ex.gem.group, p = o.position, qq = o.quaternion, mk = (cd) => world.createCollider(cd.setDensity(3.5).setFriction(0.5).setRestitution(0.18), body);
+  const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(p.x, p.y, p.z).setRotation({ x: qq.x, y: qq.y, z: qq.z, w: qq.w }).setCcdEnabled(true).setAngularDamping(0.4).setLinearDamping(0.08));
+  const col = mk(RAPIER.ColliderDesc.convexHull(ex.gem.hull) || RAPIER.ColliderDesc.ball(ex.gem.radius * 0.8)); if (!(body.mass() > 1e-4)) { world.removeCollider(col, true); mk(RAPIER.ColliderDesc.ball(ex.gem.radius * 0.7)); }
+  body.setLinvel(vel, true); body.setAngvel(ang, true); ex.body = body; ex.pv = body.linvel(); ex.lastClink = 0;
+}
+function dropBody(ex) { if (ex.body && world) world.removeRigidBody(ex.body); ex.body = null; }
+function disaster(ex, how) {
+  if (ex.state !== 'ok' || !world) return;
+  ex.state = 'broken'; ex.bT = 0; ex.press = 0; ex.pressing = false; ex.taps = []; ex.shattered = false; ex.spin = 0;
+  ex.doomed = DOOM ?? Math.random() < 0.15 + Math.max(0, 8 - ex.spec.hard) * 0.07;   // やわらかい石ほど砕けやすい（ダイヤでも、まれに）
+  scene.attach(ex.gem.group); ex.halo.material.opacity = 0; if (ex.aura) ex.aura.visible = false;
+  const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(ex.grp.quaternion), side = new THREE.Vector3(fwd.z, 0, -fwd.x), up = how === 'tap' ? 1.2 : 1;
+  let vel;
+  if (ex.type === 'case') { breakGlass(ex, how); SND.shatter(1); glassBreaks++; vel = fwd.clone().multiplyScalar(rnd(1.3, 1.8)).addScaledVector(side, rnd(-0.6, 0.6)).add(V1.set(0, rnd(0.9, 1.4) * up, 0)); }
+  else if (ex.type === 'pedestal') { SND.knock(); ex.wob = 1; vel = fwd.clone().multiplyScalar(rnd(1.0, 1.5)).addScaledVector(side, rnd(-0.8, 0.8)).add(V1.set(0, rnd(0.6, 1.0) * up, 0)); }
+  else if (ex.type === 'float') { SND.fall(); vel = fwd.clone().multiplyScalar(rnd(0.75, 1.1)).addScaledVector(side, rnd(-0.5, 0.5)); }   // 小さな台の上に止まらず、床へ転がり出る
+  else { SND.fall(); vel = new THREE.Vector3(rnd(-0.6, 0.6), rnd(0, 0.6), rnd(-0.6, 0.6)); }   // 宙の宝石：ふっと力が抜けて落ちる
+  gemBody(ex, vel, { x: rnd(-5, 5), y: rnd(-5, 5), z: rnd(-5, 5) }); falls++; shake = Math.max(shake, ex.type === 'case' ? 0.025 : 0.012);
+}
+// ガラスの板を、ゆがんだ格子で三角に分け、厚みを付けて外へ飛ばす。戻る時は、枠に近いかけらから（端から順に）
+const SH_T = 0.0035, SH_IDX = [0, 1, 2, 5, 4, 3, 0, 3, 4, 0, 4, 1, 1, 4, 5, 1, 5, 2, 2, 5, 3, 2, 3, 0];   // 表3点・裏3点の、三角8枚の並び
+function breakGlass(ex, how) {
+  ex.glass.visible = false; ex.crack.visible = false; ex.grp.updateMatrixWorld(true); const mw = ex.grp.matrixWorld, cW = new THREE.Vector3(0, (CY0 + CY1) / 2, 0).applyMatrix4(mw), shards = [];
+  for (const [o, u, v] of PANELS) {
+    const G = 3, P = [], ST = [], nrm = new THREE.Vector3(...u).cross(new THREE.Vector3(...v)).normalize().transformDirection(mw);
+    for (let i = 0; i <= G; i++) { P[i] = []; ST[i] = []; for (let j = 0; j <= G; j++) { const s = i / G + (i > 0 && i < G ? rnd(-0.1, 0.1) : 0), t = j / G + (j > 0 && j < G ? rnd(-0.1, 0.1) : 0); ST[i][j] = [s, t]; P[i][j] = new THREE.Vector3(o[0] + u[0] * s + v[0] * t, o[1] + u[1] * s + v[1] * t, o[2] + u[2] * s + v[2] * t).applyMatrix4(mw); } }
+    for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) { const d = Math.random() < 0.5, A = [i, j], B = [i + 1, j], C = [i + 1, j + 1], D = [i, j + 1]; for (const tr of d ? [[A, B, C], [A, C, D]] : [[A, B, D], [B, C, D]]) {
+      const pts = tr.map(([a, b]) => P[a][b]), c = pts[0].clone().add(pts[1]).add(pts[2]).multiplyScalar(1 / 3), st = tr.map(([a, b]) => ST[a][b]), ms = (st[0][0] + st[1][0] + st[2][0]) / 3, mt = (st[0][1] + st[1][1] + st[2][1]) / 3, out = c.clone().sub(cW).normalize();
+      const l = []; for (const sgn of [1, -1]) for (const p of pts) l.push(p.clone().sub(c).addScaledVector(nrm, sgn * SH_T));
+      shards.push({ c, c0: c.clone(), l, n0: nrm.clone(), q: new THREE.Quaternion(), edge: Math.min(ms, 1 - ms, mt, 1 - mt), v: out.multiplyScalar(rnd(1.0, 2.4) * (how === 'tap' ? 1.2 : 1)).add(V1.set(0, rnd(0.3, 1.4), 0)), w: new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)), rest: false }); } } }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(shards.length * SH_IDX.length * 3), 3)); const m = new THREE.Mesh(geo, shardMat); m.frustumCulled = false; m.renderOrder = 3; scene.add(m);
+  ex.shards = shards; ex.shardMesh = m; ex.inv = mw.clone().invert(); writeShards(ex);
+  burst(cW, WHITE, 30, 1.6);
+}
+const SW = Array.from({ length: 6 }, () => new THREE.Vector3());
+function writeShards(ex) { const a = ex.shardMesh.geometry.attributes.position.array; let o = 0; for (const s of ex.shards) { for (let k = 0; k < 6; k++) SW[k].copy(s.l[k]).applyQuaternion(s.q).add(s.c); for (const k of SH_IDX) { a[o++] = SW[k].x; a[o++] = SW[k].y; a[o++] = SW[k].z; } } ex.shardMesh.geometry.attributes.position.needsUpdate = true; }
+const DQ = new THREE.Quaternion();
+let lastTinkle = 0;
+function stepShards(ex, dt) {
+  for (const s of ex.shards) { if (s.rest) continue; s.v.y -= 9.8 * dt; s.c.addScaledVector(s.v, dt); const wl = s.w.length(); if (wl > 1e-3) { DQ.setFromAxisAngle(V2.copy(s.w).multiplyScalar(1 / wl), wl * dt); s.q.premultiply(DQ); }
+    V2.copy(s.c).applyMatrix4(ex.inv); const onTop = Math.abs(V2.x) < 0.31 && Math.abs(V2.z) < 0.31 && V2.y < 0.965 && V2.y > 0.85 && s.v.y < 0;   // ケースの台の上
+    const fl = s.c.y < 0.008;
+    if (fl || onTop) { if (fl) s.c.y = 0.008; else { V2.y = 0.965; s.c.copy(V2.applyMatrix4(ex.grp.matrixWorld)); } if (Math.abs(s.v.y) > 0.8 && performance.now() - lastTinkle > 30) { lastTinkle = performance.now(); SND.tinkle(); } s.v.y = Math.abs(s.v.y) * 0.18; s.v.x *= 0.5; s.v.z *= 0.5; s.w.multiplyScalar(0.4); if (Math.abs(s.v.y) < 0.15 && Math.hypot(s.v.x, s.v.z) < 0.08) { s.rest = true; } } }
+  writeShards(ex); glintShards(ex);
+}
+// かけらの面が、見る目と天井の灯りのちょうど間を向いた時だけ、キラッ
+function glintShards(ex) { for (const s of ex.shards) { V1.copy(s.n0).applyQuaternion(s.q); V2.copy(cam.position).sub(s.c).normalize().add(V3.set(0.15, 1, 0.1).normalize()).normalize(); const k = Math.pow(Math.abs(V1.dot(V2)), 90); if (k > 0.04) put(GLINT, s.c, WHITE, Math.min(1.4, k * 2)); } }
+// ---------- ガラスのベンチ：そっと触ると「コン」と鳴って光る。連打・長押しで座面が割れて散り、しばらくで端から戻る ----------
+const benchShardMat = new THREE.MeshPhysicalMaterial({ color: '#a8e6cf', roughness: 0.02, metalness: 0, transparent: true, opacity: 0.6, envMap: GEM_ENV, envMapIntensity: 1.6, clearcoat: 1, flatShading: true, side: THREE.DoubleSide, depthWrite: false });
+const FAR = new THREE.Matrix4().makeTranslation(1e4, 0, 0);   // ケースの台に乗る判定を、ベンチのかけらには使わない
+let benchTaps = 0, benchBreaks = 0;
+function benchTap(b) {
+  const now = nowS(); b.taps = b.taps.filter((t) => now - t < 1.5); b.taps.push(now); benchTaps++; b.wob = 1;
+  SND.clink(9, 0.5); put(GLINT, V1.set(b.x + rnd(-0.15, 0.15), 0.49, b.z + rnd(-0.6, 0.6)), WHITE, 1.2);
+  if (b.taps.length >= 4) shatterBench(b, 'tap');
+}
+function shatterBench(b, how) {
+  if (b.state !== 'ok') return; b.state = 'broken'; b.bT = 0; b.press = 0; b.taps = []; b.seat.visible = false; benchBreaks++; if (b.col) b.col.setEnabled(false);
+  const W = 0.54, L = 1.78, T = 0.025, GX = 3, GZ = 8, P = [], ST = [], shards = [], c0 = new THREE.Vector3(b.x, 0.455, b.z);
+  for (let i = 0; i <= GX; i++) { P[i] = []; ST[i] = []; for (let j = 0; j <= GZ; j++) { const u = i / GX + (i > 0 && i < GX ? rnd(-0.08, 0.08) : 0), t = j / GZ + (j > 0 && j < GZ ? rnd(-0.03, 0.03) : 0); ST[i][j] = [u, t]; P[i][j] = new THREE.Vector3(b.x - W / 2 + u * W, 0.455, b.z - L / 2 + t * L); } }
+  for (let i = 0; i < GX; i++) for (let j = 0; j < GZ; j++) { const A = [i, j], B = [i + 1, j], C = [i + 1, j + 1], D = [i, j + 1]; for (const tr of Math.random() < 0.5 ? [[A, B, C], [A, C, D]] : [[A, B, D], [B, C, D]]) {
+    const pts = tr.map(([a, k]) => P[a][k]), c = pts[0].clone().add(pts[1]).add(pts[2]).multiplyScalar(1 / 3), st = tr.map(([a, k]) => ST[a][k]), ms = (st[0][0] + st[1][0] + st[2][0]) / 3, mt = (st[0][1] + st[1][1] + st[2][1]) / 3, out = c.clone().sub(c0).setY(0).normalize();
+    const l = []; for (const sg of [1, -1]) for (const p of pts) l.push(p.clone().sub(c).add(V1.set(0, sg * T, 0)));
+    shards.push({ c, c0: c.clone(), l, n0: new THREE.Vector3(0, 1, 0), q: new THREE.Quaternion(), edge: Math.min(ms, 1 - ms, mt, 1 - mt), v: out.multiplyScalar(rnd(0.5, 1.6) * (how === 'tap' ? 1.2 : 1)).add(V1.set(0, rnd(0.6, 1.6), 0)), w: new THREE.Vector3(rnd(-10, 10), rnd(-10, 10), rnd(-10, 10)), rest: false }); } }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(shards.length * SH_IDX.length * 3), 3)); const m = new THREE.Mesh(geo, benchShardMat); m.frustumCulled = false; m.renderOrder = 3; scene.add(m);
+  Object.assign(b, { shards, shardMesh: m, inv: FAR, grp: b.g }); writeShards(b);
+  SND.shatter(0.8); burst(c0, WHITE, 24, 1.4); shake = Math.max(shake, 0.02);
+}
+function stepBench(b, dt, now) {
+  if (b.state === 'ok') {
+    if (b.pressing) { b.press += dt / 1.3; for (const th of [0.3, 0.55, 0.75, 0.9]) if (b.press >= th && b.creakK < th) { b.creakK = th; SND.creak(th); put(GLINT, V1.set(b.x + rnd(-0.2, 0.2), 0.49, b.z + rnd(-0.7, 0.7)), WHITE, 1); } if (b.press >= 1) { shatterBench(b, 'press'); for (const s of ptrs.values()) if (s.bench === b) s.mode = 'none'; } }
+    else { b.press = Math.max(0, b.press - dt * 1.4); if (b.press < 0.25) b.creakK = 0; }
+    b.wob *= Math.exp(-dt * 6); const j = b.press * 0.006; b.seat.position.set(rnd(-j, j), 0.455 + Math.sin(now * 40) * 0.004 * b.wob, rnd(-j, j)); return;
+  }
+  b.bT += dt;
+  if (b.state === 'broken') { stepShards(b, dt); if (b.bT > 5.5) { b.state = 'restoring'; b.rT = 0; for (const s of b.shards) { s.from = s.c.clone(); s.fromQ = s.q.clone(); s.delay = 0.3 + s.edge * 3.2 + rnd(0, 0.12); s.done = false; } SND.restore('glass', 4); } return; }
+  b.rT += dt; const ease = (u) => u * u * (3 - 2 * u); let all = true;
+  for (const s of b.shards) { const u = clamp((b.rT - s.delay) / 0.6, 0, 1), e = ease(u); s.c.copy(s.from).lerp(s.c0, e); s.c.y += Math.sin(u * Math.PI) * 0.2; s.q.copy(s.fromQ).slerp(IDQ, e); if (u < 1) all = false; else if (!s.done) { s.done = true; put(GLINT, s.c, WHITE, 1.0); if (performance.now() - lastTinkle > 45) { lastTinkle = performance.now(); SND.tinkle(); } } }
+  writeShards(b);
+  if (all) { scene.remove(b.shardMesh); b.shardMesh.geometry.dispose(); b.shardMesh = null; b.shards = null; b.seat.visible = true; b.state = 'ok'; if (b.col) b.col.setEnabled(true); burst(V1.set(b.x, 0.5, b.z), WHITE, 18, 0.9); }
+}
+// 運が悪いと：床に当たった宝石が、粉々に
+function shatterGem(ex) {
+  const o = ex.gem.group, p = o.position.clone(), c = ex.col, n = 30, sc = ex.gem.radius / 0.2; dropBody(ex); o.visible = false; ex.shattered = true; gemBreaks++;
+  const cells = ex.gem.cells;   // かけら1つが、宝石の表面の1区画にもどる（多い分は、同じ区画へ）
+  for (let k = 0; k < n; k++) { const slot = fragI++ % MAXF, cl = cells[k % cells.length], d = cl.c.clone().normalize();
+    ex.frags.push({ slot, p: p.clone().addScaledVector(d, 0.04), v: d.clone().add(V1.set(rnd(-0.4, 0.4), rnd(-0.4, 0.4), rnd(-0.4, 0.4))).normalize().multiplyScalar(rnd(0.6, 2.6)).add(V1.set(0, rnd(0.6, 1.8), 0)), r: new THREE.Vector3(rnd(0, 6), rnd(0, 6), rnd(0, 6)), w: new THREE.Vector3(rnd(-14, 14), rnd(-14, 14), rnd(-14, 14)), s: new THREE.Vector3(rnd(0.018, 0.045), rnd(0.03, 0.07), rnd(0.018, 0.045)).multiplyScalar(sc), tgt: cl.c, order: cl.order - (k >= cells.length ? 0.02 : 0), k: 1 });
+    FR.setColorAt(slot, c.clone().offsetHSL(0, 0, rnd(-0.1, 0.15))); }
+  FR.instanceColor.needsUpdate = true; SND.gemBreak(ex.spec.hard); burst(p, ex.colW, 40, 1.8); flare(p, STAR, ex.colW, 1.2, 0.5); shake = Math.max(shake, 0.02);
+}
+function stepFrags(ex, dt) { for (const f of ex.frags) { f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); if (f.p.y < f.s.y) { f.p.y = f.s.y; f.v.y = Math.abs(f.v.y) * 0.25; f.v.x *= 0.6; f.v.z *= 0.6; f.w.multiplyScalar(0.6); } f.r.addScaledVector(f.w, dt); } }
+function drawFrags(ex) { for (const f of ex.frags) { M4.compose(f.p, Q.setFromEuler(E.set(f.r.x, f.r.y, f.r.z)), V1.copy(f.s).multiplyScalar(f.k)); FR.setMatrixAt(f.slot, M4); } FR.instanceMatrix.needsUpdate = true; }
+
+// ---------- 戻る：ガラスは枠に近いかけらから順に・砕けた宝石は根元から結晶が育つように・落ちた宝石は弧を描いて ----------
+function startRestore(ex) {
+  ex.state = 'restoring'; ex.rT = 0; dropBody(ex); SND.restore(ex.timbre, ex.k);
+  ex.gFrom = ex.gem.group.position.clone(); ex.gFromQ = ex.gem.group.quaternion.clone(); ex.rEnd = ex.shattered ? 2.75 : 2.15;
+  if (ex.shards) { for (const s of ex.shards) { s.from = s.c.clone(); s.fromQ = s.q.clone(); s.delay = 0.3 + s.edge * 3.2 + rnd(0, 0.12); s.done = false; } ex.rEnd = Math.max(ex.rEnd, 0.3 + 0.5 * 3.2 + 0.12 + 0.6 + 0.1); }
+  for (const f of ex.frags) { f.from = f.p.clone(); f.k = 1; }
+}
+const HQ = new THREE.Quaternion(), HP = new THREE.Vector3(), IDQ = new THREE.Quaternion();
+function stepRestore(ex, dt) {
+  ex.rT += dt; const t = ex.rT, ease = (u) => u * u * (3 - 2 * u);
+  ex.holder.getWorldPosition(HP); ex.holder.getWorldQuaternion(HQ); HQ.multiply(ex.tilt);
+  if (ex.shards) { for (const s of ex.shards) { const u = clamp((t - s.delay) / 0.6, 0, 1), e = ease(u); s.c.copy(s.from).lerp(s.c0, e); s.c.y += Math.sin(u * Math.PI) * 0.25; s.q.copy(s.fromQ).slerp(IDQ, e); if (u > 0 && u < 1 && Math.random() < 0.15) put(SPARK, s.c, WHITE, 0.9);
+      if (u >= 1 && !s.done) { s.done = true; put(GLINT, s.c, WHITE, 1.2); if (performance.now() - lastTinkle > 45) { lastTinkle = performance.now(); SND.tinkle(); } } } writeShards(ex); shardMat.emissiveIntensity = 0.3; }
+  const o = ex.gem.group;
+  if (!ex.shattered) { const u = clamp((t - 0.3) / 1.5, 0, 1), e = ease(u); o.position.copy(ex.gFrom).lerp(HP, e); o.position.y += Math.sin(u * Math.PI) * 0.5; o.quaternion.copy(ex.gFromQ).slerp(HQ, e); if (Math.random() < 0.5) put(SPARK, o.position, ex.colW, 1); }
+  else {
+    // 砕けた宝石：かけらが下から順に飛んでもどり、自分の区画にはまる（はまった区画が、下から積み上がる）
+    const T0 = 0.5, T1 = 2.4, span = T1 - T0;
+    for (const f of ex.frags) { const arrive = T0 + f.order * span, u = clamp((t - (arrive - 0.9)) / 0.9, 0, 1), e = ease(u); f.p.copy(f.from).lerp(V1.copy(f.tgt).applyQuaternion(HQ).add(HP), e); f.p.y += Math.sin(u * Math.PI) * 0.35; f.r.addScaledVector(f.w, dt * (1 - e)); f.k = t < arrive ? 1 : Math.max(0, 1 - (t - arrive) / 0.12); if (u > 0 && u < 1 && Math.random() < 0.1) put(SPARK, f.p, ex.colW, 1);
+      if (t >= arrive && !f.home) { f.home = true; put(GLINT, f.p, WHITE, 0.9); if (performance.now() - lastTinkle > 60) { lastTinkle = performance.now(); SND.clink(ex.spec.hard, 0.25); } } }
+    drawFrags(ex);
+    if (t > T0) { o.visible = true; o.position.copy(HP); o.quaternion.copy(HQ); for (const u of ex.asmU) u.value = (t - T0) / span; } }
+  if (t >= ex.rEnd) finishRestore(ex);
+}
+function finishRestore(ex) {
+  const o = ex.gem.group; ex.holder.add(o); o.position.set(0, 0, 0); o.quaternion.copy(ex.tilt); o.scale.setScalar(1); o.visible = true; if (ex.aura) ex.aura.visible = true; for (const u of ex.asmU) u.value = 99;
+  if (ex.shardMesh) { scene.remove(ex.shardMesh); ex.shardMesh.geometry.dispose(); ex.shardMesh = null; ex.shards = null; ex.glass.visible = true; ex.crack.visible = true; ex.crackMat.opacity = 0; ex.glassMat.emissiveIntensity = 0.8; }
+  for (const f of ex.frags) FR.setMatrixAt(f.slot, ZERO); FR.instanceMatrix.needsUpdate = true; ex.frags = [];
+  if (ex.beam) { ex.beam.visible = true; ex.beamMat.opacity = 0.13; }
+  ex.state = 'ok'; ex.press = 0; ex.taps = []; ex.wob = 0; ex.base.rotation.set(0, 0, 0); ex.fxT = 0; restores++;
+  const p = holderW(ex, new THREE.Vector3()); burst(p, ex.colW, 30, 1.2); burst(p, WHITE, 16, 0.8); flare(p, STAR6, ex.colW, 0.9, 1.0);
+}
+
+// ---------- 照明（1）展示のスポット：天井の縦の梁にレール、そこから細い光で宝石だけを照らす。床には、台の影をぬいた光の輪 ----------
+const TRACKS = [-4.6, -2.3, 2.3, 4.6], SPOT_C = new THREE.Color('#fff0dc'), SPOTS = [];
+const DUST = pointsLayer(360, glowTex, 0.022), HALO = pointsLayer(90, glowTex, 0.75), MOTES = [];
+const beamMat = new THREE.ShaderMaterial({ uniforms: { uK: { value: 0.018 }, uC: { value: SPOT_C } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  vertexShader: `varying vec3 vN; varying vec3 vP; varying float vU;
+void main() { mat4 M = modelMatrix * instanceMatrix; vU = -position.y; vN = normalize(mat3(M) * normal); vec4 w = M * vec4(position, 1.0); vP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `uniform float uK; uniform vec3 uC; varying vec3 vN; varying vec3 vP; varying float vU;
+void main() { float f = pow(abs(dot(normalize(vN), normalize(cameraPosition - vP))), 2.5); gl_FragColor = vec4(uC * f * smoothstep(0.0, 0.3, vU) * (1.0 - smoothstep(0.7, 1.0, vU)) * uK, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}` });
+function buildLights() {
+  const black = new THREE.MeshStandardMaterial({ color: '#16161a', metalness: 0.6, roughness: 0.4, envMap: GEM_ENV, envMapIntensity: 0.4 });
+  scene.add(new THREE.Mesh(mergeGeo(TRACKS.map((x) => new THREE.BoxGeometry(0.05, 0.035, 2 * HL - 1).translate(x, HH - 0.235, 0))), black));
+  const n = exhibits.filter((e) => e.type !== 'free').length, heads = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.062, 0.17, 16), black, n), stems = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.008, 0.008, 1, 6).translate(0, -0.5, 0), black, n);
+  const lens = new THREE.InstancedMesh(new THREE.CircleGeometry(0.046, 20), new THREE.MeshBasicMaterial({ color: new THREE.Color('#fff2dc').multiplyScalar(3) }), n), beams = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.1, 1, 1, 24, 1, true).translate(0, -0.5, 0), beamMat, n);
+  beams.renderOrder = 4; beams.frustumCulled = false;
+  for (const ex of exhibits) { if (ex.type === 'free') continue; const k = SPOTS.length;
+    // 宝石を少し入口側の上から照らす（見る人の側の面に光が乗る）
+    const tgt = ex.holder.getWorldPosition(new THREE.Vector3()); if (ex.type === 'case') tgt.y = 1.3;
+    const tx = TRACKS.reduce((a, b) => (Math.abs(b - tgt.x) < Math.abs(a - tgt.x) ? b : a)), S = new THREE.Vector3(tx, HH - 0.5, tgt.z + 0.8), D = tgt.clone().sub(S), L = D.length(); D.normalize();
+    const th = Math.atan((ex.type === 'case' ? 0.5 : 0.42) / L), e1 = new THREE.Vector3(1, 0, 0).cross(D).normalize(), e2 = D.clone().cross(e1);
+    const sp = { ex, S, D, L, th, cosO: Math.cos(th), cosI: Math.cos(th * 0.55), e1, e2, h: ex.type === 'case' ? 1.6 : ex.type === 'float' ? 0.5 : 1.13, r: ex.type === 'case' ? 0.36 : 0.33, c: ex.grp.position };
+    SPOTS.push(sp); ex.spot = sp;
+    for (const m of ex.spotMats) { const u = m.userData.spot; u.uSpP.value.copy(S); u.uSpD.value.copy(D); u.uSpC.value.copy(SPOT_C).multiplyScalar(1.6); u.uSpCos.value.set(sp.cosO, sp.cosI); u.uSpSh.value.set(sp.c.x, sp.h, sp.c.z, sp.r); }
+    Q.setFromUnitVectors(V1.set(0, -1, 0), D); M4.compose(V2.copy(S).addScaledVector(D, -0.07), Q, ONE); heads.setMatrixAt(k, M4);
+    M4.compose(V2.set(tx, HH - 0.25, S.z), Q.identity(), V3.set(1, HH - 0.25 - S.y - 0.06, 1)); stems.setMatrixAt(k, M4);
+    Q.setFromUnitVectors(V1.set(0, 0, 1), D); M4.compose(V2.copy(S).addScaledVector(D, 0.016), Q, ONE); lens.setMatrixAt(k, M4);
+    const Lb = L * 1.08, Rb = Math.tan(th) * Lb; Q.setFromUnitVectors(V1.set(0, -1, 0), D); M4.compose(S, Q, V3.set(Rb, Lb, Rb)); beams.setMatrixAt(k, M4);
+    for (let j = 0; j < 10; j++) MOTES.push({ sp, u: Math.random(), r: Math.sqrt(Math.random()), a: Math.random() * TAU, w: rnd(-0.4, 0.4), v: rnd(0.004, 0.014), ph: Math.random() * 10 });
+  }
+  scene.add(heads, stems, lens, beams);
+  // 床の光の輪：光の円すいが床に落ちる所から、台の上の円（台・ケース・光の台の天板）の影をぬく。光は動かないので、読み込みの時に一度だけ描く
+  const MW = 512, MH = Math.round((MW * HL) / HW), acc = new Float32Array(MW * MH), pxm = MW / (2 * HW);
+  for (const sp of SPOTS) { const { S, D } = sp, F = S.clone().addScaledVector(D, S.y / -D.y), R = F.distanceTo(S) * Math.tan(sp.th) * 1.3 + 0.1;
+    for (let j = Math.max(0, ((F.z - R + HL) * pxm) | 0); j < Math.min(MH, (F.z + R + HL) * pxm); j++) for (let i = Math.max(0, ((F.x - R + HW) * pxm) | 0); i < Math.min(MW, (F.x + R + HW) * pxm); i++) {
+      const x = i / pxm - HW, z = j / pxm - HL; V1.set(x - S.x, -S.y, z - S.z); const dl = V1.length(), cone = THREE.MathUtils.smoothstep(V1.dot(D) / dl, sp.cosO, sp.cosI); if (cone <= 0) continue;
+      const t = (S.y - sp.h) / S.y, sh = THREE.MathUtils.smoothstep(Math.hypot(S.x + (x - S.x) * t - sp.c.x, S.z + (z - S.z) * t - sp.c.z), sp.r - 0.02, sp.r + 0.03);
+      acc[j * MW + i] += cone * sh * Math.min(1.4, (sp.L / dl) ** 2); } }
+  const px = new Uint8Array(MW * MH * 4); for (let k = 0; k < MW * MH; k++) { const v = Math.min(1, acc[k] * 0.62); px.set([255 * v, 236 * v, 206 * v, 255], k * 4); }
+  const tex = new THREE.DataTexture(px, MW, MH); tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true; MOON_U.uSpotMap.value = tex; spotAcc = { acc, MW, MH, pxm };
+}
+let spotAcc = null;
+// ---------- 照明（2）月明かり：左の壁のステンドグラス・突き当たりの壁（バラ窓と窓2つ）・天井の天窓。光の入口の面ごとに、窓の色の絵を持つ ----------
+// 月は左うしろの高い所。100秒で左右に少しずつ動き、雲で明るさが変わる（時間とともに、光の筋が床と宝石の上をわたっていく）
+const MOON = { d: new THREE.Vector3(), I: 0, t: 0, hold: false, ready: false };
+// 入口の面は、窓より5cm部屋の内側に（窓と同じ面だと、近くで見まわすと光の筋と窓が前後を奪いあってちらついた）
+const SRC = [
+  { O: new THREE.Vector3(-HW + 0.14, 3.9, -HL), U: new THREE.Vector3(0, 0, 2 * HL), V: new THREE.Vector3(0, 2.5, 0), W: 1024, H: 98, k: 1.6, vk: 0.55 },
+  { O: new THREE.Vector3(-HW, 1.5, -HL + 0.15), U: new THREE.Vector3(2 * HW, 0, 0), V: new THREE.Vector3(0, 5.5, 0), W: 512, H: 201, k: 1.6, vk: 0.4 },
+  { O: new THREE.Vector3(-1.6, HH - 0.06, -HL), U: new THREE.Vector3(3.2, 0, 0), V: new THREE.Vector3(0, 0, 2 * HL), W: 64, H: 512, k: 0.7, vk: 0.04 }];   // k＝床・台・宝石を照らす強さ、vk＝空中の光の筋の濃さ（色ガラスを通った光は暗いので、強めに）
+const SHAFT_VS = `uniform vec3 uO; uniform vec3 uU; uniform vec3 uV; uniform vec3 uD; varying vec3 vP;
+void main() { vP = uO + uU * position.x + uV * position.y + uD * position.z; gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.0); }`;
+// 光の筋：見る線が光の柱（入口の面を月の向きにのばした形）を通る間を10歩で進み、入口の窓の色を拾って足す（ほこりで少しむらに）。重い時は5歩
+const SHAFT_FS = `uniform vec3 uO; uniform mat3 uI; uniform sampler2D uT; uniform float uK; uniform float uTime; uniform int uN; varying vec3 vP;
+void main() {
+  vec3 rd = normalize(vP - cameraPosition), so = uI * (cameraPosition - uO), sd = uI * rd;
+  if (abs(sd.x) < 1e-6) sd.x = 1e-6; if (abs(sd.y) < 1e-6) sd.y = 1e-6; if (abs(sd.z) < 1e-6) sd.z = 1e-6;
+  vec3 t0 = -so / sd, t1 = (vec3(1.0) - so) / sd, a = min(t0, t1), b = max(t0, t1);
+  float tn = max(max(a.x, a.y), max(a.z, 0.0)), tf = min(min(b.x, b.y), b.z);
+  vec3 rr = rd; if (abs(rr.x) < 1e-6) rr.x = 1e-6; if (abs(rr.y) < 1e-6) rr.y = 1e-6; if (abs(rr.z) < 1e-6) rr.z = 1e-6;
+  vec3 h = max((vec3(${-HW}.0, 0.0, ${-HL}.0) - cameraPosition) / rr, (vec3(${HW}.0, ${HH}.0, ${HL}.0) - cameraPosition) / rr); tf = min(tf, min(min(h.x, h.y), h.z));
+  if (tf <= tn) discard;
+  float st = (tf - tn) / float(uN), j = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); vec3 acc = vec3(0.0);
+  for (int i = 0; i < 10; i++) { if (i >= uN) break; vec3 s = so + sd * (tn + (float(i) + j) * st);
+    float dust = 0.72 + 0.28 * sin(s.x * 37.0 + uTime * 0.5) * sin(s.y * 23.0 - uTime * 0.4) * sin(s.z * 19.0 + uTime * 0.3);
+    acc += texture2D(uT, s.xy).rgb * (1.0 - 0.55 * s.z) * dust; }
+  gl_FragColor = vec4(acc * st * uK, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+SRC.forEach((src) => { src.inv = new THREE.Matrix3(); src.D = new THREE.Vector3();
+  src.mat = new THREE.ShaderMaterial({ uniforms: { uO: { value: src.O }, uU: { value: src.U }, uV: { value: src.V }, uD: { value: src.D }, uI: { value: src.inv }, uT: { value: BLACK }, uK: { value: 0 }, uTime: { value: 0 }, uN: { value: 10 } }, vertexShader: SHAFT_VS, fragmentShader: SHAFT_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  src.mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1).translate(0.5, 0.5, 0.5), src.mat); src.mesh.frustumCulled = false; src.mesh.renderOrder = 4; scene.add(src.mesh); });
+// 入口の面の絵：窓の絵（ステンドグラス）をその場所に写し、月の色（青白）をかける。天窓は、ぼかした青白い丸
+function buildMoon() {
+  SRC.forEach((src, si) => {
+    const c = document.createElement('canvas'); c.width = src.W; c.height = src.H; const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, src.W, src.H);
+    const toPx = (p) => { V1.copy(p).sub(src.O); return [(V1.dot(src.U) / src.U.lengthSq()) * src.W, (1 - V1.dot(src.V) / src.V.lengthSq()) * src.H]; };
+    if (si < 2) for (const W of WINDOWS) { if (!W.lit || !W.canvas || (si === 0) !== (W.pos[0] < 0 && Math.abs(W.ry) > 1)) continue;
+      const C = new THREE.Vector3(...W.pos), ax = new THREE.Vector3(Math.cos(W.ry), 0, -Math.sin(W.ry)), up = new THREE.Vector3(0, W.h / 2, 0);
+      const [x0, y0] = toPx(C.clone().addScaledVector(ax, -W.w / 2).add(up)), [x1, y1] = toPx(C.clone().addScaledVector(ax, W.w / 2).add(up)), [x2, y2] = toPx(C.clone().addScaledVector(ax, -W.w / 2).sub(up)), iw = W.canvas.width, ih = W.canvas.height;
+      g.setTransform((x1 - x0) / iw, (y1 - y0) / iw, (x2 - x0) / ih, (y2 - y0) / ih, x0, y0); g.drawImage(W.canvas, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0); }
+    else for (const z of OCULI) { const [x, y] = toPx(new THREE.Vector3(0, HH, z)), rx = (1.45 / 3.2) * src.W, ry = (1.45 / (2 * HL)) * src.H; g.save(); g.translate(x, y); g.scale(1, ry / rx); const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, '#dfe8ff'); gr.addColorStop(0.8, '#c8d6ff'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, TAU); g.fill(); g.restore(); }
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = '#c8d4ff'; g.fillRect(0, 0, src.W, src.H); g.globalCompositeOperation = 'source-over';
+    src.canvas = c;
+    const sharp = new THREE.CanvasTexture(c); sharp.colorSpace = THREE.SRGBColorSpace; sharp.minFilter = THREE.LinearFilter; sharp.generateMipmaps = false; MOON_U['uMT' + si].value = sharp;
+    const sc = document.createElement('canvas'); sc.width = src.W; sc.height = src.H; const sg = sc.getContext('2d'); sg.filter = 'blur(2px)'; sg.drawImage(c, 0, 0);
+    const soft = new THREE.CanvasTexture(sc); soft.colorSpace = THREE.SRGBColorSpace; soft.minFilter = THREE.LinearFilter; soft.generateMipmaps = false; src.mat.uniforms.uT.value = soft;
+  });
+  MOON.ready = true;
+}
+// 宝石を染めるための、入口の絵の色の読み出し（画面に描きはじめてから。読み込み中に読むと、ステンドグラスの描きこみ全部を待たされ、1.8秒かかった）
+function readMoon() { const t = performance.now(); for (const src of SRC) src.data = src.canvas.getContext('2d').getImageData(0, 0, src.W, src.H).data; MOON.readMs = performance.now() - t; }
+const lin = (v) => Math.pow(v / 255, 2.2);
+function updateMoon(dt) {
+  if (!MOON.hold) MOON.t += dt; const t = MOON.t, cloud = 0.5 + 0.3 * Math.sin(t * 0.19) + 0.2 * Math.sin(t * 0.47 + 1.3);
+  MOON.d.set(0.34 + 0.17 * Math.sin((t * TAU) / 100), -0.66, 0.66).normalize(); MOON.I = MOON.ready ? 0.3 + 0.7 * THREE.MathUtils.smoothstep(cloud, 0.15, 0.85) : 0;
+  MOON_U.uMD.value.copy(MOON.d); MOON_U.uMK.value.set(SRC[0].k, SRC[1].k, SRC[2].k).multiplyScalar(MOON.I * 1.25);
+  SRC.forEach((src, k) => { const top = src.V.y > 0 ? src.O.y + src.V.y : src.O.y; src.D.copy(MOON.d).multiplyScalar(top / -MOON.d.y + 0.1);
+    const m = new THREE.Matrix3().set(src.U.x, src.V.x, src.D.x, src.U.y, src.V.y, src.D.y, src.U.z, src.V.z, src.D.z), det = m.determinant(); src.inv.copy(m).invert();
+    MOON_U['uMO' + k].value.copy(src.O); MOON_U['uMI' + k].value.copy(src.inv);
+    V1.copy(cam.position).sub(src.O).applyMatrix3(src.inv); const inside = V1.x > 0 && V1.x < 1 && V1.y > 0 && V1.y < 1 && V1.z > 0 && V1.z < 1;
+    src.mat.side = inside === det > 0 ? THREE.BackSide : THREE.FrontSide; src.mat.uniforms.uK.value = MOON.I * src.vk; src.mat.uniforms.uTime.value = t; });
+  for (const W of WINDOWS) W.mesh.material.color.setScalar(W.lit ? 0.45 + 0.85 * MOON.I : 0.5);
+}
+// ある点に届く月明かり（窓の色）。宝石を、通りかかった光の筋の色に染める
+function moonAt(p, out) {
+  out.setRGB(0, 0, 0); if (!MOON.ready || !SRC[0].data) return out;
+  for (const src of SRC) { V1.copy(p).sub(src.O).applyMatrix3(src.inv); if (V1.z <= 0 || V1.x <= 0 || V1.x >= 1 || V1.y <= 0 || V1.y >= 1) continue;
+    const o = ((Math.min(src.H - 1, ((1 - V1.y) * src.H) | 0) * src.W) + Math.min(src.W - 1, (V1.x * src.W) | 0)) * 4; out.r += lin(src.data[o]) * src.k; out.g += lin(src.data[o + 1]) * src.k; out.b += lin(src.data[o + 2]) * src.k; }
+  return out.multiplyScalar(MOON.I);
+}
+// ---------- 照明（3）ろうそく：目の前の近いろうそくのあたりに、灯りが2つ。灯りは近いろうそくたちの真ん中へ、なめらかにすべって移る（消して点け直すと、見まわすたびにちらついた）。シャンデリアもろうそくの灯り ----------
+const CANDLE_L = [0, 1].map(() => { const L = new THREE.PointLight('#ffb070', 0, 5, 1.7); scene.add(L); return { L, p: new THREE.Vector3(), on: false }; });
+function stepCandles(dt, now) {
+  const fx = cam.position.x + Math.sin(yaw) * 2.5, fz = cam.position.z + Math.cos(yaw) * 2.5, near = ALL_CANDLES.filter((c) => !c.fixed).map((c) => [Math.hypot(c.x - fx, c.z - fz), c]).sort((a, b) => a[0] - b[0]).slice(0, 6);
+  CANDLE_L.forEach((s, j) => { let W = 0, fl = 0; V1.set(0, 0, 0); near.forEach(([d, c], i) => { if (i % 2 !== j) return; const w = 1 / (0.3 + d * d); W += w; V1.addScaledVector(V2.set(c.x, c.top + 0.08, c.z), w); fl += c.fl * (1 + c.flare * 2) * w; }); V1.multiplyScalar(1 / W);
+    if (!s.on) { s.p.copy(V1); s.on = true; } s.p.lerp(V1, 1 - Math.exp(-dt * 2.5)); s.L.position.copy(s.p); s.L.intensity = (fl / W) * 1.5; });
+  CH_L.forEach((L, i) => { L.intensity = 1.2 * (0.86 + 0.08 * Math.sin(now * 11 + i * 3) * Math.sin(now * 6.1 + i) + 0.06 * Math.sin(now * 2.3 + i * 2)); });
+}
+// ---------- 照明（4）ときどき、宝石が自分で光り輝く（ふくらんで、ゆらいで、消える。となりの宝石へ光がうつることも） ----------
+const GLOW_L = new THREE.PointLight('#ffffff', 0, 3.6, 1.6); scene.add(GLOW_L);
+const GLOW = { next: 2.5, on: [], n: 0 };
+function startGlow(ex, hops) {
+  if (!ex || ex.state !== 'ok' || ex.glowT != null || !ex.gem.group.visible) return; ex.glowT = 0; ex.glowHops = hops; ex.glowPassed = false; GLOW.on.push(ex); GLOW.n++;
+  ex.glowC = ex.glowC || new THREE.Color(GLOWC[ex.spec.id] || ex.spec.color).lerp(WHITE, 0.2); SND.shimmer();
+}
+function stepGlow(dt) {
+  if ((GLOW.next -= dt) <= 0) { GLOW.next = rnd(4, 8); const c = exhibits.filter((e) => e.state === 'ok' && e.glowT == null && e.gem.group.visible); if (c.length) startGlow(c[(Math.random() * c.length) | 0], Math.random() < 0.45 ? 2 : 0); }
+  let best = null, bk = 0;
+  for (let i = GLOW.on.length - 1; i >= 0; i--) { const ex = GLOW.on[i], t = (ex.glowT += dt), T = 3.4;
+    if (t >= T || ex.state !== 'ok') { ex.glowT = null; ex.glowK = 0; GLOW.on.splice(i, 1); continue; }
+    const k = Math.min(1, t / 0.7) ** 2 * (t > T - 1.3 ? (T - t) / 1.3 : 1) * (0.85 + 0.15 * Math.sin(t * 9)); ex.glowK = k; if (k > bk) { bk = k; best = ex; }
+    if (Math.random() < k * 0.9) { holderW(ex, V3); put(SPARK, V3.add(V2.set(rnd(-0.25, 0.25), rnd(-0.1, 0.4), rnd(-0.25, 0.25))), ex.glowC, 1); }
+    if (ex.glowHops > 0 && t > 1.2 && !ex.glowPassed) { ex.glowPassed = true; const p = holderW(ex, new THREE.Vector3()); let nb = null, nd = 4.5;
+      for (const o of exhibits) { if (o === ex || o.state !== 'ok' || o.glowT != null) continue; const d = holderW(o, V3).distanceTo(p); if (d < nd) { nd = d; nb = o; } }
+      if (nb) startGlow(nb, ex.glowHops - 1); } }
+  if (best) { holderW(best, V3); GLOW_L.position.lerp(V3, GLOW_L.intensity < 0.05 ? 1 : 1 - Math.exp(-dt * 6)); GLOW_L.color.copy(best.glowC); GLOW_L.intensity = bk * 5; } else GLOW_L.intensity = 0;
+}
+// ---------- 宝石に当たる光：スポット（床の展示）＋近いろうそく（あたたかく、ゆらぐ）＋月明かり（窓の色）＋自分の光 ----------
+const LC = new THREE.Color(), MC = new THREE.Color(), GP = new THREE.Vector3();
+function stepGemLight() {
+  for (const ex of exhibits) { const o = ex.gem.group; if (!o.visible) continue; o.getWorldPosition(GP);
+    const base = ex.state === 'ok' && ex.type !== 'free' ? 1.0 : 0.6, gk = ex.glowK || 0; LC.setRGB(base, base * 0.97, base * 0.92);
+    let w = 0; for (const c of ALL_CANDLES) { const d = Math.hypot(c.x - GP.x, c.top - GP.y, c.z - GP.z); if (d < 2.6) w += c.fl * (1 - d / 2.6) ** 2; }
+    LC.r += w * 0.55; LC.g += w * 0.36; LC.b += w * 0.16; moonAt(GP, MC); LC.r += MC.r * 2.4; LC.g += MC.g * 2.4; LC.b += MC.b * 2.4;
+    if (gk > 0) { LC.r += ex.glowC.r * gk * 0.8; LC.g += ex.glowC.g * gk * 0.8; LC.b += ex.glowC.b * gk * 0.8; }
+    (ex.light || (ex.light = new THREE.Color())).copy(LC); for (const m of ex.gmats) m.uniforms.uLight.value.copy(LC);
+    const lum = (LC.r + LC.g + LC.b) / 3; ex.mats.forEach((m, j) => { m.envMapIntensity = ex.envI0[j] * lum; });
+    // 自分の光：触った時の仕掛け（gemFx）が動いていない間は、ここが光り方を決める
+    if (ex.fxT > 9) { for (const m of ex.gmats) m.uniforms.uEmis.value.setRGB(0, 0, 0); ex.mats.forEach((m, j) => { m.emissive.copy(ex.base0[j].emissive); m.emissiveIntensity = ex.base0[j].ei; }); ex.halo.material.opacity = gk * 0.9; if (gk > 0) { ex.halo.material.color.copy(ex.glowC); ex.halo.scale.setScalar(0.8 + gk); } }
+    if (gk > 0) { for (const m of ex.gmats) { const e = m.uniforms.uEmis.value; e.r += ex.glowC.r * gk * 0.7; e.g += ex.glowC.g * gk * 0.7; e.b += ex.glowC.b * gk * 0.7; } ex.mats.forEach((m) => { m.emissive.lerp(ex.glowC, Math.min(1, gk)); m.emissiveIntensity += gk * 1.6; }); }
+  }
+}
+function stepLighting(dt, now) {
+  updateMoon(dt); stepCandles(dt, now); stepGlow(dt); stepGemLight();
+  DUST.n = 0; for (const m of MOTES) { m.u += m.v * dt; if (m.u > 1) m.u -= 0.85; m.a += m.w * dt; const sp = m.sp, l = sp.L * (0.15 + 0.85 * m.u), rad = Math.tan(sp.th) * l * m.r;
+    V1.copy(sp.S).addScaledVector(sp.D, l).addScaledVector(sp.e1, Math.cos(m.a) * rad).addScaledVector(sp.e2, Math.sin(m.a) * rad); put(DUST, V1, SPOT_C, (1 - m.r * m.r) * (0.25 + 0.75 * Math.pow(Math.max(0, Math.sin(now * 2.3 + m.ph)), 6))); }
+}
+// 展示の前の、立って見られる所（歩ける所で、目から宝石までの間に、ほかの展示・ツリーがない）
+function standFor(ex, withFree = true) {   // withFree＝飛んでいる宝石も、さえぎる物に数える（今その場で見る時）
+  const p = ex.holder.getWorldPosition(new THREE.Vector3()), ry = ex.grp.rotation.y;
+  for (const dist of [1.9, 2.3, 1.6, 2.8]) for (let k = 0; k < 24; k++) {
+    const a = ry + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (TAU / 24), c = new THREE.Vector3(p.x + Math.sin(a) * dist, 0, p.z + Math.cos(a) * dist);
+    if (walkable(c.clone()).distanceTo(c) > 0.01) continue;
+    const e0 = new THREE.Vector3(c.x, EYE, c.z), seg = p.clone().sub(e0), L = seg.length(); seg.normalize(); let clear = true;
+    for (const o of exhibits) { if (o === ex) continue; const q = o.holder.getWorldPosition(new THREE.Vector3()), t = clamp(V2.copy(q).sub(e0).dot(seg), 0, L), near = V2.copy(e0).addScaledVector(seg, t);
+      if (o.type === 'free' ? withFree && near.distanceTo(q) < 0.5 : Math.hypot(near.x - o.grp.position.x, near.z - o.grp.position.z) < (o.type === 'case' ? 0.85 : 0.62)) { clear = false; break; } }   // ケースはガラスが目の高さ近くまである
+    if (clear) for (let s = 0; s <= 10; s++) { const t = (s / 10) * L; if (Math.hypot(e0.x + seg.x * t - TREE.x, e0.z + seg.z * t - TREE.z) < 2.0 || Math.hypot(e0.x + seg.x * t - CRY.x, e0.z + seg.z * t - CRY.z) < 1.1) { clear = false; break; } }
+    if (clear) return c;
+  }
+  return null;
+}
+// ---------- 歩く・見まわす・拡大縮小・触る ----------
+const EYE = 1.5, me = new THREE.Vector3(0, 0, 11.2); let walkTo = null, bob = 0;
+const cam = new THREE.PerspectiveCamera(56, 1, 0.05, 700); let yaw = Math.PI, pitch = -0.02, tYaw = yaw, tPitch = pitch, fov0 = 56, fovZ = 0.9;
+const portrait = () => innerWidth / innerHeight < 0.8;
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; fov0 = portrait() ? 64 : 48; cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+// 歩ける所：壁の柱の手前まで（展示の台・ツリーの台・ベンチには入らない。ぶつかったら、まわりをすべって進む）
+function walkable(v) {
+  v.x = clamp(v.x, -HW + 1.0, HW - 1.0); v.z = clamp(v.z, -HL + 0.7, HL - 0.7);
+  for (const o of OBST) { const dx = v.x - o.x, dz = v.z - o.z, d = Math.hypot(dx, dz); if (d < o.r) { v.x = o.x + (dx / (d || 1)) * o.r; v.z = o.z + (dz / (d || 1)) * o.r; } }
+  { const dx = v.x - CRY.x, dz = v.z - CRY.z, d = Math.hypot(dx, dz); if (d < 1.8) { v.x = CRY.x + (dx / (d || 1)) * 1.8; v.z = CRY.z + (dz / (d || 1)) * 1.8; } }   // クリスタルの台
+  const dx = v.x - TREE.x, dz = v.z - TREE.z, d = Math.hypot(dx, dz); if (d < 2.3) { v.x = TREE.x + (dx / (d || 1)) * 2.3; v.z = TREE.z + (dz / (d || 1)) * 2.3; }
+  for (const b of BENCHES) { const ox = 0.62 - Math.abs(v.x - b.x), oz = 1.3 - Math.abs(v.z - b.z); if (ox > 0 && oz > 0) { if (ox < oz) v.x += Math.sign(v.x - b.x || 1) * ox; else v.z += Math.sign(v.z - b.z || 1) * oz; } }
+  return v;
+}
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 40), new THREE.MeshBasicMaterial({ color: '#fff4d8', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); marker.rotation.x = -Math.PI / 2; marker.renderOrder = 5; scene.add(marker);
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map(), keys = new Set(), held = new Map();
+const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
+// 何に触れたか：床に落ちた宝石（丸ごとの球で当てる）→ 展示・ツリー・宙の飾り（いちばん手前）→ 床
+function hitAt(x, y) {
+  setRay(x, y); let best = null, bt = 1e9;
+  for (const e of exhibits) { const o = e.gem.group; if (o.parent !== scene || !o.visible) continue; if (ray.ray.distanceSqToPoint(o.position) < (e.gem.radius * 1.05) ** 2) { const t = V2.copy(o.position).sub(ray.ray.origin).dot(ray.ray.direction); if (t < bt) { bt = t; best = e; } } }
+  if (best) return { ex: best, onFloor: true };
+  // クリスタル（台の上の、たてに長い円柱で当てる）
+  let cryT = Infinity; if (CRY.state === 'ok') { const o = ray.ray.origin, d = ray.ray.direction, ox = o.x - CRY.x, oz = o.z - CRY.z, a = d.x * d.x + d.z * d.z, b = 2 * (ox * d.x + oz * d.z), c = ox * ox + oz * oz - 0.49, disc = b * b - 4 * a * c; if (a > 1e-6 && disc >= 0) { const t = (-b - Math.sqrt(disc)) / (2 * a), y = o.y + d.y * t; if (t > 0 && y > CRY.top && y < CRY.top + 3.3) cryT = t; } }
+  // 宙の飾り（小さいので、少し大きめの球で当てる）
+  let dec = null, dt = 1e9; const tryBall = (kind, i, p, r) => { if (ray.ray.distanceSqToPoint(p) < r * r) { const t = V2.copy(p).sub(ray.ray.origin).dot(ray.ray.direction); if (t > 0 && t < dt) { dt = t; dec = { kind, i }; } } };
+  BAUBLES.forEach((b, i) => b.p && tryBall('bauble', i, b.p, b.s * 1.6)); STARS.forEach((s, i) => s.p && tryBall('star', i, s.p, s.s * 1.3)); ALL_CANDLES.forEach((c, i) => tryBall('candle', i, V3.set(c.x, (c.top || c.y) - c.h / 2, c.z).clone(), 0.16));
+  const h = ray.intersectObjects([...exhibits.map((e) => e.grp), tree.grp, ...BENCHES.map((b) => b.seat)], true).find((x) => !x.object.userData.bench || x.object.userData.bench.state === 'ok');
+  if (cryT < (h ? h.distance : Infinity) && cryT < (dec ? dt : Infinity)) return { crystal: true };
+  if (dec && (!h || dt < h.distance)) return { decor: dec };
+  if (h && h.object.userData.bench) return { bench: h.object.userData.bench };
+  if (h) { let o = h.object; while (o && !o.userData.ex && !o.userData.tree) o = o.parent; if (o && o.userData.ex) return { ex: o.userData.ex, onFloor: false }; if (o && o.userData.tree) return { tree: true }; }
+  if (ray.ray.direction.y < -0.02) { const t = -ray.ray.origin.y / ray.ray.direction.y; return { floor: ray.ray.origin.clone().addScaledVector(ray.ray.direction, t) }; }
+  return null;
+}
+const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
+cvs.addEventListener('pointerdown', (e) => {
+  if (e.isPrimary) ptrs.clear();   // 前の指の記録が残っていたら捨てる（離した知らせが来ない時がある）
+  cvs.setPointerCapture(e.pointerId); SND.audio(); hideHint(); if (!ready) return;
+  const base = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, yaw: tYaw, pitch: tPitch, t0: nowS() }, looks = [...ptrs.values()].filter((s) => s.mode === 'look');
+  if (looks.length) { ptrs.set(e.pointerId, { ...base, mode: 'look' }); return; }   // 2本目の指＝拡大縮小
+  const h = hitAt(e.clientX, e.clientY);
+  if (h && h.onFloor) { rollGem(h.ex); ptrs.set(e.pointerId, { mode: 'none' }); return; }
+  if (h && h.decor) { tapDecor(h.decor.kind, h.decor.i); ptrs.set(e.pointerId, { ...base, mode: 'tapped' }); return; }
+  if (h && h.crystal) { ptrs.set(e.pointerId, { ...base, mode: 'press', crystal: true }); return; }
+  if (h && h.ex && h.ex.state === 'ok') { ptrs.set(e.pointerId, { ...base, mode: 'press', ex: h.ex }); return; }
+  if (h && h.tree && tree.state === 'ok') { ptrs.set(e.pointerId, { ...base, mode: 'press', tree: true }); return; }
+  if (h && h.bench) { ptrs.set(e.pointerId, { ...base, mode: 'press', bench: h.bench }); return; }
+  ptrs.set(e.pointerId, { ...base, mode: h && h.floor ? 'floor' : 'look', at: h && h.floor });
+});
+cvs.addEventListener('pointermove', (e) => {
+  const s = ptrs.get(e.pointerId); if (!s) return; if (e.pointerType === 'mouse' && e.buttons === 0) { endPtr(e); return; }
+  if ((s.mode === 'press' || s.mode === 'floor' || s.mode === 'tapped') && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) > 12) s.mode = 'look';   // 指が動いたら、触る・歩くでなく見まわす
+  if (s.mode !== 'look') return; const looks = [...ptrs.entries()].filter(([, v]) => v.mode === 'look');
+  if (looks.length === 2) { const pts = looks.map(([id, v]) => (id === e.pointerId ? [e.clientX, e.clientY] : [v.cx ?? v.x, v.cy ?? v.y])); s.cx = e.clientX; s.cy = e.clientY; const d = Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]); if (!s.pd) { s.pd = d; s.pz = fovZ; } fovZ = clamp(s.pz * (s.pd / d), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); return; }
+  tYaw = s.yaw + (e.clientX - s.x) * 0.0055 * fovZ; tPitch = clamp(s.pitch + (e.clientY - s.y) * 0.004 * fovZ, -0.9, 1.1);
+});
+function endPtr(e) {
+  const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (!s) return; const quick = nowS() - s.t0 < 0.4;
+  if (s.mode === 'press' && quick) { if (s.tree) { if (!tree.pressing) treeTap(); } else if (s.bench) { if (!s.bench.pressing) benchTap(s.bench); } else if (s.crystal) { if (!CRY.pressing) crystalTap(); } else if (!s.ex.pressing) tapGem(s.ex); }
+  if (s.mode === 'floor' && quick && s.at) { walkTo = walkable(s.at.clone().setY(0)); marker.position.set(walkTo.x, 0.01, walkTo.z); marker.material.opacity = 0.8; }
+}
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); addEventListener('blur', () => { ptrs.clear(); held.clear(); }); document.addEventListener('visibilitychange', () => held.clear());
+cvs.addEventListener('wheel', (e) => { fovZ = clamp(fovZ * (1 + Math.sign(e.deltaY) * 0.08), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); e.preventDefault(); }, { passive: false });
+// キー：文字ではなく「キーの場所」で受ける（日本語入力がオンだと、押した時の文字が届かない）。
+// 離した知らせが届かないことがある（本人「離しても止まらない」が2度）。押しっぱなしの間はくり返しの知らせが続くので、
+// 最後に押したキーの知らせが途切れたら、離したとみなす。前に押したキー（くり返しが止まる）は、離した知らせを信じる
+const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', KeyQ: 'tl', KeyE: 'tr' };
+let lastKey = null, imeSaid = false;
+addEventListener('keydown', (e) => {
+  const k = KEYMAP[e.code]; if (!k) return; e.preventDefault();
+  const h = held.get(e.code); held.set(e.code, { k, t: nowS(), rep: !!h }); lastKey = e.code;
+  if (!imeSaid && (e.key === 'Process' || e.isComposing || e.keyCode === 229)) { imeSaid = true; const el = document.getElementById('hint'); el.textContent = '日本語入力がオンです。「半角/全角」キーでオフにすると、キーの反応がよくなります'; el.style.opacity = 1; setTimeout(() => { el.style.opacity = 0; }, 5000); }
+  else hideHint();
+});
+addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
+function readKeys(now) {
+  const h = lastKey && held.get(lastKey);
+  if (h && now - h.t > (h.rep ? 0.45 : 0.8)) { held.clear(); lastKey = null; }   // くり返しが始まる前は長めに待つ（OSの設定で0.25〜1秒）
+  keys.clear(); for (const v of held.values()) keys.add(v.k);
+}
+
+// ---------- 毎コマ ----------
+const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
+let frames = 0, tf = performance.now(), acc = 0, fAcc = 0, fN = 0, fTot = 0, ready = false;
+const STEP = 1 / 60, LOOK = new THREE.Vector3();
+function frame() {
+  const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), now = nowS();
+  // 歩く：床をタップした所へ。キーなら W/S＝前後・A/D＝横・←→（Q/E）＝向き
+  readKeys(now); const K = (k) => (keys.has(k) ? 1 : 0), kz = K('f') - K('b'), kx = K('r') - K('l'); tYaw += (K('tl') - K('tr')) * dt * 1.7;
+  const fw = V3.set(Math.sin(yaw), 0, Math.cos(yaw)); let moved = 0;
+  if (kx || kz) { walkTo = null; const st = dt * 2.4; me.addScaledVector(fw, kz * st).add(V2.set(-fw.z, 0, fw.x).multiplyScalar(kx * st)); moved = st; }
+  else if (walkTo) { const d = V2.copy(walkTo).sub(me).setY(0), L = d.length(); if (L < 0.03) walkTo = null; else { const st = Math.min(L, dt * Math.min(2.6, 0.7 + L * 1.6)); me.addScaledVector(d.multiplyScalar(1 / L), st); moved = st; } }
+  walkable(me); bob += moved * 5.5; marker.material.opacity = walkTo ? 0.5 + 0.3 * Math.sin(now * 6) : Math.max(0, marker.material.opacity - dt * 2);
+  yaw += (tYaw - yaw) * Math.min(1, dt * 7); pitch += (tPitch - pitch) * Math.min(1, dt * 7); shake *= Math.exp(-dt * 8);
+  cam.position.set(me.x + rnd(-1, 1) * shake, EYE + Math.sin(bob) * 0.012 * Math.min(1, moved * 60) + rnd(-1, 1) * shake, me.z + rnd(-1, 1) * shake);
+  cam.lookAt(LOOK.set(cam.position.x + Math.sin(yaw) * Math.cos(pitch), cam.position.y + Math.sin(pitch), cam.position.z + Math.cos(yaw) * Math.cos(pitch)));
+  if (!FREEZE) flyT += dt; SPARK.n = FLAME.n = FLAMEC.n = HALO.n = 0; drawDecor(now);
+  // 長押し：指がのっている間だけ、たまっていく（離すと静まる）
+  for (const ex of exhibits) ex.pressing = false; tree.pressing = false; CRY.pressing = false; for (const b of BENCHES) b.pressing = false;
+  for (const s of ptrs.values()) if (s.mode === 'press' && now - s.t0 > 0.4) { if (s.tree) tree.pressing = tree.state === 'ok'; else if (s.bench) s.bench.pressing = s.bench.state === 'ok'; else if (s.crystal) CRY.pressing = CRY.state === 'ok'; else if (s.ex.state === 'ok') s.ex.pressing = true; }
+  for (const b of BENCHES) stepBench(b, dt, now);
+  for (const ex of exhibits) {
+    if (ex.fly) { const F = ex.fly, T = flyT; ex.grp.position.set(clamp(F.c.x * 0.4 + Math.sin(T * F.w[0] + F.ph[0]) * 3.6, -4.3, 4.3), clamp(F.c.y + Math.sin(T * F.w[1] + F.ph[1]) * 1.2, 1.75, 5.2), clamp(F.c.z + Math.sin(T * F.w[2] + F.ph[2]) * 4.5, -8.3, 11.5)); }   // 宙を飛びまわる
+    if (ex.state === 'ok') {
+      if (ex.pressing) { ex.press += dt / 1.3; for (const th of [0.3, 0.55, 0.75, 0.9]) if (ex.press >= th && ex.creakK < th) { ex.creakK = th; SND.creak(th); if (ex.type === 'case') burst(holderW(ex, V3), WHITE, 3, 0.4); } if (ex.press >= 1) { disaster(ex, 'press'); for (const s of ptrs.values()) if (s.ex === ex) s.mode = 'none'; continue; } }
+      else { ex.press = Math.max(0, ex.press - dt * 1.4); if (ex.press < 0.25) ex.creakK = 0; }
+      ex.spin *= Math.exp(-dt * 1.4); ex.rattle *= Math.exp(-dt * 5);
+      ex.holder.rotation.y += ((ex.type === 'free' ? 0.4 : ex.type === 'float' ? 0.35 : 0.15) + ex.spin) * dt;
+      const j = ex.press * 0.012 + ex.rattle * 0.01, bobY = ex.type === 'float' ? Math.sin(now * 1.3 + ex.ph) * 0.04 : 0;
+      ex.holder.position.set(ex.home.x + rnd(-j, j), ex.home.y + bobY + rnd(-j, j) * 0.5, ex.home.z + rnd(-j, j));
+      if (ex.type === 'free') { ex.holder.rotation.x = Math.sin(now * 0.7 + ex.ph) * 0.25; if (Math.random() < 0.4) { holderW(ex, V3); put(SPARK, V3.add(V2.set(rnd(-0.3, 0.3), rnd(-0.3, 0.3), rnd(-0.3, 0.3))), ex.colW, 0.7); } }
+      if (ex.crackMat) ex.crackMat.opacity = THREE.MathUtils.smoothstep(ex.press, 0.25, 0.95) * 0.9;
+      if (ex.beamMat) ex.beamMat.opacity = 0.13 * (ex.press > 0.3 && Math.random() < ex.press * 0.5 ? 0.2 : 1);
+      if (ex.aura) ex.aura.material.opacity = 0.3 * (ex.press > 0.3 && Math.random() < ex.press * 0.5 ? 0.2 : 1);
+      if (ex.glassMat && ex.glassMat.emissiveIntensity > 0) ex.glassMat.emissiveIntensity = Math.max(0, ex.glassMat.emissiveIntensity - dt * 1.2);
+      gemFx(ex, dt, now);
+    } else {
+      ex.bT += dt;
+      if (ex.wob > 0.01) { ex.wob *= Math.exp(-dt * 3); ex.base.rotation.z = Math.sin(ex.bT * 14) * ex.wob * 0.05; }
+      if (ex.beam && ex.state === 'broken') { const f = ex.bT; ex.beamMat.opacity = f < 0.5 ? (Math.random() < 0.5 ? 0.13 : 0.02) : Math.max(0, 0.13 * (1 - (f - 0.5) * 4)); }
+      if (ex.state === 'broken') { if (ex.shards) stepShards(ex, dt); if (ex.frags.length) { stepFrags(ex, dt); drawFrags(ex); } if (ex.bT > 5.5) startRestore(ex); }
+      else stepRestore(ex, dt);
+    }
+  }
+  // ツリー：そっと＝下から光が駆け上がる／長押し・連打＝オーナメントが降る／しばらくで戻る
+  if (tree.state === 'ok') {
+    if (tree.pressing) { tree.press += dt / 1.3; for (const th of [0.3, 0.55, 0.75, 0.9]) if (tree.press >= th && tree.creakK < th) { tree.creakK = th; SND.creak(th); } if (tree.press >= 1) { treeFall(); for (const s of ptrs.values()) if (s.tree) s.mode = 'none'; } }
+    else { tree.press = Math.max(0, tree.press - dt * 1.4); if (tree.press < 0.25) tree.creakK = 0; }
+    if (tree.casc >= 0) { const el = now - tree.casc; for (const o of tree.orns) if (!o.played && el >= o.i * 0.036) { o.played = true; o.lit = 1; if (o.i % 2 === 0) { SND.note(o.timbre, o.k, 0.8); notes++; } }
+      if (el > 48 * 0.036 + 0.08 && !tree.starDone) { tree.starDone = true; const p = tree.star.getWorldPosition(new THREE.Vector3()); flare(p, STAR6, '#fff0c0', 2.6, 1.6); burst(p, GOLD, 50, 1.5); SND.note('bell', 10); }
+      if (el > 3) tree.casc = -1; }
+    tree.star.rotation.y = Math.sin(now * 0.8) * 0.3; tree.starGlow.material.opacity = 0.7 + 0.15 * Math.sin(now * 2.3);
+  } else if (tree.state === 'fallen') { tree.bT += dt; stepFallen(dt); if (tree.bT > 6) startTreeRestore(); }
+  else stepTreeRestore(dt);
+  for (const o of tree.orns) { if (o.lit > 0) { o.lit = Math.max(0, o.lit - dt * 1.6); put(SPARK, V2.copy(o.p).add(tree.grp.position), o.col, o.lit); } }
+  if (tree.state !== 'fallen') for (let k = 0; k < FAIRY.length; k++) put(SPARK, V2.copy(FAIRY[k]).add(tree.grp.position), FAIRY_C, (0.35 + 0.3 * Math.sin(now * 2.6 + k * 1.7)) * (tree.state === 'ok' ? 1 : Math.min(1, tree.rT / 2.8)));   // らせんの小さな灯り（降った間は消える）
+  drawTree(now);
+  // 物理：落ちた宝石。ぶつかった時の勢いで鳴らす。運が悪いと、床で砕ける
+  if (world) { acc += dt; let steps = 0; while (acc >= STEP && steps < 3) { steps++; acc -= STEP;
+    for (const ex of exhibits) if (ex.body) ex.pv = ex.body.linvel();
+    world.step();
+    for (const ex of exhibits) { if (!ex.body) continue; const v = ex.body.linvel(), dv = Math.hypot(v.x - ex.pv.x, v.y - ex.pv.y, v.z - ex.pv.z), tn = performance.now(), y = ex.body.translation().y;
+      if (dv > 0.9 && tn - ex.lastClink > 120) { ex.lastClink = tn; clinks++; SND.clink(ex.spec.hard, Math.min(1, dv / 4));
+        if (ex.doomed && !ex.shattered && y < 0.45 && dv > 1.4) { const t = ex.body.translation(); ex.gem.group.position.set(t.x, t.y, t.z); shatterGem(ex); } } } }
+    if (steps === 3) acc = 0; }
+  for (const ex of exhibits) if (ex.body) { const t = ex.body.translation(), r = ex.body.rotation(), lv = ex.body.linvel();
+    if (!Number.isFinite(t.x + t.y + t.z + lv.x)) { ex.body.setTranslation({ x: ex.grp.position.x * 0.8, y: 0.5, z: ex.grp.position.z }, true); ex.body.setLinvel({ x: 0, y: 0, z: 0 }, true); ex.body.setAngvel({ x: 0, y: 0, z: 0 }, true); continue; }
+    ex.gem.group.position.set(t.x, t.y, t.z); ex.gem.group.quaternion.set(r.x, r.y, r.z, r.w); }
+  // 粒・きらめき
+  for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.age += dt; if (s.age > s.life) { sparks.splice(i, 1); continue; } s.v.y -= 1.2 * dt; s.p.addScaledVector(s.v, dt); put(SPARK, s.p, s.c, 1 - s.age / s.life); }
+  HEARTS.n = BUBBLES.n = 0; for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i]; f.age += dt; if (f.age > f.life) { floaters.splice(i, 1); continue; } f.p.addScaledVector(f.v, dt); f.p.x += Math.sin(now * 3 + f.sw) * dt * 0.08; put(f.L, f.p, f.c, Math.min(1, (f.life - f.age) * 2)); }
+  for (const ex of exhibits) { const o = ex.gem.group; if (!o.visible) continue; o.updateMatrixWorld(); const ok = ex.state === 'ok';
+    ex.gem.glints.forEach((lp, k) => { const tw = Math.pow(Math.max(0, Math.sin(now * (1.1 + k * 0.37) + ex.ph + k * 2.1)), 16) * (ok && ex.spin > 1 ? 1.6 : 1); if (tw < 0.03) return; put(GLINT, V1.copy(lp).applyMatrix4(o.matrixWorld), ex.colW, Math.min(1.5, tw)); }); }
+  for (const o of tree.orns) { const tw = Math.pow(Math.max(0, Math.sin(now * 1.3 + o.i * 1.7)), 24); if (tw > 0.05) put(GLINT, V2.copy(o.p).add(tree.grp.position), o.col, tw); }
+  for (const f of flares) if (f.t < f.T) { f.t += dt; const u = f.t / f.T; f.s.scale.setScalar(f.max * (0.3 + 0.7 * Math.sin(Math.min(1, u * 1.5) * Math.PI * 0.5))); f.s.material.opacity = Math.sin(u * Math.PI); if (f.t >= f.T) f.s.visible = false; }
+  if (shardMat.emissiveIntensity > 0) shardMat.emissiveIntensity = Math.max(0, shardMat.emissiveIntensity - dt * 0.5);
+  stepCrystal(dt, now); stepLighting(dt, now);
+  for (const L of [GLINT, SPARK, HEARTS, BUBBLES, FLAME, FLAMEC, DUST, HALO]) { L.g.setDrawRange(0, L.n); L.g.attributes.position.needsUpdate = L.g.attributes.color.needsUpdate = true; } GLINT.n = 0;
+  sky.update(cam.position, now); renderer.render(scene, cam);
+  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } else if ((fAcc / fN) * 1000 > 24 && SRC[0].mat.uniforms.uN.value > 5) for (const src of SRC) src.mat.uniforms.uN.value = 5; fAcc = 0; fN = 0; } }
+  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles}\n${exhibits.map((e) => e.state[0]).join('')} tree ${tree.state} win ${winPainted}`; frames = 0; tf = performance.now(); }
+  requestAnimationFrame(frame);
+}
+let winPainted = 0, flyT = 0, FREEZE = false;
+// 物理の部品（宝石が落ちる時だけ使う）は、いちばん先に読みはじめ、ほかの用意と並べて進める（待つと3.5秒かかっていた）
+// 最初の1コマで全部の絵の具を一度に用意すると、3秒以上画面が止まった。読み込み中に裏で用意してから、描きはじめる
+const LOADT = [["start", performance.now()]], rapierP = RAPIER.init(); buildExhibits(); buildLights(); LOADT.push(["gems", performance.now()]);
+rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticColliders(); LOADT.push(["rapier", performance.now()]); window.__phys = true; }).catch(() => { document.getElementById('sub').textContent = 'この画面では、宝石が落ちる仕掛けが動きませんでした'; });
+(async () => {
+  // ステンドグラスは、読み込みの間に描いておく（開いた後に1枚ずつ描くと、そのたびに画面が引っかかった）
+  for (let i = 0; i < WINDOWS.length; i++) { paintWindow(WINDOWS[i], 11 + i); winPainted++; if (i % 4 === 3) { document.getElementById('sub').textContent = `じゅんびちゅう… ステンドグラス ${i + 1}/${WINDOWS.length}`; await new Promise((r) => setTimeout(r, 0)); } }
+  LOADT.push(["windows", performance.now()]); buildMoon(); LOADT.push(["moon", performance.now()]);
+  // 絵の具（シェーダー）を、先にまとめて用意する（歩いて初めて見えた宝石の所で、画面が引っかからないように）
+  { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3)); const m = new THREE.Mesh(g, shardMat); m.frustumCulled = false; scene.add(m); }   // ガラスのかけらの絵の具も（大きさのない三角1枚で、先に用意させる）
+  try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
+  LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; ready = true; window.__ok = true; clock.getDelta(); frame(); setTimeout(readMoon, 1200);
+})();
+if (fpsEl) window.__dbg = { exhibits, tree, cam, freeze: (v) => { FREEZE = v; }, loadT: () => LOADT.map(([k, t], i) => [k, Math.round(t - (i ? LOADT[i - 1][1] : 0))]),
+  // 展示 i の前（通路の側 2.2m）に立って、宝石を見る
+  face: (i) => { const p = exhibits[i].holder.getWorldPosition(new THREE.Vector3()), st = standFor(exhibits[i]); if (st) me.copy(st); else { me.set(p.x - Math.sign(p.x || 1) * 2.2, 0, p.z); walkable(me); } walkTo = null; yaw = tYaw = Math.atan2(p.x - me.x, p.z - me.z); pitch = tPitch = Math.atan2(p.y - EYE, Math.hypot(p.x - me.x, p.z - me.z)); return !!st; },
+  faceTree: () => { me.set(0, 0, TREE.z + 5.2); walkTo = null; yaw = tYaw = Math.PI; pitch = tPitch = 0.12; },
+  aimAt: (v) => { yaw = tYaw = Math.atan2(v[0] - me.x, v[2] - me.z); pitch = tPitch = Math.atan2(v[1] - EYE, Math.hypot(v[0] - me.x, v[2] - me.z)); },
+  look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, pos: () => [me.x, me.z], place: (x, z) => { me.set(x, 0, z); walkTo = null; }, walking: () => !!walkTo, keys: () => [...keys], winPainted: () => winPainted,
+  screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight]; },
+  gemW: (i) => exhibits[i].gem.group.getWorldPosition(new THREE.Vector3()).toArray(), homeW: (i) => exhibits[i].holder.getWorldPosition(new THREE.Vector3()).toArray(),
+  treeW: () => [TREE.x, 2.2, TREE.z], ornY: () => tree.orns.reduce((s, o) => s + o.p.y, 0) / tree.orns.length, ornHome: () => Math.max(...tree.orns.map((o) => o.p.distanceTo(o.home))),
+  baubleW: (i) => BAUBLES[i].p.toArray(), asmOf: (i) => exhibits[i].asmU.map((u) => u.value), cellsOf: (i) => exhibits[i].gem.cells.map((c) => [c.order, c.h]), asmAttr: (i) => { let n = 0, m = 0; exhibits[i].gem.group.traverse((o) => { if (o.isMesh) { m++; if (o.geometry.attributes.aCell) n++; } }); return [n, m]; }, gemShader: (i) => exhibits[i].gmats.length,
+  find: (id) => exhibits.findIndex((e) => e.spec.id === id), states: () => exhibits.map((e) => e.state), types: () => exhibits.map((e) => e.type), plan: () => exhibits.map((e) => [e.spec.id, e.type, e.timbre, e.k, e.fx]),
+  counts: () => ({ notes, glassBreaks, gemBreaks, restores, falls, clinks, treeTaps, treeFalls, treeRestores, decorTaps, benchTaps, benchBreaks, glows: GLOW.n }),
+  layout: () => exhibits.filter((e) => e.type !== 'free').map((e) => [e.grp.position.x, e.grp.position.z, e.type]), standOK: () => exhibits.map((e) => e.type === 'free' || !!standFor(e, false)),
+  moon: () => ({ d: MOON.d.toArray(), I: MOON.I, ready: MOON.ready, readMs: MOON.readMs, data: !!SRC[0].data, side: SRC.map((s) => s.mat.side), k: SRC.map((s) => s.mat.uniforms.uK.value) }), moonT: (t) => { MOON.t = t; MOON.hold = t != null; updateMoon(0); },
+  moonLit: () => exhibits.map((e) => { const c = moonAt(e.holder.getWorldPosition(new THREE.Vector3()), new THREE.Color()); return (c.r + c.g + c.b) / 3; }), lightOf: (i) => (exhibits[i].light ? exhibits[i].light.toArray() : null),
+  candleL: () => CANDLE_L.map((s) => s.L.intensity), candleS: () => CANDLE_L.map((s) => s.p.toArray()), chandL: () => CH_L.map((L) => L.intensity), glowNow: () => GLOW.on.map((e) => [e.i, e.glowK]), glowStart: (i) => startGlow(exhibits[i], 0), glowHold: (v) => { GLOW.next = v ? 1e9 : rnd(4, 8); }, glowL: () => GLOW_L.intensity,
+  spotAt: (x, z) => { const { acc, MW, MH, pxm } = spotAcc, i = Math.round((x + HW) * pxm), j = Math.round((z + HL) * pxm); return i >= 0 && i < MW && j >= 0 && j < MH ? acc[j * MW + i] : -1; }, spots: () => SPOTS.map((s) => [s.ex.i, s.c.x, s.c.z, s.S.toArray(), s.D.toArray(), s.th]), benchW: (i) => [BENCHES[i].x, 0.48, BENCHES[i].z], benchState: (i) => [BENCHES[i].state, BENCHES[i].seat.visible, BENCHES[i].shards ? BENCHES[i].shards.length : 0], doom: (v) => { DOOM = v; }, shards: (i) => (exhibits[i].shards ? exhibits[i].shards.length : 0), frags: (i) => exhibits[i].frags.length,
+  shardOrder: (i) => (exhibits[i].shards ? exhibits[i].shards.map((s) => [s.edge, s.delay]) : []),
+  press: (i) => exhibits[i].press, glassVisible: (i) => !!(exhibits[i].glass && exhibits[i].glass.visible), timbres: () => SND.TIMBRES,
+  hit: (x, y) => { const h = hitAt(x, y); return h ? (h.ex ? [h.ex.i, h.onFloor] : h.crystal ? 'crystal' : h.tree ? 'tree' : h.decor ? h.decor.kind : h.bench ? 'bench' : 'floor') : null; },
+  crystal: () => ({ state: CRY.state, stress: +CRY.stress.toFixed(3), notes: CRY.notes, falls: CRY.falls, restores: CRY.restores, frags: CRY_FRAG.length, vis: CRY_IM.visible, quake: +CRY.quake.toFixed(2) }), crystalW: () => [CRY.x, 1.7, CRY.z], crystalTap: () => crystalTap(), smash: (i) => disaster(exhibits[i], 'tap') };
+</script></body></html>

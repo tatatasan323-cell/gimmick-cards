@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>ステンドグラスの礼拝堂</title>
+<style>
+html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.tx{position:fixed;left:0;right:0;text-align:center;color:#f6eedc;text-shadow:0 2px 12px rgba(0,0,0,.8);pointer-events:none}
+#top{top:calc(14px + env(safe-area-inset-top));font-size:21px;font-weight:800;letter-spacing:.1em}
+#top small{display:block;margin-top:4px;font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.85}
+#hint{bottom:calc(78px + env(safe-area-inset-bottom));font-size:14px;font-weight:800;line-height:1.7;transition:opacity .8s}
+.nav{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));font-family:inherit;font-size:15px;font-weight:800;line-height:1;padding:12px 16px;border-radius:999px;border:2px solid rgba(255,240,210,.55);background:rgba(30,20,50,.55);color:#f6eedc;letter-spacing:.06em}
+#prev{left:16px}#next{right:16px}#up{left:50%;transform:translateX(-50%)}
+#fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
+</head><body><canvas id="c"></canvas>
+<!-- 港町（町の全景）へもどる -->
+<a id="toTown" href="./#glass">‹ 港町へもどる</a>
+<div class="tx" id="top">ステンドグラスの礼拝堂<small id="sub">じゅんびちゅう…</small></div>
+<div class="tx" id="hint">ガラスを タップ・なぞると…？<br>◀ ▶ で となりの窓へ・てんじょうも 見てね ♪音あり</div>
+<button class="nav" id="prev">◀</button><button class="nav" id="up">てんじょう ▲</button><button class="nav" id="next">▶</button>
+<div id="fps" hidden></div>
+<script type="module">
+// 丸い礼拝堂に、クリスマスのステンドグラスが12枚と、天井の丸窓（月の前をサンタのそりが駆ける）。かけらをタップ、またはなぞる → そのかけらだけ外れて落ち、床でカシャーンと割れる
+// → しばらくして、窓ごとの姿（光の粒・星・ハート・雪・鈴・羽根）になって、跡を引いて窓へ戻り、穴を満たして元どおり（かけらごとに、時間差で）。抜けた穴の向こうは星空
+import * as THREE from 'three';
+import { DESIGNS, CEILING, ARCH, ROSE, paint, sampler, buildPieces, voronoi, centroid, archPoly } from './designs.js';
+import * as SND from './glass_sound.js';
+import { makeSpace } from './space.js';
+const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2;
+const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
+let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#0c0912'); scene.fog = new THREE.Fog('#0c0912', 14, 34);
+scene.add(new THREE.HemisphereLight('#6a5a9a', '#1a1020', 0.6));
+const warm = new THREE.PointLight('#ffb070', 40, 18, 2); warm.position.set(0, 1.0, 0); scene.add(warm);
+
+// ---------- 部屋：床・壁・柱・天井 ----------
+const R = 8.5, S = 1.8, Y0 = 0.9, HC = 8.6, RC = 5.5, N = DESIGNS.length;
+const floor = new THREE.Mesh(new THREE.CircleGeometry(R + 0.4, 72), new THREE.MeshStandardMaterial({ color: '#211a2a', roughness: 0.35, metalness: 0.1 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+// 石の壁：石積みの目地と、下ほどろうそくで温かく明るい（光を当てなくても、壁だと分かる明るさを絵に持たせる）
+const stoneTex = (w, h, rows, cols, warm) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'), bh = h / rows, bw = w / cols;
+  for (let r = 0; r < rows; r++) for (let k = -1; k < cols + 1; k++) { const x = (k + (r % 2) * 0.5) * bw, l = 30 + Math.random() * 12, hue = 265 + Math.random() * 25; g.fillStyle = `hsl(${hue},14%,${l}%)`; g.fillRect(x + 2, r * bh + 2, bw - 4, bh - 4); }
+  if (warm) { const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,170,90,.38)'); gr.addColorStop(0.35, 'rgba(255,150,80,.12)'); gr.addColorStop(1, 'rgba(10,0,30,.45)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t; };
+const wallTex = stoneTex(256, 512, 19, 4, true); wallTex.repeat.set(N * 1.5, 1);
+const wall = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.3, R + 0.3, HC, 96, 1, true), new THREE.MeshStandardMaterial({ map: wallTex, emissive: '#ffffff', emissiveMap: wallTex, emissiveIntensity: 0.32, roughness: 0.9, side: THREE.BackSide })); wall.position.y = HC / 2; wall.renderOrder = -2; scene.add(wall);
+const stone = new THREE.MeshStandardMaterial({ color: '#8a7a92', emissive: '#4a3a40', roughness: 0.8 });
+for (let i = 0; i < N; i++) { const a = ((i + 0.5) / N) * TAU, col = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, HC, 14), stone); col.position.set(Math.sin(a) * (R - 0.05), HC / 2, -Math.cos(a) * (R - 0.05)); scene.add(col);
+  const rib = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, R - RC), stone); rib.position.set(Math.sin(a) * (RC + (R - RC) / 2 + 0.1), HC - 0.06, -Math.cos(a) * (RC + (R - RC) / 2 + 0.1)); rib.rotation.y = -a; scene.add(rib); }
+const ceilTex = stoneTex(512, 512, 14, 7, false), ceil = new THREE.Mesh(new THREE.RingGeometry(RC + 0.18, R + 0.4, 96), new THREE.MeshStandardMaterial({ map: ceilTex, color: '#b0a0c0', emissive: '#ffffff', emissiveMap: ceilTex, emissiveIntensity: 0.16, roughness: 0.9, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.y = HC; ceil.renderOrder = -2; scene.add(ceil);
+const roseFrame = new THREE.Mesh(new THREE.RingGeometry(RC - 0.02, RC + 0.24, 96), new THREE.MeshStandardMaterial({ color: '#6a5638', roughness: 0.45, metalness: 0.5, emissive: '#1a1208', side: THREE.DoubleSide })); roseFrame.rotation.x = Math.PI / 2; roseFrame.position.y = HC - 0.03; scene.add(roseFrame);
+
+// ---------- 形と材質 ----------
+const shapeOf = (poly, holes = []) => { const s = new THREE.Shape(); poly.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y))); s.closePath(); for (const h of holes) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
+const uvFix = (geo, F, ox = 0, oy = 0) => { const p = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + ox - F.x0) / (F.x1 - F.x0), (p.getY(i) + oy - F.y0) / (F.y1 - F.y0)); return geo; };
+const GEO = { arch: uvFix(new THREE.ShapeGeometry(shapeOf(ARCH.outline), 6), ARCH), rose: uvFix(new THREE.ShapeGeometry(shapeOf(ROSE.outline), 6), ROSE) };
+const frameShape = shapeOf(archPoly(1.1, -0.1, 64)); frameShape.holes.push(new THREE.Path(ARCH.outline.map(([x, y]) => new THREE.Vector2(x, y)).reverse()));
+const FRAME_GEO = new THREE.ShapeGeometry(frameShape, 4), FRAME_MAT = new THREE.MeshStandardMaterial({ color: '#4a3e58', roughness: 0.7, emissive: '#1a1224' });
+// 窓の向こうは、ほんとうの宇宙（ほかの場面と同じ星空と太陽系・窓の外のいろいろな距離に星）。窓の形の「のぞき穴」が奥行きを一番遠くに戻し、その所にだけ、壁の外の宇宙が描かれる
+// 描く順：壁と天井（-2）→ のぞき穴（-1・必ず上書き）→ 柱・窓枠・ガラス（0〜）→ 宇宙（2）。のぞき穴を後にすると、先に描いた壁より「遠い」と判定され、壁が見えた
+const HOLE_MAT = new THREE.ShaderMaterial({ depthFunc: THREE.AlwaysDepth, vertexShader: 'void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}', fragmentShader: 'void main(){gl_FragColor=vec4(0.,0.,0.,1.);gl_FragDepth=1.;}' });
+const shaftMat = (col, a = 0.16) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { c: { value: new THREE.Color(col) }, a: { value: a } }, vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}', fragmentShader: 'varying vec2 vUv;uniform vec3 c;uniform float a;void main(){float k=smoothstep(0.,.35,vUv.y)*(1.-vUv.y)*(1.-abs(vUv.x-.5)*1.6);gl_FragColor=vec4(c,k*a);}' });
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+// かけらの材質：aVis（0＝抜けている〜1＝元どおり）と aGlow（戻る時の光）を、頂点ごとに持つ
+const piecesMat = (tex) => { const m = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: true });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'attribute float aVis;attribute float aGlow;varying float vVis;varying float vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvVis = aVis; vGlow = aGlow;');
+    sh.fragmentShader = 'varying float vVis;varying float vGlow;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.3, 1.18, 0.95), vGlow * 0.7); diffuseColor.a *= vVis; if (diffuseColor.a < 0.01) discard;');
+  }; return m; };
+
+// ---------- 窓（壁に12枚・天井に1枚）。描くのと、かけらに分けるのは、見える窓から順に少しずつ ----------
+const panes = [];
+function addPane(d, i, F, place) {
+  const g = new THREE.Group(); place(g); scene.add(g); const geo = GEO[F.kind];
+  const whole = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ toneMapped: false })); whole.visible = false; g.add(whole);
+  const lead = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.35, toneMapped: false })); lead.material.visible = false; lead.position.z = 0.006; lead.renderOrder = 3; lead.userData.pane = i; g.add(lead);
+  const sky = new THREE.Mesh(geo, HOLE_MAT); sky.position.z = -0.06; sky.renderOrder = -1; g.add(sky);
+  if (F.kind === 'arch') { const frame = new THREE.Mesh(FRAME_GEO, FRAME_MAT); frame.position.z = 0.03; g.add(frame); }
+  panes.push({ i, d, F, fx: d.fx, g, whole, lead, sky, mesh: null, parts: null, painted: false, ready: false });
+}
+DESIGNS.forEach((d, i) => { const th = (i / N) * TAU; addPane(d, i, ARCH, (g) => { g.position.set(Math.sin(th) * R, Y0, -Math.cos(th) * R); g.rotation.y = -th; g.scale.setScalar(S); }); });
+// 天井：絵の上（y）が、正面を向いたまま見上げた時の画面の上になる向き
+addPane(CEILING, N, ROSE, (g) => { g.position.set(0, HC - 0.02, 0); g.rotation.x = Math.PI / 2; g.scale.set(RC, RC, S); });
+function paintPane(w) {
+  if (w.painted) return; const P = paint(w.d, 101 + w.i * 7), tex = new THREE.CanvasTexture(P.color), ltex = new THREE.CanvasTexture(P.lead); tex.colorSpace = ltex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = ltex.anisotropy = 4;
+  w.P = P; w.tex = tex; w.sample = sampler(P.color, w.F); w.whole.material.map = tex; w.whole.material.needsUpdate = true; w.whole.visible = true; w.lead.material.map = ltex; w.lead.material.visible = true; w.lead.material.needsUpdate = true; w.painted = true;
+  // 窓の光：床に落ちる色・光の帯・にじみ
+  if (w.F.kind === 'arch') {
+    const avg = new THREE.Color(...w.sample(0, 1.6)).lerp(new THREE.Color(...w.sample(0, 2.6)), 0.5), fy = -Y0 / S + 0.004;
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.6), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); fl.rotation.x = -Math.PI / 2; fl.rotation.z = Math.PI; fl.position.set(0, fy, 2.2); fl.renderOrder = 4; w.g.add(fl);
+    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute([-0.9, 3.0, 0.05, 0.9, 3.0, 0.05, 1.2, fy, 3.2, -1.2, fy, 3.2], 3)); sg.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2)); sg.setIndex([0, 2, 1, 0, 3, 2]);
+    const sh = new THREE.Mesh(sg, shaftMat(avg)); sh.renderOrder = 4; w.g.add(sh);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: avg, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.2, depthWrite: false })); halo.scale.set(4, 5, 1); halo.position.set(0, 1.9, 0.3); halo.renderOrder = 4; w.g.add(halo);
+  } else {
+    const avg = new THREE.Color(...w.sample(0.06, 0.04)).lerp(new THREE.Color(...w.sample(-0.5, 0.5)), 0.5);
+    const fl = new THREE.Mesh(new THREE.CircleGeometry(RC * 0.75, 48), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); fl.rotation.x = -Math.PI / 2; fl.position.y = 0.006; fl.renderOrder = 4; scene.add(fl);
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(RC * 0.85, RC * 0.6, HC - 0.3, 48, 1, true), shaftMat(avg, 0.06)); cone.position.y = HC / 2; cone.renderOrder = 4; scene.add(cone);
+  }
+}
+function prepare(w) {
+  paintPane(w); if (w.ready) return; const F = w.F, B = buildPieces(w.P.pieces, F), pos = [], uv = [], vis = [], glow = [], idx = [], parts = [];
+  B.parts.forEach((pt) => {
+    if (!pt) { parts.push(null); return; }
+    const geo = new THREE.ShapeGeometry(shapeOf(pt.outer, pt.holes), 1), p = geo.attributes.position, base = pos.length / 3;
+    for (let k = 0; k < p.count; k++) { pos.push(p.getX(k), p.getY(k), 0); uv.push((p.getX(k) - F.x0) / (F.x1 - F.x0), (p.getY(k) - F.y0) / (F.y1 - F.y0)); vis.push(1); glow.push(0); }
+    for (const k of geo.index.array) idx.push(base + k);
+    const c0 = centroid(pt.outer); parts.push({ ...pt, c: c0, start: base, count: p.count, state: 0, col: new THREE.Color(...w.sample(c0[0], c0[1])) }); geo.dispose();
+  });
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setAttribute('aVis', new THREE.Float32BufferAttribute(vis, 1).setUsage(THREE.DynamicDrawUsage)); geo.setAttribute('aGlow', new THREE.Float32BufferAttribute(glow, 1).setUsage(THREE.DynamicDrawUsage)); geo.setIndex(idx);
+  w.mesh = new THREE.Mesh(geo, piecesMat(w.tex)); w.mesh.renderOrder = 1; w.g.add(w.mesh); w.whole.visible = false;
+  w.parts = parts; w.comp = B.comp; w.RW = B.RW; w.RH = B.RH; w.ready = true;
+}
+const ORDER = [0, 1, N - 1, 2, N - 2, 3, N - 3, 4, N - 4, 5, N - 5, 6, N].filter((v, i, a) => a.indexOf(v) === i);
+prepare(panes[0]);
+let prepI = 1; const prepNext = () => { if (prepI < ORDER.length) { prepare(panes[ORDER[prepI++]]); setTimeout(prepNext, 40); } else { window.__prepared = true; document.getElementById('sub').textContent = '12まいの窓と、天井の丸窓'; } }; setTimeout(prepNext, 200);
+const setPiece = (w, pt, vis, glow) => { const a = w.mesh.geometry.attributes.aVis, b = w.mesh.geometry.attributes.aGlow; for (let k = pt.start; k < pt.start + pt.count; k++) { a.array[k] = vis; b.array[k] = glow; } a.needsUpdate = b.needsUpdate = true; };
+
+// ---------- ろうそく・ちり ----------
+for (let i = 0; i < N; i++) { const th = ((i + 0.5) / N) * TAU, s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffb050', blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false })); s.scale.setScalar(0.5); s.position.set(Math.sin(th) * (R - 0.45), 0.45, -Math.cos(th) * (R - 0.45)); scene.add(s); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35, 10), new THREE.MeshStandardMaterial({ color: '#f4ead4', emissive: '#6a4a20' })); c.position.set(s.position.x, 0.18, s.position.z); scene.add(c); }
+// 宇宙：星空と太陽系（見る人についてくる）＋ 礼拝堂の外の、近い星・遠い星（向きを変えると、ずれ方がちがって奥行きが見える）。のぞき穴の後に描く
+const space = makeSpace(scene); space.root.traverse((o) => { o.renderOrder = 2; });
+{ const NS = 1400, sp = new Float32Array(NS * 3), sc = new Float32Array(NS * 3); for (let i = 0; i < NS; i++) { const u = Math.random() * 2 - 1, a = Math.random() * TAU, r = 14 + Math.pow(Math.random(), 1.5) * 70, k = Math.sqrt(1 - u * u); sp.set([Math.cos(a) * k * r, 1.75 + u * r, Math.sin(a) * k * r], i * 3); const c = [[1, 1, 1], [0.75, 0.85, 1], [1, 0.9, 0.7]][i % 3], f = 0.5 + Math.random() * 0.5; sc.set([c[0] * f, c[1] * f, c[2] * f], i * 3); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3)); sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
+  const st = new THREE.Points(sg, new THREE.PointsMaterial({ map: glowTex, size: 0.6, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); st.renderOrder = 2; st.frustumCulled = false; scene.add(st); }
+const ND = 140, dp = new Float32Array(ND * 3); for (let i = 0; i < ND; i++) { const a = Math.random() * TAU, r = 1.5 + Math.random() * 5.5; dp.set([Math.sin(a) * r, Math.random() * 4.5, -Math.cos(a) * r], i * 3); }
+const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3)); scene.add(new THREE.Points(dg, new THREE.PointsMaterial({ map: glowTex, size: 0.05, color: '#ffc890', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })));
+
+// ---------- 光の姿（8種の絵を1枚に）：0 光の粒・1 星・2 ハート・3 雪の結晶・4 羽根・5 鈴・6 きらめき・7 音符 ----------
+const ATLAS = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'), T = 128;
+  const at = (k, fn) => { g.save(); g.translate((k % 4) * T + T / 2, ((k / 4) | 0) * T + T / 2); g.fillStyle = g.strokeStyle = '#fff'; g.shadowColor = 'rgba(255,255,255,.9)'; fn(); g.restore(); };
+  at(0, () => { const gr = g.createRadialGradient(0, 0, 0, 0, 0, 56); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(-64, -64, 128, 128); });
+  at(1, () => { g.shadowBlur = 14; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 17 : 42; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill(); });
+  at(2, () => { g.shadowBlur = 14; g.beginPath(); for (let i = 0; i <= 60; i++) { const t = (i / 60) * TAU; g.lineTo(16 * Math.sin(t) ** 3 * 2.4, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * 2.4 - 3); } g.fill(); });
+  at(3, () => { g.shadowBlur = 10; g.lineWidth = 5; g.lineCap = 'round'; for (let k = 0; k < 6; k++) { g.save(); g.rotate((k * Math.PI) / 3); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -42); g.moveTo(0, -20); g.lineTo(-11, -30); g.moveTo(0, -20); g.lineTo(11, -30); g.moveTo(0, -31); g.lineTo(-7, -38); g.moveTo(0, -31); g.lineTo(7, -38); g.stroke(); g.restore(); } });
+  at(4, () => { g.shadowBlur = 10; g.rotate(-0.5); g.beginPath(); g.moveTo(0, 46); g.quadraticCurveTo(-28, 0, 0, -46); g.quadraticCurveTo(22, 0, 0, 46); g.fill(); g.globalCompositeOperation = 'destination-out'; g.lineWidth = 2; for (let i = -30; i < 40; i += 9) { g.beginPath(); g.moveTo(-1, i); g.lineTo(-24, i - 10); g.stroke(); } g.globalCompositeOperation = 'source-over'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 52); g.lineTo(0, -40); g.stroke(); });
+  at(5, () => { g.shadowBlur = 12; g.beginPath(); g.arc(0, 6, 32, 0, TAU); g.fill(); g.lineWidth = 6; g.beginPath(); g.arc(0, -30, 8, 0, TAU); g.stroke(); g.shadowBlur = 0; g.globalCompositeOperation = 'destination-out'; g.lineWidth = 6; g.beginPath(); g.moveTo(-20, 12); g.lineTo(20, 12); g.stroke(); g.beginPath(); g.arc(0, 22, 6, 0, TAU); g.fill(); });
+  at(6, () => { g.shadowBlur = 10; g.beginPath(); for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4, r = i % 2 ? 7 : 46; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill(); });
+  at(7, () => { g.shadowBlur = 10; g.beginPath(); g.ellipse(-10, 24, 15, 11, -0.4, 0, TAU); g.fill(); g.fillRect(2, -36, 6, 60); g.beginPath(); g.moveTo(8, -36); g.quadraticCurveTo(30, -26, 26, -4); g.quadraticCurveTo(22, -18, 8, -20); g.fill(); });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+// 点を並べる層（大きさ・絵・向きを、点ごとに持つ）
+const FXMAX = 36000, fxPos = new Float32Array(FXMAX * 3), fxCol = new Float32Array(FXMAX * 3), fxSize = new Float32Array(FXMAX), fxTile = new Float32Array(FXMAX), fxRot = new Float32Array(FXMAX), fxGeo = new THREE.BufferGeometry();
+[['position', fxPos, 3], ['aCol', fxCol, 3], ['aSize', fxSize, 1], ['aTile', fxTile, 1], ['aRot', fxRot, 1]].forEach(([n, a, k]) => fxGeo.setAttribute(n, new THREE.BufferAttribute(a, k).setUsage(THREE.DynamicDrawUsage)));
+const fxMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { map: { value: ATLAS }, uScale: { value: 400 } },
+  vertexShader: 'attribute vec3 aCol;attribute float aSize;attribute float aTile;attribute float aRot;uniform float uScale;varying vec3 vC;varying float vT;varying float vR;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=min(240.,aSize*uScale/-mv.z);vC=aCol;vT=aTile;vR=aRot;}',
+  fragmentShader: 'uniform sampler2D map;varying vec3 vC;varying float vT;varying float vR;void main(){vec2 p=gl_PointCoord-.5;float c=cos(vR),s=sin(vR);p=vec2(c*p.x-s*p.y,s*p.x+c*p.y)+.5;if(p.x<0.||p.y<0.||p.x>1.||p.y>1.)discard;vec4 t=texture2D(map,vec2((mod(vT,4.)+p.x)/4.,1.-(floor(vT/4.)+p.y)/2.));gl_FragColor=vec4(vC*t.rgb*t.a,1.);\n#include <colorspace_fragment>\n}' });
+const fxPts = new THREE.Points(fxGeo, fxMat); fxPts.frustumCulled = false; fxPts.renderOrder = 5; scene.add(fxPts);
+let fxN = 0; const put = (p, c, f, size, tile = 0, rot = 0) => { if (fxN >= FXMAX) return; const i = fxN++; fxPos[i * 3] = p.x; fxPos[i * 3 + 1] = p.y; fxPos[i * 3 + 2] = p.z; fxCol[i * 3] = c.r * f; fxCol[i * 3 + 1] = c.g * f; fxCol[i * 3 + 2] = c.b * f; fxSize[i] = size; fxTile[i] = tile; fxRot[i] = rot; };
+// 窓ごとの戻り方：head＝先頭の絵・per＝かけら1つあたりの数・trail＝[尾にまぜる絵, 大きさ, 何点おき]・path＝昇り方
+const FXK = {
+  light: { head: 0, hs: 0.2, per: 3, base: 0.085, trail: [0, 0, 0], mist: true, path: 'spiral', spin: [3, 5], grow: 0.35, rise: [0.55, 0.9], mixC: '#fff6dc', mixK: 0.25, burst: 0 },
+  star: { head: 1, hs: 0.5, per: 2, base: 0.06, trail: [6, 0.16, 4], path: 'spiral', spin: [5, 7], grow: 0.5, rise: [0.8, 1.2], rotSpd: 3, mixC: '#ffd84a', mixK: 0.65, burst: 6 },
+  heart: { head: 2, hs: 0.48, per: 2, base: 0.05, trail: [2, 0.13, 6], path: 'sway', sway: 0.35, rise: [0.5, 0.75], pulse: true, mixC: '#ff6aa8', mixK: 0.7, burst: 2 },
+  snow: { head: 3, hs: 0.46, per: 2, base: 0.045, trail: [3, 0.12, 6], path: 'spiral', spin: [1.2, 2], grow: 0.75, rise: [0.35, 0.55], rotSpd: 0.8, mixC: '#cfeaff', mixK: 0.7, tA: [2.0, 2.8], burst: 3 },
+  bell: { head: 5, hs: 0.46, per: 2, base: 0.055, trail: [6, 0.15, 4], path: 'arc', rise: [0.7, 1.0], swing: true, mixC: '#ffc83a', mixK: 0.8, burst: 7 },
+  feather: { head: 4, hs: 0.55, per: 2, base: 0.035, trail: [0, 0, 0], path: 'flutter', sway: 0.5, rise: [0.35, 0.5], mixC: '#f4f0ff', mixK: 0.6, tA: [2.0, 2.6], tB: [2.0, 2.6], burst: 4 },
+};
+const sparks = [], comets = [], TL = 40, rnd = (a, b) => a + Math.random() * (b - a);
+function burst(p, c, n, spd = 1.6, tile = 0) { for (let i = 0; i < n && sparks.length < 1500; i++) sparks.push({ p: p.clone(), v: new THREE.Vector3((Math.random() - 0.5) * spd, Math.random() * spd, (Math.random() - 0.5) * spd), c, life: 0.5 + Math.random() * 0.6, age: 0, tile, rot: Math.random() * TAU, spin: (Math.random() - 0.5) * 6 }); }
+
+// ---------- かけらが外れる → 落ちる → 割れる → 光の姿 → 戻る ----------
+const GRAV = 9.8 * 0.75, tmpQ = new THREE.Quaternion(), falling = [], shards = [], seen = new Set();
+let lastCha = 0;
+function breakPiece(w, k) {
+  const pt = w.parts[k]; if (!pt || pt.state) return; pt.state = 1; setPiece(w, pt, 0, 0); SND.crack();
+  const geo = uvFix(new THREE.ShapeGeometry(shapeOf(pt.outer.map(([x, y]) => [x - pt.c[0], y - pt.c[1]]), pt.holes.map((h) => h.map(([x, y]) => [x - pt.c[0], y - pt.c[1]]))), 1), w.F, pt.c[0], pt.c[1]);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: w.tex, toneMapped: false, side: THREE.DoubleSide, transparent: true }));
+  w.g.updateMatrixWorld(); m.position.set(pt.c[0], pt.c[1], 0.02).applyMatrix4(w.g.matrixWorld); m.quaternion.copy(w.g.quaternion); m.scale.copy(w.g.scale); scene.add(m);
+  const inward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.g.quaternion), side = new THREE.Vector3(1, 0, 0).applyQuaternion(w.g.quaternion);
+  falling.push({ w, k, m, v: inward.multiplyScalar(0.5 + Math.random() * 0.5).addScaledVector(side, (Math.random() - 0.5) * 0.5).add(new THREE.Vector3(0, 0.3, 0)), av: new THREE.Vector3((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6) });
+  burst(m.position, new THREE.Color('#fff6e0'), 6, 0.6);
+}
+function shatter(f) {
+  const { w, k, m } = f, pt = w.parts[k]; scene.remove(m); m.geometry.dispose(); m.material.dispose(); pt.state = 2;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of pt.outer) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  // 割れる数：かけらの大きさ（m²）で。床がかけらで埋まっている時は、少なめ
+  const areaW = (x1 - x0) * (y1 - y0) * w.g.scale.x * w.g.scale.y, n = Math.max(3, Math.min(shards.length > 160 ? 4 : 9, Math.round(areaW * 18))), seeds = []; for (let i = 0; i < n; i++) seeds.push([x0 + Math.random() * (x1 - x0), y0 + Math.random() * (y1 - y0)]);
+  m.updateMatrixWorld(); pt.shards = [];
+  for (const poly of voronoi(seeds, pt.outer)) {
+    if (poly.length < 3) continue; const c = centroid(poly), geo = uvFix(new THREE.ShapeGeometry(shapeOf(poly.map(([x, y]) => [x - c[0], y - c[1]])), 1), w.F, c[0], c[1]);
+    const s = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: w.tex, toneMapped: false, side: THREE.DoubleSide, transparent: true }));
+    s.position.set(c[0] - pt.c[0], c[1] - pt.c[1], 0).applyMatrix4(m.matrixWorld); s.quaternion.copy(m.quaternion); s.scale.copy(w.g.scale); scene.add(s);
+    const a = Math.random() * TAU, sp = 0.5 + Math.random() * 1.3;
+    const sh = { w, k, s, v: new THREE.Vector3(Math.cos(a) * sp, 0.4 + Math.random() * 1.0, Math.sin(a) * sp).addScaledVector(f.v, 0.25), av: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12), landed: false, flat: null, fade: 1 };
+    shards.push(sh); pt.shards.push(sh);
+  }
+  SND.kashan(Math.sqrt(areaW) * 1.6); burst(m.position.clone().setY(0.05), new THREE.Color('#fff4d8'), 22, 1.8);
+  // 戻る時刻：割れてから約3秒（ほかのかけらを待たない。少しだけばらつかせて、同時に割れた所も一斉にならない）
+  pt.brokeAt = performance.now() / 1000; pt.returnAt = pt.brokeAt + 2.8 + Math.random() * 0.5; pt.arrived = 0; pt.total = 0;
+}
+// 光の姿が、昇ってから窓の穴へ、ゆるい曲線で飛ぶ。通った跡が尾になって残る
+function launchComets(w, k) {
+  const pt = w.parts[k], K = FXK[w.fx]; w.g.updateMatrixWorld(); const front = new THREE.Vector3(0, 0, 1).applyQuaternion(w.g.quaternion), per = comets.length > 260 ? 1 : K.per, jit = 0.11 / w.g.scale.x; seen.add(w.fx);
+  for (const sh of pt.shards) for (let j = 0; j < per; j++) {
+    const target = new THREE.Vector3(pt.c[0] + (Math.random() - 0.5) * jit, pt.c[1] + (Math.random() - 0.5) * jit, 0.05).applyMatrix4(w.g.matrixWorld), ph = Math.random() * TAU;
+    comets.push({ w, k, K, p: sh.s.position.clone(), o: sh.s.position.clone(), ph, ang: ph, spin: (Math.random() < 0.5 ? -1 : 1) * rnd(...(K.spin || [3, 5])), rise: rnd(...K.rise), t: 0, tA: (K.tA ? rnd(...K.tA) : 1.3 + Math.random() * 0.6) + j * 0.15, tB: K.tB ? rnd(...K.tB) : 1.7 + Math.random() * 0.7, target, front, trail: [], c: pt.col.clone().lerp(new THREE.Color(K.mixC), K.mixK).multiplyScalar(K.head ? 0.95 : 1.15), b0: null });
+    pt.total++;
+  }
+}
+
+// ---------- 見まわす・タップ・なぞる ----------
+const cam = new THREE.PerspectiveCamera(66, 1, 0.05, 500); let yaw = 0, tYaw = 0, pitch = 0.25, tPitch = 0.25, baseFov = 68;
+const clampP = (p) => Math.max(-0.2, Math.min(1.45, p));
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; baseFov = w / h < 0.8 ? 68 : 52; const v = new THREE.Vector2(); renderer.getDrawingBufferSize(v); fxMat.uniforms.uScale.value = v.y * 0.5; }
+addEventListener('resize', size); size();
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map();
+const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
+const hitGlass = (x, y) => { setRay(x, y); return ray.intersectObjects(panes.map((w) => w.lead), false)[0] || null; };
+// 指の下のかけら（鉛の線の上なら、いちばん近いかけら）
+function pieceAt(x, y) {
+  const hit = hitGlass(x, y); if (!hit) return null; const w = panes[hit.object.userData.pane]; prepare(w);
+  const F = w.F, l = w.g.worldToLocal(hit.point.clone()), i = Math.floor(((l.x - F.x0) / (F.x1 - F.x0)) * w.RW), j = Math.floor(((F.y1 - l.y) / (F.y1 - F.y0)) * w.RH);
+  for (let r = 0; r <= 3; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= w.RW || jj >= w.RH) continue; const k = w.comp[jj * w.RW + ii]; if (k >= 0 && w.parts[k]) return [w, k]; }
+  return null;
+}
+function breakAt(x, y) { const r = pieceAt(x, y); if (!r) return null; const [w, k] = r; if (w.parts[k].state) return null; breakPiece(w, k); return [w.i, k]; }
+const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
+// ガラスの上で押したら、なぞった所のかけらを次々に落とす。ガラスの外（柱・床・壁）で押したら、見まわす
+cvs.addEventListener('pointerdown', (e) => { cvs.setPointerCapture(e.pointerId); SND.audio(); hideHint(); ptrs.set(e.pointerId, { glass: !!hitGlass(e.clientX, e.clientY), x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, yaw: tYaw, pitch: tPitch, t: performance.now(), moved: false }); });
+cvs.addEventListener('pointermove', (e) => {
+  const s = ptrs.get(e.pointerId); if (!s) return; if (e.pointerType === 'mouse' && e.buttons === 0) { ptrs.delete(e.pointerId); return; }
+  const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || []; for (const ev of evs.length ? evs : [e]) {
+    const x = ev.clientX, y = ev.clientY;
+    if (!s.moved && Math.hypot(x - s.x, y - s.y) > 8) { s.moved = true; if (s.glass) breakAt(s.x, s.y); }
+    if (!s.moved) continue;
+    if (s.glass) { const n = Math.ceil(Math.hypot(x - s.lx, y - s.ly) / 6); for (let k = 1; k <= n; k++) breakAt(s.lx + ((x - s.lx) * k) / n, s.ly + ((y - s.ly) * k) / n); }
+    else { tYaw = s.yaw - (x - s.x) * 0.006; tPitch = clampP(s.pitch + (y - s.y) * 0.004); }
+    s.lx = x; s.ly = y; }
+});
+function up(e) { const s = ptrs.get(e.pointerId); if (!s) return; ptrs.delete(e.pointerId); if (s.glass && !s.moved && performance.now() - s.t < 600) breakAt(e.clientX, e.clientY); }
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, up));
+addEventListener('blur', () => ptrs.clear());
+const STEP = TAU / N, upBtn = document.getElementById('up');
+const lookUp = (on) => { tPitch = on ? 1.42 : 0.25; if (on) tYaw = Math.round(tYaw / TAU) * TAU; upBtn.textContent = on ? 'まど ▼' : 'てんじょう ▲'; };
+document.getElementById('prev').addEventListener('click', () => { SND.audio(); hideHint(); tYaw = Math.round(tYaw / STEP) * STEP - STEP; if (tPitch > 0.9) lookUp(false); });
+document.getElementById('next').addEventListener('click', () => { SND.audio(); hideHint(); tYaw = Math.round(tYaw / STEP) * STEP + STEP; if (tPitch > 0.9) lookUp(false); });
+upBtn.addEventListener('click', () => { SND.audio(); hideHint(); lookUp(tPitch < 0.9); });
+
+// ---------- 毎コマ ----------
+const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
+let frames = 0, tf = performance.now(), fAcc = 0, fN = 0, fTot = 0;
+const ease = (t) => t * t * (3 - 2 * t), bez = (a, b, c, d, t, out) => { const u = 1 - t; return out.set(0, 0, 0).addScaledVector(a, u * u * u).addScaledVector(b, 3 * u * u * t).addScaledVector(c, 3 * u * t * t).addScaledVector(d, t * t * t); };
+const WHITE = new THREE.Color('#fff4d0');
+function frame() {
+  const raw = clock.getDelta(), dt = Math.min(0.033, raw), now = performance.now() / 1000;
+  yaw += (tYaw - yaw) * Math.min(1, dt * 5); pitch += (tPitch - pitch) * Math.min(1, dt * 4);
+  // 見上げるほど、広く見る（天井の丸窓が入るように）
+  const fov = baseFov + Math.max(0, (pitch - 0.7) / 0.75) * (baseFov > 60 ? 18 : 10); if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
+  // 目は、見ている方へ少し寄る（向きを変えると目の位置も動き、窓の外の星が、距離に応じてずれる）
+  cam.position.set(Math.sin(yaw) * Math.cos(pitch) * 1.2, 1.75 + Math.sin(pitch) * 0.7, -Math.cos(yaw) * Math.cos(pitch) * 1.2); cam.lookAt(cam.position.x + Math.sin(yaw) * Math.cos(pitch) * 10, cam.position.y + Math.sin(pitch) * 10, cam.position.z - Math.cos(yaw) * Math.cos(pitch) * 10);
+  space.update(cam.position, now, dt);
+  // 落ちるかけら
+  for (let i = falling.length - 1; i >= 0; i--) { const f = falling[i]; f.v.y -= GRAV * dt; f.m.position.addScaledVector(f.v, dt); tmpQ.setFromEuler(new THREE.Euler(f.av.x * dt, f.av.y * dt, f.av.z * dt)); f.m.quaternion.multiply(tmpQ); if (f.m.position.y < 0.06) { falling.splice(i, 1); shatter(f); } }
+  // 床のかけら：はねて、平らに落ちつく → 戻る時刻に、光の姿になる
+  for (let i = shards.length - 1; i >= 0; i--) {
+    const sh = shards[i], pt = sh.w.parts[sh.k];
+    if (now < pt.returnAt) {
+      sh.v.y -= GRAV * dt; sh.s.position.addScaledVector(sh.v, dt); if (!sh.landed) { tmpQ.setFromEuler(new THREE.Euler(sh.av.x * dt, sh.av.y * dt, sh.av.z * dt)); sh.s.quaternion.multiply(tmpQ); }
+      if (sh.s.position.y < 0.015) { sh.s.position.y = 0.015; if (sh.v.y < -0.5 && performance.now() - lastCha > 50) { SND.cha(Math.min(0.04, -sh.v.y * 0.015)); lastCha = performance.now(); } sh.v.y = Math.abs(sh.v.y) * 0.22; sh.v.x *= 0.5; sh.v.z *= 0.5; if (!sh.flat) sh.flat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, Math.random() * 6)); sh.landed = true; }
+      if (sh.landed) sh.s.quaternion.slerp(sh.flat, Math.min(1, dt * 8));
+    } else {
+      if (!pt.launched) { pt.launched = true; pt.state = 3; launchComets(sh.w, sh.k); }
+      sh.fade -= dt * 2.5; sh.s.material.opacity = Math.max(0, sh.fade); if (sh.fade <= 0) { scene.remove(sh.s); sh.s.geometry.dispose(); sh.s.material.dispose(); shards.splice(i, 1); }
+    }
+  }
+  // 光の姿：昇る（A）→ 窓へ曲線（B）→ 着いたら、かけらに光がたまる
+  for (let i = comets.length - 1; i >= 0; i--) {
+    const c = comets[i], K = c.K; c.t += dt;
+    if (c.t < c.tA) {
+      if (K.path === 'spiral') { c.ang += c.spin * dt; const rad = 0.08 + c.t * K.grow; c.o.y += c.rise * dt; c.p.set(c.o.x + Math.cos(c.ang) * rad, c.o.y, c.o.z + Math.sin(c.ang) * rad); }
+      else if (K.path === 'sway') { c.o.y += c.rise * dt; c.p.set(c.o.x + Math.sin(c.t * 2.2 + c.ph) * K.sway, c.o.y, c.o.z + Math.cos(c.t * 1.7 + c.ph) * K.sway * 0.6); }
+      else if (K.path === 'flutter') { c.o.y += c.rise * dt * (0.6 + 0.4 * Math.sin(c.t * 3.1 + c.ph)); c.p.set(c.o.x + Math.sin(c.t * 1.6 + c.ph) * K.sway * (0.4 + c.t * 0.3), c.o.y, c.o.z + Math.cos(c.t * 1.2 + c.ph) * 0.3); }
+      else { c.ang += 2.2 * dt * Math.sign(c.spin); c.o.y += c.rise * dt; c.p.set(c.o.x + (Math.cos(c.ang) - Math.cos(c.ph)) * 0.55, c.o.y + Math.sin(c.t * 5) * 0.06, c.o.z + (Math.sin(c.ang) - Math.sin(c.ph)) * 0.55); }   // そりの道のように、大きな輪をえがいて昇る
+    } else {
+      if (!c.b0) { c.b0 = c.p.clone(); c.b1 = c.p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.6, 1.6 + Math.random(), (Math.random() - 0.5) * 1.6)); c.b2 = c.target.clone().addScaledVector(c.front, 1.4 + Math.random() * 0.6).add(new THREE.Vector3(0, 0.4, 0)); }
+      const u = Math.min(1, (c.t - c.tA) / c.tB); bez(c.b0, c.b1, c.b2, c.target, ease(u), c.p);
+      if (K.path === 'sway' || K.path === 'flutter') c.p.add(new THREE.Vector3(Math.sin(u * Math.PI * 3 + c.ph) * 0.15 * (1 - u), 0, Math.cos(u * Math.PI * 3 + c.ph) * 0.1 * (1 - u)));
+      if (u >= 1) { comets.splice(i, 1); const pt = c.w.parts[c.k]; pt.arrived++; burst(c.target, c.c, 4, 0.5, K.burst); SND.arrive(c.w.fx, pt.arrived + c.k);
+        if (pt.arrived >= pt.total) { pt.state = 4; pt.doneAt = now; SND.done(c.w.fx); burst(c.target, WHITE, 14, 0.9, K.burst); } continue; }
+    }
+    const last = c.trail[0]; if (last) { const n = Math.min(4, Math.floor(last.distanceTo(c.p) / 0.025)); for (let s2 = 1; s2 <= n; s2++) c.trail.unshift(last.clone().lerp(c.p, s2 / (n + 1))); }
+    c.trail.unshift(c.p.clone()); while (c.trail.length > TL) c.trail.pop();
+  }
+  // 戻ってくる光で、穴が少しずつ満ちる → そろったら、光がひいて元どおり
+  for (const w of panes) if (w.ready) for (const pt of w.parts) { if (!pt) continue;
+    if (pt.state === 3 && pt.total) setPiece(w, pt, (pt.arrived / pt.total) * 0.85, 1);
+    else if (pt.state === 4) { const u = Math.min(1, (now - pt.doneAt) / 1.4); setPiece(w, pt, 0.85 + 0.15 * u, 1 - u); if (u >= 1) { pt.state = 0; pt.launched = false; pt.shards = []; } } }
+  // 点を並べる
+  fxN = 0;
+  for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.age += dt; if (s.age > s.life) { sparks.splice(i, 1); continue; } s.v.y -= 2 * dt; s.p.addScaledVector(s.v, dt); s.rot += s.spin * dt; put(s.p, s.c, 1 - s.age / s.life, s.tile ? 0.13 : 0.07, s.tile, s.rot); }
+  for (const c of comets) { const K = c.K;
+    let hs = K.hs, rot = 0; if (K.pulse) hs *= 1 + 0.18 * Math.sin(c.t * 9); if (K.head === 1) hs *= 0.85 + 0.3 * Math.abs(Math.sin(c.t * 6 + c.ph)); if (K.rotSpd) rot = c.t * K.rotSpd * Math.sign(c.spin); if (K.swing) rot = Math.sin(c.t * 11) * 0.5; if (K.path === 'flutter') rot = Math.sin(c.t * 3.2 + c.ph) * 0.9;
+    if (K.head) put(c.p, c.c, 0.18, hs * 1.1, 0, 0); put(c.p, c.c, 1.0, hs, K.head, rot);
+    c.trail.forEach((p, j) => { const f = 1 - j / TL; if (K.head && j < 3) return; put(p, c.c, (K.head ? 0.4 : 0.55) * f * f, K.base, 0, 0); if (K.trail[2] && j > 0 && j % K.trail[2] === 0) put(p, c.c, 0.85 * f, K.trail[1] * (0.6 + 0.4 * f), K.trail[0], j * 0.7 + c.ph); if (K.mist && j % 9 === 0) put(p, c.c, 0.035 * f, 0.42, 0, 0); });
+  }
+  fxGeo.setDrawRange(0, fxN); for (const n of ['position', 'aCol', 'aSize', 'aTile', 'aRot']) fxGeo.attributes[n].needsUpdate = true;
+  const dpa = dg.attributes.position.array; for (let i = 0; i < ND; i++) { dpa[i * 3 + 1] += dt * 0.05; if (dpa[i * 3 + 1] > 4.5) dpa[i * 3 + 1] = 0; } dg.attributes.position.needsUpdate = true;
+  renderer.render(scene, cam);
+  // かけらに分けている間の重さは数えない
+  if (window.__prepared && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} falling ${falling.length} shards ${shards.length} comets ${comets.length} pts ${fxN}`; frames = 0; tf = performance.now(); }
+  requestAnimationFrame(frame);
+}
+if (fpsEl) window.__dbg = { panes, cam, breakAt, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, lookUp, kinds: () => [...seen].sort(),
+  proj: (i, x, y) => { const w = panes[i]; w.g.updateMatrixWorld(); const v = w.g.localToWorld(new THREE.Vector3(x, y, 0)).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
+  broken: () => panes.reduce((n, w) => n + (w.parts ? w.parts.filter((p) => p && p.state).length : 0), 0), counts: () => ({ falling: falling.length, shards: shards.length, comets: comets.length }), voices: SND.voices, level: SND.level, hissRate: SND.hissRate };
+frame(); window.__ok = true;
+</script></body></html>

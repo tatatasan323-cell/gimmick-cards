@@ -25,6 +25,23 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #tip{position:fixed;right:10px;top:calc(96px + env(safe-area-inset-top));width:min(80vw,300px);box-sizing:border-box;padding:12px 14px 10px;border-radius:18px 18px 4px 18px;background:rgba(255,248,236,.97);color:#2a1a10;box-shadow:0 10px 28px rgba(0,0,0,.45);transform:translateX(130%);transition:transform .5s cubic-bezier(.2,1.25,.4,1)}
 #tip.on{transform:none}#tip p{margin:0;font-size:14px;font-weight:800;line-height:1.6}#tip .row{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 #tip button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:7px 12px;cursor:pointer}#tipNo{background:#c8732e;color:#fff}#tipYes{background:#eadccb;color:#5a3a1a}
+#cotton{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(ellipse at center,rgba(255,214,236,.16),rgba(24,10,34,.42));transition:opacity .35s}
+#cotton[hidden]{display:none}#cotton.bye{opacity:0}#cotC{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform-origin:50% 50%;animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.012)}}
+#cotIn{position:relative;width:min(76vw,320px);box-sizing:border-box;padding:4px 2px;text-align:center;color:#5b3550;font-family:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro","Yu Gothic UI",sans-serif;opacity:0;transform:translateY(10px) scale(.92);transition:opacity .4s .36s,transform .55s .36s cubic-bezier(.2,1.5,.4,1)}
+#cotton.on #cotIn{opacity:1;transform:none}
+#cotTag{display:inline-block;padding:3px 12px;border-radius:999px;background:repeating-linear-gradient(-45deg,#ff8fc0 0 7px,#ffb4d7 7px 14px);color:#fff;font-size:12px;font-weight:800;letter-spacing:.14em;text-shadow:0 1px 0 rgba(170,40,100,.45)}
+#cotName{margin:8px 0 2px;font-size:23px;font-weight:900;letter-spacing:.05em;line-height:1.35}
+#cotName span{display:inline-block;color:#ff5c9e;text-shadow:0 2px 0 #fff,0 -2px 0 #fff,2px 0 0 #fff,-2px 0 0 #fff,0 5px 10px rgba(255,110,170,.45);animation:hop .6s cubic-bezier(.3,1.8,.5,1) both}
+#cotName span:nth-child(3n+2){color:#ff8a3d}#cotName span:nth-child(3n){color:#8d6cff}
+@keyframes hop{from{transform:translateY(14px) scale(.4);opacity:0}to{transform:none;opacity:1}}
+#cotText{margin:8px 0 0;font-size:14.5px;font-weight:700;line-height:1.85;text-align:left}
+#cotSrc{margin-top:6px;font-size:10.5px;color:#9a7890;word-break:break-all;text-align:left}
+#cotOk{margin-top:12px;font:inherit;font-size:15px;font-weight:900;border:0;border-radius:999px;padding:9px 24px;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);box-shadow:0 4px 0 #d2407e,0 6px 14px rgba(255,92,158,.4);cursor:pointer}
+#cotOk:active{transform:translateY(3px);box-shadow:0 1px 0 #d2407e}
+.spk{position:absolute;color:#fff;font-size:15px;line-height:1;pointer-events:none;text-shadow:0 0 8px #ffc8e6,0 0 16px #b9dcff;animation:tw 1.7s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.15;transform:scale(.55) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(25deg)}}
+@media (prefers-reduced-motion:reduce){#cotC,#cotName span,.spk{animation:none}#cotIn{transition:none}}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
@@ -35,6 +52,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="joy"><div id="knob"></div></div><button class="ud" id="upB" type="button">▲</button><button class="ud" id="dnB" type="button">▼</button>
 <div id="card" hidden><b id="cName"></b><small id="cSub"></small><p id="cText"></p><div class="src" id="cSrc"></div><div class="row"><a id="go" target="_blank" rel="noopener" hidden>この場所へ ›</a><button id="close" type="button">とじる</button></div></div>
 <div id="tip"><p id="tipQ"></p><div class="row"><button id="tipYes" type="button">うん</button><button id="tipNo" type="button">まだ！ つれてって</button></div></div>
+<div id="cotton" hidden><canvas id="cotC"></canvas><div id="cotIn"><div id="cotTag"></div><div id="cotName"></div><p id="cotText"></p><div id="cotSrc"></div><button id="cotOk" type="button">なるほど！</button></div></div>
 <div id="fps" hidden></div>
 <script type="module">
 // 冬の夜の、北欧の入り江の港町。湾を囲むハーバーに、お菓子の家（ジンジャーブレッドの壁・フロスティングの屋根・飴の窓）が坂の上まで段々に続く
@@ -242,7 +260,11 @@ function label(text, sub) {
   g.fillStyle = '#fff8ee'; g.font = '800 44px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, W / 2, sub ? 46 : H / 2 + 2); if (sub) { g.font = '700 26px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif'; g.fillStyle = '#ffe2b8'; g.fillText(sub, W / 2, 88); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false, fog: false, sizeAttenuation: false })); const k = sub ? 0.05 : 0.038; s.userData.sz = [(W / H) * k, k]; s.scale.set(...s.userData.sz, 1); s.renderOrder = 6; return s;
 }
-const ART = { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U' };
+// GitHub では、街と仕掛けを同じフォルダに置き、同じタブで行き来する（共通/まとめる_pages.py が PAGES を true にする）。claude.ai の試作では、仕掛けごとの非公開ページへ
+const PAGES = true;
+const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html' }
+  : { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U' };
+if (PAGES) { $('go').removeAttribute('target'); $('go').removeAttribute('rel'); }
 function area(id, name, sub, text, link, grp, view, labelY, labelSub) {
   const A = { id, name, sub, text, link, g: grp, view, kind: 'area' }; grp.traverse((o) => { if (o.isMesh && !o.userData.pick) addPick(o, A); });
   const lb = label(name, labelSub); lb.position.copy(grp.position).setY(grp.position.y + labelY); scene.add(lb); A.label = lb; AREAS.push(A); return A;
@@ -489,7 +511,7 @@ const squid = new THREE.Points(sqG, sqMat); squid.frustumCulled = false; scene.a
 let wi = 0, aurBoost = 0, hueT = 0, fwEnergy = 0, lastShow = -99; const ROCKETS = [], SPARKS = [], FW_N = 6000, fwPos = new Float32Array(FW_N * 3), fwCol = new Float32Array(FW_N * 3), FW = { chance: 0.45, need: 5 };
 const fwG = new THREE.BufferGeometry(); fwG.setAttribute('position', new THREE.BufferAttribute(fwPos, 3)); fwG.setAttribute('color', new THREE.BufferAttribute(fwCol, 3));
 const fw = new THREE.Points(fwG, new THREE.PointsMaterial({ map: glowTex, size: 0.75, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fw.frustumCulled = false; scene.add(fw);
-const counts = { boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0 };
+const counts = { boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0, cotton: 0 };
 // 光の波：s＝強さ（タップは1・なぞった跡は0.55）。触れるたびに花火の「たまり」が増え、たまると、ときどき盛大に上がる（毎回は上がらない）
 function seaWave(x, z, s = 1) { WAVES[wi].set(x, z, timeU.value, s); wi = (wi + 1) % WAVES.length; aurBoost = Math.max(aurBoost, s); if (s >= 1) SND.wave(); else SND.ripple(); counts.waves++;
   fwEnergy += s; if (fwEnergy >= FW.need && timeU.value - lastShow > 12 && Math.random() < FW.chance) { fwEnergy = 0; lastShow = timeU.value; grandShow(x, z); } }
@@ -555,7 +577,58 @@ function up(e) { const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (
 cvs.addEventListener('wheel', (e) => { drone.p.addScaledVector(V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)), -Math.sign(e.deltaY) * 2); auto = null; e.preventDefault(); }, { passive: false });
 const card = $('card');
 let cardAt = null;
-function showCard(name, sub, text, src, link) { cardAt = (auto ? auto.p : drone.p).clone(); $('cName').textContent = name; $('cSub').textContent = sub || ''; $('cText').textContent = text; $('cSrc').textContent = src || ''; $('cSrc').hidden = !src; const go = $('go'); if (link) { go.href = link; go.hidden = false; } else { go.removeAttribute('href'); go.hidden = true; } card.hidden = false; }
+// 豆知識：綿あめの雲がふわっと広がって、画面の真ん中にうんちく。雲は文の枠のまわりに、ふわふわのかたまりを並べて描く（広がる間だけ描き直し、あとは止めた絵）
+const COT = { el: $('cotton'), cv: $('cotC'), inn: $('cotIn'), puffs: [], B: null, t0: -1e9, raf: 0, at: null, open: false };
+const COT_COL = [['#ffd2e8', '240,150,196'], ['#d2e9ff', '140,188,238'], ['#e8dcff', '176,154,236'], ['#ffe0ef', '240,168,204']];   // 綿あめの色と、そのかげ
+const SLOW = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function cotLayout() {
+  const dpr = Math.min(2, devicePixelRatio || 1); COT.cv.width = innerWidth * dpr; COT.cv.height = innerHeight * dpr;
+  const r = COT.inn.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, hw = r.width / 2 + 14, hh = r.height / 2 + 12, n = Math.round((hw + hh) / 15);
+  const edge = (a, ex, ey) => { const c = Math.cos(a), s = Math.sin(a); return [cx + Math.sign(c) * Math.sqrt(Math.abs(c)) * ex, cy + Math.sign(s) * Math.sqrt(Math.abs(s)) * ey]; };   // 角の丸い四角に沿う形（超楕円）
+  COT.B = { cx, cy, hw, hh, dpr }; COT.puffs = [];
+  const fib = (k) => Array.from({ length: k }, () => [rnd(0, TAU), rnd(0.4, 0.95), rnd(0.4, 1.3), Math.random() < 0.35]), hair = (k) => Array.from({ length: k }, () => [rnd(0, TAU), rnd(1.04, 1.16), Math.random() < 0.3]);
+  for (let i = 0; i < n; i++) { const [x, y] = edge((i / n) * TAU + rnd(-0.08, 0.08), hw, hh); COT.puffs.push({ x, y, R: rnd(26, 42), col: COT_COL[(i + (i >> 2)) % 4], d: (i % 5) * 0.035 + rnd(0, 0.05), w: fib(10), h: hair(14) }); }
+  for (let i = 0; i < n; i++) { const [x, y] = edge(((i + 0.5) / n) * TAU, hw - 8, hh - 6); COT.puffs.push({ x, y, R: rnd(18, 28), col: COT_COL[(i + 2) % 4], d: 0.06 + (i % 4) * 0.03, w: fib(5), h: [] }); }   // 内がわの、もう一重
+  for (let i = 0; i < 8; i++) { const [x, y] = edge(rnd(0, TAU), hw + 34, hh + 30); COT.puffs.push({ x, y, R: rnd(8, 15), col: COT_COL[i % 4], d: 0.28 + rnd(0, 0.18), w: fib(2), h: hair(5) }); }   // 外へちぎれた、小さなかたまり
+  COT.sugar = Array.from({ length: 40 }, () => [rnd(-1, 1), rnd(-1, 1), rnd(0.8, 1.8)]);
+  COT.el.querySelectorAll('.spk').forEach((e) => e.remove());
+  for (let i = 0; i < 7; i++) { const [x, y] = edge(rnd(0, TAU), hw + rnd(26, 48), hh + rnd(22, 40)), e = document.createElement('span'); e.className = 'spk'; e.textContent = '✦'; e.style.left = x - 7 + 'px'; e.style.top = y - 7 + 'px'; e.style.animationDelay = rnd(0, 1.7).toFixed(2) + 's'; e.style.fontSize = rnd(11, 19).toFixed(0) + 'px'; COT.el.appendChild(e); }
+}
+const eOut = (k) => 1 - Math.pow(1 - k, 3), eBack = (k) => 1 + 2.9 * Math.pow(k - 1, 3) + 1.9 * Math.pow(k - 1, 2);
+function cotDraw(t) {
+  const B = COT.B, g = COT.cv.getContext('2d'); g.setTransform(B.dpr, 0, 0, B.dpr, 0, 0); g.clearRect(0, 0, innerWidth, innerHeight);
+  const kb = clamp((t - 0.1) / 0.42, 0, 1), sb = eOut(kb), bw = B.hw * sb, bh = B.hh * sb, shape = new Path2D(), list = [];   // 地（文の後ろ）は、かたまりを追って広がる
+  for (const P of COT.puffs) { const k = clamp((t - P.d) / 0.5, 0, 1); if (k <= 0) continue; const m = eOut(k), x = B.cx + (P.x - B.cx) * m, y = B.cy + (P.y - B.cy) * m, R = Math.max(0.1, P.R * eBack(k)); list.push([P, x, y, R]); shape.moveTo(x + R, y); shape.arc(x, y, R, 0, TAU); }
+  if (sb > 0.01) shape.roundRect(B.cx - bw, B.cy - bh, 2 * bw, 2 * bh, 34 * sb);
+  if (!list.length) return;
+  g.save(); g.shadowColor = 'rgba(140,50,110,.38)'; g.shadowBlur = 24; g.shadowOffsetY = 9; g.fillStyle = '#ffd9ec'; g.fill(shape); g.restore();   // 影は、雲ぜんぶで1回だけぼかす
+  // かたまり：つや消しの色・右下のかげ・左上のやわらかな明るみ（ふちを一番濃くすると、シャボン玉に見えた）
+  for (const [P, x, y, R] of list) { g.fillStyle = P.col[0]; g.beginPath(); g.arc(x, y, R, 0, TAU); g.fill();
+    let gr = g.createRadialGradient(x + R * 0.45, y + R * 0.5, 0, x + R * 0.3, y + R * 0.35, R * 0.95); gr.addColorStop(0, `rgba(${P.col[1]},.6)`); gr.addColorStop(1, `rgba(${P.col[1]},0)`); g.fillStyle = gr; g.fill();
+    gr = g.createRadialGradient(x - R * 0.3, y - R * 0.35, 0, x - R * 0.2, y - R * 0.25, R * 1.0); gr.addColorStop(0, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fill(); }
+  if (sb > 0.01) { const gr = g.createRadialGradient(B.cx, B.cy - bh * 0.3, 10, B.cx, B.cy, Math.max(bw, bh) * 1.15); gr.addColorStop(0, '#fffcfe'); gr.addColorStop(0.75, '#fff4fa'); gr.addColorStop(1, '#ffedf6');
+    g.save(); g.shadowColor = '#fff2f8'; g.shadowBlur = 18; g.fillStyle = gr; g.beginPath(); g.roundRect(B.cx - bw, B.cy - bh, 2 * bw, 2 * bh, 34 * sb); g.fill(); g.restore(); }   // 地は、ふちをぼかして、かたまりにとけこませる
+  g.lineCap = 'round';
+  for (const [P, x, y, R] of list) {
+    for (const [a, rr, len, pink] of P.w) { g.strokeStyle = pink ? 'rgba(255,120,180,.32)' : 'rgba(255,255,255,.8)'; g.lineWidth = pink ? 1 : 1.3; g.beginPath(); g.arc(x, y, R * rr, a, a + len); g.stroke(); }   // 綿あめの糸
+    const ox = x - B.cx, oy = y - B.cy;
+    for (const [a, l, pink] of P.h) { const c = Math.cos(a), s = Math.sin(a); if (c * ox + s * oy <= 0) continue; g.strokeStyle = pink ? `rgba(${P.col[1]},.7)` : 'rgba(255,255,255,.85)'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(x + c * R * 0.9, y + s * R * 0.9); g.lineTo(x + c * R * l, y + s * R * l); g.stroke(); } }   // ふちの毛羽立ち（雲の外がわだけ）
+  if (sb > 0.01) { g.fillStyle = 'rgba(255,255,255,.9)'; for (const [u, v, z] of COT.sugar) g.fillRect(B.cx + u * bw * 1.05, B.cy + v * bh * 1.05, z, z); }   // 砂糖のきらめき
+}
+function cotFrame() { const t = (performance.now() - COT.t0) / 1000; cotDraw(t); COT.raf = t < 1.05 ? requestAnimationFrame(cotFrame) : 0; }
+function showTrivia(o, first) {
+  card.hidden = true; if (tipOn) hideTip();
+  $('cotTag').textContent = first ? `まめちしき　${found.size} / ${TRIVIA.length}` : 'まめちしき';
+  const nm = $('cotName'); nm.textContent = ''; [...o.name].forEach((ch, i) => { const e = document.createElement('span'); e.textContent = ch; e.style.animationDelay = (0.42 + i * 0.05).toFixed(2) + 's'; nm.appendChild(e); });
+  $('cotText').textContent = o.text; $('cotSrc').textContent = o.src || ''; $('cotSrc').hidden = !o.src;
+  COT.el.hidden = false; COT.el.classList.remove('on', 'bye'); COT.at = (auto ? auto.p : drone.p).clone(); COT.open = true; counts.cotton++;
+  cotLayout(); COT.t0 = performance.now() - (SLOW ? 2000 : 0); cancelAnimationFrame(COT.raf); cotFrame(); requestAnimationFrame(() => COT.el.classList.add('on'));
+}
+function closeTrivia(now) { if (!COT.open) return; COT.open = false; cancelAnimationFrame(COT.raf); if (now) { COT.el.hidden = true; return; } COT.el.classList.add('bye'); setTimeout(() => { if (!COT.open) COT.el.hidden = true; }, 380); }
+// 「なるほど！」か、文の外をタップでたたむ（開いたタップの続きで、すぐ閉じないように）
+COT.el.addEventListener('click', (e) => { if (performance.now() - COT.t0 < 450) return; if (e.target.id === 'cotOk' || !COT.inn.contains(e.target)) { closeTrivia(); SND.tap(); } });
+addEventListener('resize', () => { if (COT.open) { cotLayout(); cotDraw(9); } });
+function showCard(name, sub, text, src, link) { closeTrivia(true); cardAt = (auto ? auto.p : drone.p).clone(); $('cName').textContent = name; $('cSub').textContent = sub || ''; $('cText').textContent = text; $('cSrc').textContent = src || ''; $('cSrc').hidden = !src; const go = $('go'); if (link) { go.href = link; go.hidden = false; } else { go.removeAttribute('href'); go.hidden = true; } card.hidden = false; }
 $('close').addEventListener('click', () => { card.hidden = true; SND.tap(); });
 function flyTo(target, lookAt, dist, up) { const dir = V1.copy(drone.p).sub(target).setY(0); if (dir.lengthSq() < 0.01) dir.set(0, 0, 1); dir.normalize(); const p = target.clone().addScaledVector(dir, dist); p.y = Math.max(target.y + up, landH(p.x, p.z) + 2); const d = new THREE.Vector3().copy(lookAt).sub(p); auto = { p, yaw: Math.atan2(-d.x, -d.z), pitch: Math.atan2(d.y, Math.hypot(d.x, d.z)) }; counts.flights++; }
 // 指の先にあるもの（海・豆知識・住人・名所・地面や家）
@@ -572,7 +645,7 @@ function tapAt(x, y) {
   if (hit.kind === 'sea') { seaWave(hit.point.x, hit.point.z); return { kind: 'sea' }; }
   if (hit.kind === 'house') { bite(hit.point, hit.normal); return { kind: 'house' }; }
   const o = hit.o;
-  if (o && o.kind === 'trivia') { const first = !found.has(o.id); found.add(o.id); $('fN').textContent = found.size; o.mk.material.color.set('#9fd0ff'); showCard(o.name, first ? `豆知識　${found.size} / ${TRIVIA.length}` : '豆知識', o.text, o.src, null); if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
+  if (o && o.kind === 'trivia') { const first = !found.has(o.id); found.add(o.id); $('fN').textContent = found.size; o.mk.material.color.set('#9fd0ff'); showTrivia(o, first); if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
   if (o && o.kind === 'gb') { gbBite(o); return o; }
   if (o && o.kind === 'puyo') { o.v += 7; o.hv = 4.2; SND.boing(o.r * 2); counts.boing++; return o; }
   if (o && o.kind === 'area') { SND.whoosh(); counts.focus++; o.seen = true; if (o.id === 'teddy') { TEDDY.userData.squish = 1; counts.teddy++; SND.boing(3); } const c = o.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + o.view.h * 0.4); flyTo(look, look, o.view.d, o.view.h); showCard(o.name, o.sub, o.text, o.link || o.id === 'teddy' ? '' : '準備中', o.link); return o; }
@@ -616,7 +689,7 @@ function showTip(t) { tipOn = t; $('tipQ').textContent = t.q; tipEl.classList.ad
 function hideTip() { tipEl.classList.remove('on'); tipOn = null; }
 $('tipYes').addEventListener('click', () => { if (tipOn) tipOn.asked = true; hideTip(); SND.tap(); });
 $('tipNo').addEventListener('click', () => { const t = tipOn; hideTip(); if (t) { t.asked = true; t.go(); SND.whoosh(); counts.tipGo++; } });
-function stepTips(dt) { if (tipOn) { if ((tipHide -= dt) <= 0) hideTip(); return; } if (!card.hidden || auto) return; if ((tipT -= dt) > 0) return; tipT = rnd(35, 50); const c = TIPS.filter((t) => !t.asked && !t.done()); if (c.length) showTip(c[(Math.random() * c.length) | 0]); }
+function stepTips(dt) { if (tipOn) { if ((tipHide -= dt) <= 0) hideTip(); return; } if (!card.hidden || COT.open || auto) return; if ((tipT -= dt) > 0) return; tipT = rnd(35, 50); const c = TIPS.filter((t) => !t.asked && !t.done()); if (c.length) showTip(c[(Math.random() * c.length) | 0]); }
 // ---------- テディのグミ：つまんで引っぱると、そこだけのびる。はなすと、ぷるんぷるんと戻る（くまの足は台に固定） ----------
 const PULL = { uGrab: { value: new THREE.Vector3() }, uPull: { value: new THREE.Vector3() }, uSig: { value: 0.45 }, uFoot: { value: -9 } }, PULL_V = new THREE.Vector3();
 function pullable(m) { const prev = m.onBeforeCompile, pk = m.customProgramCacheKey.call(m);
@@ -643,7 +716,8 @@ function stepDrone(dt, now) {
   drone.p.y = Math.min(drone.p.y, 48); const rad = Math.hypot(drone.p.x, drone.p.z - 5); if (rad > 85) { drone.p.x *= 85 / rad; drone.p.z = 5 + (drone.p.z - 5) * (85 / rad); }
   drone.yaw += (drone.tyaw - drone.yaw) * Math.min(1, dt * 8); drone.pitch += (drone.tpitch - drone.pitch) * Math.min(1, dt * 8);
   cam.position.copy(drone.p); cam.rotation.set(drone.pitch, drone.yaw, 0, 'YXZ');
-  if (!card.hidden && cardAt && !auto && drone.p.distanceTo(cardAt) > 12) card.hidden = true;   // 札の所から離れたら、たたむ
+  if (!card.hidden && cardAt && !auto && drone.p.distanceTo(cardAt) > 12) card.hidden = true;
+  if (COT.open && !auto && drone.p.distanceTo(COT.at) > 12) closeTrivia();   // 札の所から離れたら、たたむ
 }
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
@@ -725,7 +799,12 @@ function frame() {
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }
-if (fpsEl) window.__dbg = { scene, cam, drone, counts, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href }),
+if (fpsEl) window.__dbg = { scene, cam, drone, counts,
+  cotton: () => { const r = COT.inn.getBoundingClientRect(); return { open: COT.open, vis: !COT.el.hidden, t: (performance.now() - COT.t0) / 1000, box: [r.left, r.top, r.width, r.height], name: $('cotName').textContent, op: +getComputedStyle(COT.inn).opacity }; },
+  cotCover: (pts) => { const c = document.createElement('canvas'); c.width = COT.cv.width; c.height = COT.cv.height; const g = c.getContext('2d', { willReadFrequently: true }), d = COT.B.dpr; g.drawImage(COT.cv, 0, 0);   // 写しから読む（雲の絵そのものから読むと、読み出しの警告が出る）
+    if (pts) return pts.map(([x, y]) => g.getImageData(x * d, y * d, 1, 1).data[3]); const D = g.getImageData(0, 0, c.width, c.height).data; let n = 0, m = 0; for (let i = 3; i < D.length; i += 64) { m++; if (D[i] > 128) n++; } return n / m; },
+  cotAt: (t) => { cancelAnimationFrame(COT.raf); COT.t0 = performance.now() - t * 1000; cotDraw(t); },
+  cotClose: (now) => closeTrivia(now), found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href }),
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, p.z]; },
   where: (kind, id) => { const o = kind === 'area' ? AREAS.find((a) => a.id === id).g : kind === 'trivia' ? TRIVIA.find((T) => T.id === id).hit : kind === 'gb' ? GBS[id].m : PUYOS[id].body; return o.getWorldPosition(new THREE.Vector3()).toArray(); },
   place: (p, yaw, pitch) => { drone.p.set(...p); drone.v.set(0, 0, 0); drone.yaw = drone.tyaw = yaw; drone.pitch = drone.tpitch = pitch; auto = null; stepDrone(0, nowS()); },
@@ -735,6 +814,8 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts, found: () => [...found], 
   deer: () => SANTA.deer.map((D) => [...D.U.uLeg.value.toArray(), D.U.uNeck.value]), waveH: (x, z) => waveH(x, z, timeU.value), fw: (c, need) => { FW.chance = c; if (need != null) FW.need = need; }, energy: () => fwEnergy, rockets: () => ROCKETS.length + SPARKS.length,
   houseAt: (i) => { const H = HOUSES[i], o = H.o, p = new THREE.Vector3(o.w * 0.48, o.h * 0.2, o.d / 2 + 0.05).applyAxisAngle(new THREE.Vector3(0, 1, 0), o.ry); return [o.x + p.x, o.y + p.y, o.z + p.z]; }, houseFront: (i) => { const o = HOUSES[i].o, n = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), o.ry); return n.toArray(); },
   scaleOf: (id) => AREAS.find((a) => a.id === id).g.scale.x, halos: () => TRIVIA.filter((T) => (T.big ? SANTA_HALO.material.opacity : HALO_G.attributes.color.getX(T.k) + HALO_G.attributes.color.getY(T.k)) > 0.05).length, festoons: () => FESTOONS.length, boatsY: () => BOATS.map((b) => b.g.position.y), santaPos: () => SANTA.g.position.toArray(), tip: (i) => showTip(TIPS[i]), tips: () => TIPS.map((x) => x.id), tipNo: () => $('tipNo').click(), pull: () => PULL.uPull.value.length(), teddyFoot: () => { const T = TEDDY.userData.k; T.updateMatrixWorld(true); return new THREE.Box3().setFromObject(T).min.y - TEDDY.getWorldPosition(new THREE.Vector3()).y; }, tree: () => [TREE_J.j, TREE_J.spark], slope: (x, z) => slopeAt(x, z), padAt: (k) => { const [x, z] = AREAPOS[k]; return [landH(x - 2, z), landH(x + 2, z), landH(x, z - 2), landH(x, z + 2)]; }, cardAt: () => cardAt && cardAt.toArray(), rayAll: (x, y) => { pickAt(x, y); return ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false).slice(0, 6).map((h) => [+h.distance.toFixed(2), isTeddy(h.object), h.object.userData.key || h.object.material.type, PICK.includes(h.object)]); }, tedMeshes: () => { let n = 0, p = 0; TEDDY.traverse((o) => { if (o.isMesh) { n++; if (PICK.includes(o)) p++; } }); return [n, p]; }, pickObj: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, !!h.obj, h.obj ? isTeddy(h.obj) : null, h.obj ? h.obj.type + ':' + (h.obj.parent && h.obj.parent.type) : null] : null; }, teddyW: () => TEDDY.userData.k.localToWorld(new THREE.Vector3(0, 0, 0)).toArray(), teddyN: () => new THREE.Vector3(0, 0, 1).transformDirection(TOY.g.matrixWorld).toArray() };
+// 仕掛けの「港町へもどる」で来た時（#museum など）は、その建物の前から
+{ const A = AREAS.find((a) => '#' + a.id === location.hash); if (A) { A.seen = true; const c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; counts.flights--; } }
 (async () => { size(); stepDrone(0, nowS()); await prepare(); try { await renderer.compileAsync(scene, cam); } catch (e) { /* 古いブラウザは最初のコマで用意 */ } ready = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); frame(); })();
 </script>
 </body></html>
