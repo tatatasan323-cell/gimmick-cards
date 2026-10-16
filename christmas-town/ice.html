@@ -43,7 +43,8 @@ import { makeSky } from './space.js';
 import { gel, timeU } from './mat.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#04060f'); scene.fog = new THREE.FogExp2('#070b1c', 0.02);
 const sky = makeSky(scene, { aurora: 0.6 });
 const GEM_ENV = gemEnv(renderer);   // 宝石は、美術館と同じ「光の屈折で描く」本物らしい宝石
@@ -302,7 +303,7 @@ const portrait = () => innerWidth / innerHeight < 0.8;
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = portrait() ? 64 : 48; cam.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
 const nearestAngle = (cur, a) => cur + ((((a - cur) % TAU) + TAU * 1.5) % TAU) - TAU / 2;
-function overview() { focus = -1; tTGT.set(0, 1.2, 0); tDist = portrait() ? 15 : 11; tPitch = 0.5; markButtons(); }
+function overview() { focus = -1; tTGT.set(0, 1.0, 0); tDist = portrait() ? 12.5 : 9; tPitch = 0.42; markButtons(); }   // 最初の位置は、彫像に近め（本人 2026-10-16）
 function focusOn(i) { const st = statues[i]; focus = i; tTGT.copy(st.grp.position).setY(st.top * 0.45); tYaw = nearestAngle(tYaw, st.a); tDist = portrait() ? 6.8 : 5.6; tPitch = 0.22; markButtons(); }
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map(), INV = new THREE.Matrix4(), O = new THREE.Vector3(), D = new THREE.Vector3();
 const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
@@ -464,7 +465,7 @@ function frame() {
   for (const tr of trees) { if (!tr.amp) continue; tr.t += dt; const dec = Math.exp(-tr.t * 2.8), w = tr.amp * dec * Math.sin(tr.t * 13); if (dec < 0.01) { tr.amp = 0; } tr.tiers.forEach((m, k) => { m.position.x = w * 0.06 * (k + 1); m.scale.set(1 + w * 0.05, 1 - w * 0.06 * (k + 1), 1 + w * 0.05); }); tr.star.position.x = w * 0.24; tr.star.rotation.z = -w * 0.15; }
   for (const L of [GLINT, SPARK, SNOW, CRYS]) { L.g.setDrawRange(0, L.n); L.g.attributes.position.needsUpdate = L.g.attributes.color.needsUpdate = true; } GLINT.n = 0;
   sky.update(cam.position, now); renderer.render(scene, cam);
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} tris ${statues.reduce((s, x) => s + x.view.tris, 0)} chunks ${chunks.length}\n${statues.map((s) => s.phase[0] + s.gems.map((g) => g.state[0]).join('')).join(' ')}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }

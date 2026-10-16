@@ -33,7 +33,8 @@ import { makeSky } from './space.js';
 import { makeFarTown } from './town_far.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene();
 // 町の上空に浮かぶテーブル。下に雪の夜の町、水平線の上にオーロラ（本人 2026-10-15）
 scene.background = new THREE.Color('#03050f'); scene.fog = new THREE.FogExp2('#0a0f24', 0.003);
@@ -179,7 +180,7 @@ function frame() {
     }
   }
   sky.update(cam.position, performance.now() / 1000); renderer.render(scene, cam);
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} phys ${(physMs / frames).toFixed(1)}ms blocks ${blocks.length} calls ${renderer.info.render.calls}`; frames = 0; physMs = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }

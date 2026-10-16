@@ -112,7 +112,7 @@ export class Lattice {
     // 形を保つ／元に戻る／ゆらぎの収まり／つまむ強さ／ばねの伸び縮みの速さの減衰（cd）／となりとの速さの差をならす割合（xs）。
     // cd と xs は、細かいゆれ（となりどうしが逆に動く＝表面がギザギザになる）だけを消し、大きなプルンは残す
     // lim＝ばねが縮みすぎ・伸びすぎないよう、長さに上限下限（格子が折れ返って面がギザギザになるのを防ぐ）／rs＝表示の形をならす回数
-    this.P = { ks: 40, kg: 6, c: 2.0, kp: 700, sub: 3, cd: 2.5, xs: 0.1, lim: 1, rs: 3 };
+    this.P = { ks: 40, kg: 6, c: 2.0, kp: 700, sub: 3, cd: 2.5, xs: 0.1, lim: 1, lmax: 2.6, rs: 3 };   // lmax＝ばねが伸びてよい上限（元の長さの何倍か）
   }
   nearest(px, py, pz) { let best = -1, bd = 1e9; for (let i = 0; i < this.N; i++) { const d = (this.x[i * 3] - px) ** 2 + (this.x[i * 3 + 1] - py) ** 2 + (this.x[i * 3 + 2] - pz) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
   grab(px, py, pz, radius) {   // この点のまわりを、つまむ。つまんだ点から離れるほど弱く
@@ -125,7 +125,7 @@ export class Lattice {
   energy() { let e = 0; for (let i = 0; i < this.N * 3; i++) e = Math.max(e, Math.abs(this.v[i]) + Math.abs(this.x[i] - this.r[i]) * 4); return e; }   // 落ちついたかの目安
   poke(i, dx, dy, dz) { this.v[i * 3] += dx; this.v[i * 3 + 1] += dy; this.v[i * 3 + 2] += dz; }
   step(dt) {
-    const { x, v, r, acc, N, sa, sb, sl, E, dv, deg } = this, { ks, kg, c, kp, sub, cd, xs, lim, rs } = this.P, h = dt / sub;
+    const { x, v, r, acc, N, sa, sb, sl, E, dv, deg } = this, { ks, kg, c, kp, sub, cd, xs, lim, lmax, rs } = this.P, h = dt / sub;
     for (let s = 0; s < sub; s++) {
       this.t += h;
       for (let i = 0; i < N * 3; i++) acc[i] = kg * (r[i] - x[i]) - c * v[i];
@@ -135,8 +135,8 @@ export class Lattice {
       }
       for (const g of this.grabs) for (let k = 0; k < g.ids.length; k++) { const i = g.ids[k] * 3, w = g.w[k] * kp; acc[i] += w * (g.x0[k * 3] + g.d[0] * g.w[k] - x[i]); acc[i + 1] += w * (g.x0[k * 3 + 1] + g.d[1] * g.w[k] - x[i + 1]); acc[i + 2] += w * (g.x0[k * 3 + 2] + g.d[2] * g.w[k] - x[i + 2]); }
       for (let i = 0; i < N * 3; i++) { let vv = v[i] + acc[i] * h; if (vv > 30) vv = 30; else if (vv < -30) vv = -30; v[i] = vv; x[i] += vv * h; }
-      if (lim) for (let e = 0; e < E; e++) {   // 長さを 0.55〜2.6倍 に収める（半分ずつ動かす）
-        const a = sa[e] * 3, b = sb[e] * 3, dx = x[b] - x[a], dy = x[b + 1] - x[a + 1], dz = x[b + 2] - x[a + 2], len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6, L0 = sl[e], t = len < L0 * 0.55 ? L0 * 0.55 : len > L0 * 2.6 ? L0 * 2.6 : len;
+      if (lim) for (let e = 0; e < E; e++) {   // 長さを 0.55〜lmax倍 に収める（半分ずつ動かす）
+        const a = sa[e] * 3, b = sb[e] * 3, dx = x[b] - x[a], dy = x[b + 1] - x[a + 1], dz = x[b + 2] - x[a + 2], len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6, L0 = sl[e], t = len < L0 * 0.55 ? L0 * 0.55 : len > L0 * lmax ? L0 * lmax : len;
         if (t !== len) { const k = (0.5 * (len - t)) / len; x[a] += dx * k; x[a + 1] += dy * k; x[a + 2] += dz * k; x[b] -= dx * k; x[b + 1] -= dy * k; x[b + 2] -= dz * k; }
       }
       if (xs > 0) { dv.fill(0); for (let e = 0; e < E; e++) { const a = sa[e] * 3, b = sb[e] * 3; for (let k = 0; k < 3; k++) { const d = v[b + k] - v[a + k]; dv[a + k] += d; dv[b + k] -= d; } } for (let i = 0; i < N * 3; i++) v[i] += (xs * dv[i]) / deg[(i / 3) | 0]; }

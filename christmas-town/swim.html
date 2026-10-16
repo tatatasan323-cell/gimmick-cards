@@ -25,7 +25,7 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <div class="tx" id="top">ぷるぷる無重力<small id="sub">グミをつくっています…</small></div>
 <div class="tx" id="hint">グミを つまんで のばす・タップで ぷるん<br>左下のまるで およぐ（上＝まえ・下＝うしろ・左右＝向き）<br>なにもない所を なぞると、見まわせるよ ♪音あり</div>
 <div id="pad"><div id="knob"></div></div>
-<div id="modes"><button data-m="normal">ふつう</button><button data-m="loose" class="on">ゆるい</button><button data-m="water">みず</button></div>
+<div id="modes"><button data-m="loose" class="on">ゆるい</button><button data-m="looser">もっとゆるい</button><button data-m="water">みず</button></div>
 <div id="fps" hidden></div>
 <script type="module">
 // 無重力の水の中に、クリスマスのグミが20種。自分で泳ぎ（前・後ろ・向き）、触る。触ったグミだけ、ばねの格子で動かす（他は軽い揺れだけ）
@@ -37,7 +37,8 @@ import { makeSpace } from './space.js';
 import * as SND from './water_sound.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping;
+let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 背景＝暗い星空と、遠くの太陽系（近づけない）。遠くのグミは、夜の色にとけて消える
 const scene = new THREE.Scene(), BG = '#050816'; scene.background = new THREE.Color('#03050f');
 scene.fog = new THREE.FogExp2(BG, 0.03); const space = makeSpace(scene);
@@ -50,10 +51,11 @@ scene.add(new THREE.HemisphereLight('#bfe8ff', '#3a2a80', 0.8));
 const sun = new THREE.DirectionalLight('#f4fbff', 2.2); sun.position.set(-2, 8, 4); scene.add(sun);
 const rim = new THREE.DirectionalLight('#ff9be0', 1.4); rim.position.set(3, -2, -5); scene.add(rim);
 
-// ---------- 固さ（3種）：ふつう＝弾んで伸びにくい／ゆるい（最初）／みず＝のばすと、ちぎれて漂い、ゆっくり戻る（本人 2026-10-16 の名づけ） ----------
-const MODES = { normal: { P: { ks: 110, kg: 22, c: 3.4, kp: 520, cd: 5, xs: 0.15 }, max: 1.0, tear: 0, slide: 1.1 }, loose: { P: { ks: 40, kg: 6, c: 2.0, kp: 700, cd: 2.5, xs: 0.1 }, max: 2.4, tear: 0, slide: 0.8 }, water: { P: { ks: 15, kg: 1.6, c: 1.0, kp: 700, cd: 1.2, xs: 0.07 }, max: 3.0, tear: 1.0, slide: 0.5, shatter: 1800 } };
+// ---------- 固さ（3種）：ゆるい（最初）／もっとゆるい＝どこまでも伸ばせる／みず＝もっとゆるいと同じやわらかさで、長く伸びてからちぎれ、漂って戻る（本人 2026-10-16：ふつうはやめた） ----------
+const MODES = { loose: { P: { ks: 40, kg: 6, c: 2.0, kp: 700, cd: 2.5, xs: 0.1, lmax: 2.6 }, max: 2.4, tear: 0, slide: 0.8 }, looser: { P: { ks: 13, kg: 2.4, c: 1.5, kp: 700, cd: 1.6, xs: 0.07, lmax: 5 }, max: 6.0, tear: 0, slide: 0.18 },
+  water: { P: { ks: 13, kg: 1.6, c: 1.0, kp: 700, cd: 1.2, xs: 0.07, lmax: 2.6 }, max: 3.2, tear: 1.6, slide: 0.35, shatter: 1800 } };
 let mode = 'loose';
-document.querySelectorAll('#modes button').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.m; document.querySelectorAll('#modes button').forEach((x) => x.classList.toggle('on', x === b)); for (const it of actives) Object.assign(it.act.lat.P, MODES[mode].P); SND.tapSound(mode === 'normal' ? 0.7 : mode === 'water' ? 1.4 : 1, mode === 'water'); }));
+document.querySelectorAll('#modes button').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.m; document.querySelectorAll('#modes button').forEach((x) => x.classList.toggle('on', x === b)); for (const it of actives) Object.assign(it.act.lat.P, MODES[mode].P); SND.tapSound(mode === 'water' ? 1.4 : mode === 'looser' ? 1.2 : 1, mode === 'water'); }));
 
 // ---------- カメラ（泳ぐ人の目）：自分で、前・後ろ・向き ----------
 const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 400), pos = new THREE.Vector3(0, 0, 6);
@@ -209,7 +211,7 @@ cvs.addEventListener('pointerdown', (e) => {
   const hit = ray.intersectObjects(pickables, false)[0];
   if (!hit) { holds.set(e.pointerId, { bg: true, x: e.clientX, y: e.clientY, yaw: tYaw, pitch: tPitch }); return; }
   const it = hit.object.userData.inst, act = activate(it), p0 = it.g.worldToLocal(hit.point.clone()), n = cam.getWorldDirection(new THREE.Vector3());
-  holds.set(e.pointerId, { pid: e.pointerId, speed: 0, it, g: act.lat.grab(p0.x, p0.y, p0.z, 0.38), p0, plane: new THREE.Plane(n, -n.dot(hit.point)), hit: hit.point.clone(), dir: ray.ray.direction.clone(), x: e.clientX, y: e.clientY, moved: false, len: 0, drop: null });
+  act.lat.P.kg = MODES[mode].P.kg; holds.set(e.pointerId, { pid: e.pointerId, speed: 0, it, g: act.lat.grab(p0.x, p0.y, p0.z, 0.38), p0, plane: new THREE.Plane(n, -n.dot(hit.point)), hit: hit.point.clone(), dir: ray.ray.direction.clone(), x: e.clientX, y: e.clientY, moved: false, len: 0, drop: null });
   it.held++; SND.grabSound();
 });
 cvs.addEventListener('pointermove', (e) => {
@@ -228,7 +230,7 @@ function release(e) {
   if (h.drop) { h.drop.held = false; h.drop.v.clampLength(0, 3).multiplyScalar(0.6); h.drop.sv += 5; SND.releaseSound(0.5); return; }
   if (it.act && h.g) it.act.lat.release(h.g); if (!h.g && !h.drop) return;
   if (!h.moved && it.act) {   // タップ：押した向きに、ぷるん
-    const a = it.g.worldToLocal(h.hit.clone()), b = it.g.worldToLocal(h.hit.clone().addScaledVector(h.dir, 0.3)), v = b.sub(a).normalize().multiplyScalar(mode === 'normal' ? 1.8 : 2.7);
+    const a = it.g.worldToLocal(h.hit.clone()), b = it.g.worldToLocal(h.hit.clone().addScaledVector(h.dir, 0.3)), v = b.sub(a).normalize().multiplyScalar(2.7);
     it.act.lat.pokeAt(h.p0.x, h.p0.y, h.p0.z, 0.4, v.x, v.y, v.z); SND.tapSound(0.8 + it.s * 0.4, mode === 'water');
     const away = it.g.position.clone().sub(h.hit).normalize(); it.vel.addScaledVector(h.dir, 3.0).addScaledVector(away, 1.8); it.spinV += (Math.random() - 0.5) * 6;
   } else { SND.stretchStop(); SND.releaseSound(h.len, mode === 'water'); }
@@ -270,7 +272,10 @@ function frame() {
   }
   const a0 = performance.now(); runJobs(10);
   for (const it of [...actives]) {
-    const A = it.act; if (it.oozeUntil && performance.now() / 1000 > it.oozeUntil) { it.oozeUntil = 0; Object.assign(A.lat.P, MODES[mode].P, { rs: 3 }); } A.lat.step(dt);
+    const A = it.act; if (it.oozeUntil && performance.now() / 1000 > it.oozeUntil) { it.oozeUntil = 0; Object.assign(A.lat.P, MODES[mode].P, { rs: 3 }); }
+    // とてもやわらかい時、大きく伸ばすと格子がからまって、元の形へ戻りきらないことがある：はなして2.5秒たったら、元へ戻す力を少しずつ強める（つまむと元の値）
+    if (it.held) it.freeT = 0; else if ((it.freeT = (it.freeT || 0) + dt) > 2.5 && A.lat.P.kg < 6) A.lat.P.kg = Math.min(6, A.lat.P.kg + dt * 3);
+    A.lat.step(dt);
     A.geos.forEach((g, i) => { A.lat.deform(i, A.binds[i], g.attributes.position.array); g.attributes.position.needsUpdate = true; g.computeVertexNormals(); });
     if (!it.held && A.lat.energy() < 0.03) { if (++A.calm > 40) deactivate(it); } else A.calm = 0;
   }
@@ -301,7 +306,7 @@ function frame() {
   const p = bg.attributes.position.array; for (let i = 0; i < NB; i++) { p[i * 3 + 1] += dt * 0.35; for (let a = 0; a < 3; a++) { const c = cam.position.getComponent(a), v = p[i * 3 + a]; if (v - c > BOX / 2) p[i * 3 + a] -= BOX; else if (c - v > BOX / 2) p[i * 3 + a] += BOX; } } bg.attributes.position.needsUpdate = true;
   space.update(cam.position, T, dt); renderer.render(scene, cam);
   // 遅い端末では、解像度を下げる（30コマの平均が24ms超）。グミを作っている間の重さは数えない
-  if (ready && raw < 1 && ++fTot > 20) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (ready && raw < 1 && ++fTot > 20) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} soft ${(simMs / frames).toFixed(1)}ms active ${actives.size} drops ${drops.length}\ncalls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} gummies ${insts.length} mode ${mode}`; frames = 0; simMs = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }

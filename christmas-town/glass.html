@@ -30,7 +30,8 @@ import * as SND from './glass_sound.js';
 import { makeSpace } from './space.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(DPR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#0c0912'); scene.fog = new THREE.Fog('#0c0912', 14, 34);
 scene.add(new THREE.HemisphereLight('#6a5a9a', '#1a1020', 0.6));
 const warm = new THREE.PointLight('#ffb070', 40, 18, 2); warm.position.set(0, 1.0, 0); scene.add(warm);
@@ -298,7 +299,7 @@ function frame() {
   const dpa = dg.attributes.position.array; for (let i = 0; i < ND; i++) { dpa[i * 3 + 1] += dt * 0.05; if (dpa[i * 3 + 1] > 4.5) dpa[i * 3 + 1] = 0; } dg.attributes.position.needsUpdate = true;
   renderer.render(scene, cam);
   // かけらに分けている間の重さは数えない
-  if (window.__prepared && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 24 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (window.__prepared && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} falling ${falling.length} shards ${shards.length} comets ${comets.length} pts ${fxN}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }

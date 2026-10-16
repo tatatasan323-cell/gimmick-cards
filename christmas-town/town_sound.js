@@ -38,6 +38,12 @@ export function chime(k = 0) { const a = PENTA[k % PENTA.length], b = PENTA[(k +
 export function bell() { for (const [m, v, d] of [[1, 0.09, 3.2], [2.0, 0.04, 2.4], [2.4, 0.035, 2.0], [3.0, 0.02, 1.4], [4.2, 0.012, 0.9]]) tone(392 * m, 392 * m, v, 0, d, 'sine', 0.004); }
 // 寄る時：ふわっ
 export function whoosh() { hiss(0.04, 0, 0.45, 'bandpass', 900, 0.7); tone(520, 880, 0.02, 0.05, 0.35); }
+// 天へ昇る：ハープのような上りのアルペジオと、うすい合唱の和音
+export function ascend() { [523.3, 659.3, 784, 1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.045, i * 0.13, 1.5)); for (const f of [261.6, 329.6, 392]) { tone(f, f * 1.003, 0.022, 0.15, 3.4); tone(f * 2, f * 2.004, 0.01, 0.3, 3.1); } }
+// 空から落ちてくる：すべり笛（高い音から、ひゅ～と下へ）
+export function fall() { tone(1600, 240, 0.045, 0, 1.6); tone(1610, 245, 0.02, 0.02, 1.6, 'triangle'); }
+// 雪を踏む：きゅっ・さくっ（低めの細かい粒の音を、短く重ねる）
+export function snowStep(k = 1) { for (let i = 0; i < 6; i++) hiss(r(0.03, 0.06) * k, i * r(0.012, 0.022), r(0.025, 0.05), 'bandpass', r(900, 2200), 1.2); hiss(0.025 * k, 0, 0.09, 'lowpass', 600, 0.7); }
 export function tap() { tone(1400, 1100, 0.025, 0, 0.06); }
 // 海の光の波：ざわざわ〜っと駆け上がる、きらめきの音の列
 export function wave() { const S = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 2637]; for (let i = 0; i < 14; i++) { const f = S[i % S.length] * (i >= 8 ? 2 : 1); tone(f, f, 0.03, i * 0.07, 0.9); } hiss(0.03, 0, 1.2, 'highpass', 6000, 0.6); }

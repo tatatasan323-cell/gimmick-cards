@@ -128,10 +128,11 @@ export function makeMats(env) {
 
 // ---------- 家 ----------
 // 縁のアイシング：辺にそって少し波打つ管（絞り出したように）。wav＝波の大きさ
+let PIPE_Q = 1;   // 遠い家ほど、しぼり出しの管を粗く（家の数が多く、アイシングだけで三角が10万近くあった）
 function piped(pts, r = 0.032, wav = 0.012, closed = false, step = 0.16) {
-  const P = []; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], L = a.distanceTo(b), n = Math.max(2, Math.round(L / step)); for (let k = 0; k < n; k++) { const t = k / n, p = a.clone().lerp(b, t); p.y += Math.sin((i + t) * 37) * wav * 0.6; P.push(p.addScalar(Math.sin(k * 2.1) * wav * 0.4)); } }
+  step *= PIPE_Q; const P = []; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], L = a.distanceTo(b), n = Math.max(2, Math.round(L / step)); for (let k = 0; k < n; k++) { const t = k / n, p = a.clone().lerp(b, t); p.y += Math.sin((i + t) * 37) * wav * 0.6; P.push(p.addScalar(Math.sin(k * 2.1) * wav * 0.4)); } }
   if (!closed) P.push(pts[pts.length - 1].clone());
-  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(P, closed), Math.max(4, P.length), r, r < 0.03 ? 3 : 4, closed);
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(P, closed), Math.max(4, P.length), r, r < 0.03 || PIPE_Q > 1 ? 3 : 4, closed);
 }
 // しずく（屋根から垂れたフロスティング）
 const DRIP = (() => { const pts = []; for (let i = 0; i <= 6; i++) { const t = i / 6, y = -t; pts.push(new THREE.Vector2(0.001 + Math.sin(Math.PI * Math.min(1, t * 1.05)) * (0.6 + 0.4 * t) * 0.9 * (t < 0.15 ? 0.7 + t * 2 : 1), y)); } pts[0].x = 0.9; pts[6].x = 0.001; return new THREE.LatheGeometry(pts, 6); })();
@@ -144,7 +145,7 @@ const GUMC = ['#ff4a5a', '#3fd06a', '#ffd23a', '#5fa8ff', '#ff8a2a', '#c07aff'];
 // o＝{ x, y, z, ry, w, d, h, rh, roof: 'frost'|'wafer'|'choco', shade, glass, gum, chimney, door, mint, base（坂の下へ伸ばす土台の高さ）, lod（0＝近い：全部／1＝横と後ろの窓・しずくを省く／2＝遠い：正面の縁と窓だけ） }
 export function addHouse(acc, o) {
   const M = new THREE.Matrix4().compose(new THREE.Vector3(o.x, o.y, o.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), o.ry || 0), new THREE.Vector3(1, 1, 1));
-  const lod = o.lod ?? (o.simple ? 1 : 0), at = (g) => g.applyMatrix4(M), { w, d, h, rh } = o, bev = 0.05, top = h + rh, a = Math.atan2(rh, w / 2), Ls = Math.hypot(w / 2, rh) + 0.22, zf = d / 2 + bev, R = (s) => (hash2((o.seed | 0) + s, o.w * 10) < 0.5);
+  const lod = o.lod ?? (o.simple ? 1 : 0); PIPE_Q = lod === 0 ? 1 : lod === 1 ? 1.7 : 2.4; const at = (g) => g.applyMatrix4(M), { w, d, h, rh } = o, bev = 0.05, top = h + rh, a = Math.atan2(rh, w / 2), Ls = Math.hypot(w / 2, rh) + 0.22, zf = d / 2 + bev, R = (s) => (hash2((o.seed | 0) + s, o.w * 10) < 0.5);
   // 壁：焼いた生地。面取りの所（角）は焼き色を濃く
   const body = new THREE.ExtrudeGeometry(gable(w, h, rh), { depth: d, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 2, curveSegments: 1 }).translate(0, 0, -d / 2);
   const uvA = body.attributes.uv, nA = body.attributes.normal, tc = new Float32Array(nA.count * 3); for (let i = 0; i < uvA.count; i++) uvA.setXY(i, uvA.getX(i) * 0.7, uvA.getY(i) * 0.7);
@@ -199,15 +200,35 @@ export function addHouse(acc, o) {
 function vnoise(x, y) { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
 const SYRUP = { strawberry: '#e8243e', melon: '#5fd06a', hawaii: '#2f8cf0', lemon: '#ffe14a', grape: '#9a4ad8' };
 const kakiR = (R, H, y) => R * Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, y / H), 1.7)), 0.55);
+// 氷の山の表面の点（向き a・高さの割合 t）。でこぼこは、シロップの層も同じ式でたどる
+const kakiBump = (a, t, seed) => (vnoise(a * 6 + seed, t * 9) - 0.5) * 0.09 + (vnoise(a * 24 + seed * 3, t * 30) - 0.5) * 0.04;
+function kakiAt(R, H, seed, a, t, lift = 0) { const b = kakiBump(a, t, seed), r = Math.max(0.001, kakiR(R, H, H * t)) * (1 + b) + lift * R; return [Math.cos(a) * r, H * t + b * H * 0.15 * (1 - t) + lift * H * 0.5, Math.sin(a) * r]; }
 // かき氷の山：丸く盛った氷のつぶ（大小のでこぼこ）。上から色のシロップがしみて、筋になって垂れる
 export function kakigori(R, H, syrup, seed = 1) {
   const prof = []; for (let i = 0; i <= 28; i++) { const t = i / 28, y = H * t; prof.push(new THREE.Vector2(Math.max(0.001, kakiR(R, H, y)), y)); }
   const g = new THREE.LatheGeometry(prof, 56), p = g.attributes.position, col = new Float32Array(p.count * 3), sc = new THREE.Color(SYRUP[syrup] || syrup), ice = new THREE.Color('#eef4ff');
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), ang = Math.atan2(z, x), t = y / H, r = Math.hypot(x, z);
-    const bump = (vnoise(ang * 6 + seed, t * 9) - 0.5) * 0.09 + (vnoise(ang * 24 + seed * 3, t * 30) - 0.5) * 0.04; const k = r > 0.01 ? 1 + bump : 1; p.setX(i, x * k); p.setZ(i, z * k); p.setY(i, y + bump * H * 0.15 * (1 - t));
+    const bump = kakiBump(ang, t, seed); const k = r > 0.01 ? 1 + bump : 1; p.setX(i, x * k); p.setZ(i, z * k); p.setY(i, y + bump * H * 0.15 * (1 - t));
     const drip = 0.55 - 0.32 * Math.pow(Math.max(0, Math.sin(ang * 7 + seed) * 0.5 + 0.5 * vnoise(ang * 3, seed)), 2), cov = SS(t, drip - 0.06, drip + 0.08), c = ice.clone().lerp(sc, cov * 0.92).multiplyScalar(0.92 + vnoise(ang * 40, t * 60) * 0.16);
     col.set([c.r, c.g, c.b], i * 3); }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+}
+// 練乳：氷の上にとろりとのるリボン（平たく・太さがゆらぐ）。上でうず状にかけ、ところどころ下へ垂れて、先がぷっくり
+function kakiN(R, H, a, t) { const e = 0.01, dr = (kakiR(R, H, H * Math.min(1, t + e)) - kakiR(R, H, H * Math.max(0, t - e))) / (2 * e * H), L = Math.hypot(1, dr); return new THREE.Vector3(Math.cos(a) / L, -dr / L, Math.sin(a) / L); }
+function ribbonOn(R, H, seed, path, wid) {   // path：[向き, 高さの割合, 太さの倍率] の並び
+  const RS = 6, pos = [], idx = [], P = path.map(([a, t]) => new THREE.Vector3(...kakiAt(R, H, seed, a, t, 0.035))), T = new THREE.Vector3(), B = new THREE.Vector3(), N2 = new THREE.Vector3();
+  path.forEach(([a, t, k], i) => { T.subVectors(P[Math.min(i + 1, P.length - 1)], P[Math.max(i - 1, 0)]).normalize(); const N = kakiN(R, H, a, t); B.crossVectors(T, N).normalize(); N2.crossVectors(B, T).normalize(); const w = wid * k, h = w * 0.42;
+    for (let j = 0; j < RS; j++) { const ph = (j / RS) * TAU, c = Math.cos(ph) * w, sn = Math.sin(ph) * h + h * 0.3; pos.push(P[i].x + B.x * c + N2.x * sn, P[i].y + B.y * c + N2.y * sn, P[i].z + B.z * c + N2.z * sn); } });
+  for (let i = 0; i < path.length - 1; i++) for (let j = 0; j < RS; j++) { const a = i * RS + j, b = i * RS + ((j + 1) % RS); idx.push(a, b, a + RS, b, b + RS, a + RS); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+export function milkDrizzle(R, H, seed = 1) {
+  const main = []; for (let i = 0; i <= 100; i++) { const u = i / 100, k = (0.75 + 0.4 * vnoise(u * 18, seed)) * Math.min(1, u * 20 + 0.1, (1 - u) * 20 + 0.1); main.push([seed * 0.7 + u * TAU * 1.8, Math.min(0.985, 0.96 - 0.3 * u + 0.045 * Math.sin(u * 46 + seed)), k]); }
+  const out = [ribbonOn(R, H, seed, main, R * 0.05)];
+  for (let d = 0; d < 5; d++) { const [a0, t0] = main[Math.round((0.15 + d * 0.17) * 100)], len = 0.08 + 0.1 * vnoise(d * 3.1, seed), Q = [];
+    for (let i = 0; i <= 12; i++) { const u = i / 12; Q.push([a0 + 0.01 * Math.sin(u * 5), t0 - len * u, 0.9 * (1 - u * 0.55) + (u > 0.85 ? (u - 0.85) * 4 : 0)]); }
+    Q.push([a0, t0 - len - 0.006, 0.05]); out.push(ribbonOn(R, H, seed, Q, R * 0.03)); }   // 先のぷっくりを、とじる
+  return out;
 }
 // ソフトクリームの山：絞り口の筋（8本）のある太い管が、細くなりながら3回半うずを巻いて、先がくるり
 export function softServe(R, H, colA, colB = null, turns = 3.4) {
@@ -232,7 +253,7 @@ export function mountainMats(env) {
   const flakesN = D.normal.clone(); flakesN.repeat.set(6, 6); flakesN.needsUpdate = true;
   return {
     ice,
-    milk: new THREE.MeshPhysicalMaterial(E({ color: '#fff6e6', roughness: 0.1, clearcoat: 1, emissive: '#3a3020', emissiveIntensity: 0.25, envMapIntensity: 1 })),
+    milk: new THREE.MeshPhysicalMaterial(E({ color: '#fff3df', roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.04, sheen: 0.6, sheenColor: new THREE.Color('#ffffff'), emissive: '#5a4a34', emissiveIntensity: 0.38, envMapIntensity: 0.8 })),   // 練乳：象牙色で、とろりとしたつや
     berry: new THREE.MeshPhysicalMaterial(E({ map: berry, roughness: 0.28, clearcoat: 0.9, emissive: '#3a0008', emissiveIntensity: 0.4, envMapIntensity: 0.9 })),
     leaf: new THREE.MeshStandardMaterial({ color: '#3aa04a', roughness: 0.5, emissive: '#0a3010', emissiveIntensity: 0.3, side: THREE.DoubleSide }),
     mochi: new THREE.MeshPhysicalMaterial(E({ color: '#fbf6ee', roughness: 0.5, sheen: 0.7, sheenColor: new THREE.Color('#ffffff'), emissive: '#3a3630', emissiveIntensity: 0.3 })),
@@ -259,9 +280,7 @@ function meshesOf(acc, mats, g) { for (const m of acc.build(mats)) g.add(m); ret
 // かき氷の山を一皿に：氷の山＋練乳のうず＋シロップの味のくだもの＋白玉＋ガラスの器のふち
 export function kakiMountain(MM, R, H, syrup, seed = 1) {
   const g = new THREE.Group(), acc = new Acc(); g.add(new THREE.Mesh(kakigori(R, H, syrup, seed), MM.ice));
-  const P = []; for (let i = 0; i <= 60; i++) { const t = i / 60, y = H * (0.97 - t * 0.5), an = t * TAU * 2.3 + seed; P.push(new THREE.Vector3(Math.cos(an) * kakiR(R, H, y) * 1.09, y + Math.sin(t * 40) * 0.12, Math.sin(an) * kakiR(R, H, y) * 1.09)); }
-  acc.add('milk', tubeAlong(P, R * 0.035));
-  for (let k = 0; k < 4; k++) { const an = seed * 1.3 + k * 1.7, y0 = H * (0.75 - k * 0.07), Q = []; for (let i = 0; i <= 10; i++) { const y = y0 - i * H * 0.04; Q.push(new THREE.Vector3(Math.cos(an) * kakiR(R, H, y) * 1.06, y, Math.sin(an) * kakiR(R, H, y) * 1.06)); } acc.add('milk', tubeAlong(Q, R * 0.025)); }
+  for (const mg of milkDrizzle(R, H, seed)) acc.add('milk', mg);
   const put = (key, geo, y, an, s, tilt = 0, ry = null) => { const r = kakiR(R, H, y) * 0.92; acc.add(key, geo.clone(), null, place(Math.cos(an) * r, y, Math.sin(an) * r, s, tilt, ry ?? -an, tilt * 0.6)); };
   const S = R * 0.13, ball = new THREE.SphereGeometry(1, 14, 10);
   if (syrup === 'strawberry') { put('berry', STRAW, H * 0.99, 0, S * 1.3); for (let i = 0; i < 6; i++) put('berry', STRAW, H * 0.82, i * 1.05 + seed, S, 0.5); }
@@ -319,33 +338,50 @@ export function gbOutline(dress = false) {
 // 外形までの近さ（ふちの焼き色・端から削れる順番に使う）
 function edgeDist(p, pts) { let m = 1e9; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], ex = b.x - a.x, ey = b.y - a.y, L2 = ex * ex + ey * ey || 1e-9, t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / L2)); m = Math.min(m, Math.hypot(p.x - a.x - ex * t, p.y - a.y - ey * t)); } return m; }
 // 平たい形に厚み：表と裏は三角を細かく割る（曲げても折れ目が出ないように）。extras＝頭の後ろの飾り（おだんご・おさげ）。aEdge＝外形までの近さ（側面は0）
+// aWall＝側面の点の、内向きの向き（x, y）・角の伸び（z）・内へ進んで外形からいちばん遠くなる所の深さ（w）。かじると側面が、削れたふちまで内へ寄る（寄せないと、表と裏の2枚の板だけが残って見えた）
 export function flatCookie(outline, thick = 0.09, maxEdge = 0.035, extras = []) {
-  const pos = [], nrm = [], uv = [], ed = [], put = (x, y, z, nx, ny, nz, e) => { pos.push(x, y, z); nrm.push(nx, ny, nz); uv.push((x + 0.45) / 0.9, (y + 0.55) / 1.1); ed.push(e); };
+  const pos = [], nrm = [], uv = [], ed = [], wl = [], NOW = [0, 0, 0, 0], put = (x, y, z, nx, ny, nz, e, w = NOW) => { pos.push(x, y, z); nrm.push(nx, ny, nz); uv.push((x + 0.45) / 0.9, (y + 0.55) / 1.1); ed.push(e); wl.push(...w); };
   // 外形は左回りにそろえる（側面が外を向く）
   const capOf = (pts0, z0, half) => { const pts = THREE.ShapeUtils.isClockWise(pts0) ? pts0.slice().reverse() : pts0, tris = THREE.ShapeUtils.triangulateShape(pts, []); const out = []; const sub = (a, b, c) => { const L = [a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)], m = Math.max(...L); if (m <= maxEdge) { out.push(a, b, c); return; } if (m === L[0]) { const ab = a.clone().lerp(b, 0.5); sub(a, ab, c); sub(ab, b, c); } else if (m === L[1]) { const bc = b.clone().lerp(c, 0.5); sub(a, b, bc); sub(a, bc, c); } else { const ca = c.clone().lerp(a, 0.5); sub(a, b, ca); sub(ca, b, c); } };
     for (const [i, j, k] of tris) sub(pts[i], pts[j], pts[k]);
     const E = new Map(), eOf = (p) => { const key = p.x.toFixed(5) + ',' + p.y.toFixed(5); let e = E.get(key); if (e === undefined) { e = edgeDist(p, pts); E.set(key, e); } return e; };
     // 表の三角は、手前（+z）から見て左回りに（向きが逆だと裏から照らされて黒く見えた）
     for (let i = 0; i < out.length; i += 3) { let [a, b, c] = [out[i], out[i + 1], out[i + 2]]; if ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) < 0) [b, c] = [c, b]; for (const p of [a, b, c]) put(p.x, p.y, z0 + half, 0, 0, 1, eOf(p)); for (const p of [a, c, b]) put(p.x, p.y, z0 - half, 0, 0, -1, eOf(p)); }
-    const n = pts.length; for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n], ex = q.x - p.x, ey = q.y - p.y, L = Math.hypot(ex, ey) || 1, nx = ey / L, ny = -ex / L;
-      put(p.x, p.y, z0 + half, nx, ny, 0, 0); put(q.x, q.y, z0 - half, nx, ny, 0, 0); put(q.x, q.y, z0 + half, nx, ny, 0, 0); put(p.x, p.y, z0 + half, nx, ny, 0, 0); put(p.x, p.y, z0 - half, nx, ny, 0, 0); put(q.x, q.y, z0 - half, nx, ny, 0, 0); } };
+    const n = pts.length, sn = pts.map((p, i) => { const q = pts[(i + 1) % n], ex = q.x - p.x, ey = q.y - p.y, L = Math.hypot(ex, ey) || 1; return [ey / L, -ex / L]; });
+    const inw = pts.map((p, i) => { const a = sn[(i + n - 1) % n], b = sn[i]; let mx = -(a[0] + b[0]), my = -(a[1] + b[1]); const L = Math.hypot(mx, my) || 1; mx /= L; my /= L; const k = 1 / Math.max(0.5, -(mx * b[0] + my * b[1]));
+      let t0 = 1; for (let j = 0; j < n; j++) { if (j === i || (j + 1) % n === i) continue; const a0 = pts[j], a1 = pts[(j + 1) % n], sx = a1.x - a0.x, sy = a1.y - a0.y, den = mx * sy - my * sx; if (Math.abs(den) < 1e-9) continue;
+        const t = ((a0.x - p.x) * sy - (a0.y - p.y) * sx) / den, u = ((a0.x - p.x) * my - (a0.y - p.y) * mx) / den; if (t > 1e-4 && u >= 0 && u <= 1 && t < t0) t0 = t; }
+      let ridge = 0; for (let st = 1; st <= 24; st++) { const t = (t0 * st) / 24, e = edgeDist(new THREE.Vector2(p.x + mx * t, p.y + my * t), pts); if (e > ridge) ridge = e; }   // 内へ進んで、外形からいちばん遠くなる所（そこまで削れたら、この側面は消える）
+      return [mx, my, k, ridge]; });
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n, p = pts[i], q = pts[j];
+      const [pi, pj] = [inw[i], inw[j]], A = [-pi[0], -pi[1]], C = [-pj[0], -pj[1]];
+      put(p.x, p.y, z0 + half, A[0], A[1], 0, 0, pi); put(q.x, q.y, z0 - half, C[0], C[1], 0, 0, pj); put(q.x, q.y, z0 + half, C[0], C[1], 0, 0, pj); put(p.x, p.y, z0 + half, A[0], A[1], 0, 0, pi); put(p.x, p.y, z0 - half, A[0], A[1], 0, 0, pi); put(q.x, q.y, z0 - half, C[0], C[1], 0, 0, pj); } };
   capOf(outline, 0, thick / 2);
   for (const [cx, cy, r] of extras) { const pts = []; for (let i = 0; i < 16; i++) pts.push(new THREE.Vector2(cx + Math.cos((i / 16) * TAU) * r, cy + Math.sin((i / 16) * TAU) * r)); capOf(pts, -0.01, thick / 2 * 0.9); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('aEdge', new THREE.Float32BufferAttribute(ed, 1)); return g;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('aEdge', new THREE.Float32BufferAttribute(ed, 1)); g.setAttribute('aWall', new THREE.Float32BufferAttribute(wl, 4)); return g;
 }
 // クッキーの焼き色と、削れ方（材質に足す）：ふちは濃く焼け、側面はいちばん濃い。uEat（0〜1）で、外形から内へ、ぎざぎざに削れていく。削れたふちは中の明るい生地
-const COOKIE_V = 'attribute float aEdge; varying float vEdge; varying vec2 vLoc;\n';
-const COOKIE_F = `uniform float uEat; varying float vEdge; varying vec2 vLoc;
-float ckEat() { float crk = fract(sin(dot(floor(vLoc * 46.0), vec2(12.9898, 78.233))) * 43758.5453); return uEat * 0.36 - crk * 0.025 - 0.012 * sin(vLoc.x * 53.0 + vLoc.y * 31.0); }
+const CK_EAT = `float ckCrk(vec2 p) { return fract(sin(dot(floor(p * 46.0), vec2(12.9898, 78.233))) * 43758.5453); }
+float ckEatAt(vec2 p) { return uEat * 0.2 - ckCrk(p) * 0.025 - 0.012 * sin(p.x * 53.0 + p.y * 31.0); }
+`;
+const COOKIE_V = 'attribute float aEdge; attribute vec4 aWall; uniform float uEat; varying float vEdge; varying vec2 vLoc; varying float vWall; varying float vCut; varying float vZ;\n' + CK_EAT;
+const COOKIE_F = `uniform float uEat; varying float vEdge; varying vec2 vLoc; varying float vWall; varying float vCut; varying float vZ;
+${CK_EAT}float ckEat() { return ckEatAt(vLoc); }
 `;
 function cookieLook(sh, U) {
   sh.uniforms.uEat = U.uEat;
-  sh.vertexShader = COOKIE_V + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = aEdge; vLoc = position.xy;');
-  sh.fragmentShader = COOKIE_F + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat ckE = ckEat(); if (uEat > 0.0 && vEdge < ckE) discard;')
+  // 側面：削れたふち（ckEatAt）まで内へ寄せる。反対側の外形とぶつかる所まで削れたら（腕の先が消えた）、その側面も消す
+  sh.vertexShader = COOKIE_V + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+vEdge = aEdge; vLoc = position.xy; vWall = 0.0; vCut = 0.0; vZ = position.z;
+if (aWall.z > 0.0) { vWall = 1.0; if (uEat > 0.0) { float e = max(0.0, ckEatAt(position.xy + aWall.xy * uEat * 0.2) - 0.006); if (e >= aWall.w) vWall = 2.0; float sc = min(e, aWall.w) * aWall.z; transformed.xy += aWall.xy * sc; vCut = sc; } }`);
+  sh.fragmentShader = COOKIE_F + sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nif (vWall > 0.5) normal = normalize(vNormal) * (gl_FrontFacing ? 1.0 : -1.0);')
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nif (vWall > 0.5) totalEmissiveRadiance = diffuseColor.rgb * 0.2;')
+    .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat ckE = ckEat(); if (uEat > 0.0 && ((vWall < 0.5 && vEdge < ckE) || vWall > 1.5)) discard;')
     .replace('#include <color_fragment>', `#include <color_fragment>
 diffuseColor.rgb *= mix(vec3(0.6, 0.47, 0.38), vec3(1.0), smoothstep(0.0, 0.032, vEdge));
 if (uEat > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.58, 0.36), (1.0 - smoothstep(0.0, 0.025, vEdge - ckE)) * 0.7);
-if (!gl_FrontFacing) diffuseColor.rgb = vec3(0.76, 0.52, 0.32);`);
+if (!gl_FrontFacing) diffuseColor.rgb = vec3(0.76, 0.52, 0.32);
+if (vWall > 0.5) { vec2 gp = vec2(vLoc.x * 0.8 + vLoc.y * 0.6, vZ) * 2.2; float gr = ckCrk(gp), pore = step(0.86, ckCrk(gp * 1.7 + 3.1)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.55, 0.32) * (0.9 + 0.16 * gr) * (1.0 - 0.28 * pore), smoothstep(0.0, 0.012, vCut)); }   // 削れた側面＝中の生地（明るく、ざらっと粒と小さな穴）`);
 }
 // 曲げ：腕は肩（±0.13, 0.11）から、脚は股（±0.08, -0.15）から。先へ行くほど大きく曲がる（ぐにょり）
 const BEND = `
