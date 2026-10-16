@@ -8,7 +8,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #top{top:calc(12px + env(safe-area-inset-top));font-size:22px;font-weight:800;letter-spacing:.12em}
 #top small{display:block;margin-top:4px;font-size:12px;font-weight:700;letter-spacing:.1em;opacity:.85}
 #hint{bottom:calc(150px + env(safe-area-inset-bottom));font-size:13px;font-weight:800;line-height:1.7;transition:opacity .8s}
-#found{position:fixed;right:12px;top:calc(56px + env(safe-area-inset-top));padding:5px 11px;border-radius:999px;background:rgba(40,22,8,.55);color:#ffe7b0;font-size:12.5px;font-weight:800;pointer-events:none}
+#found{position:fixed;right:12px;top:calc(56px + env(safe-area-inset-top));padding:5px 11px;border-radius:999px;background:rgba(40,22,8,.55);color:#ffe7b0;font-size:12.5px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #card{position:fixed;left:50%;top:calc(92px + env(safe-area-inset-top));transform:translateX(-50%);width:min(92vw,390px);box-sizing:border-box;padding:14px 16px 12px;border-radius:18px;background:rgba(255,248,236,.97);color:#2a1a10;box-shadow:0 10px 34px rgba(0,0,0,.45)}
 #card b{display:block;font-size:19px;letter-spacing:.05em}
 #card small{display:block;font-size:12px;font-weight:700;color:#8a5a2a;margin-top:2px}
@@ -42,17 +42,28 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 .spk{position:absolute;color:#fff;font-size:15px;line-height:1;pointer-events:none;text-shadow:0 0 8px #ffc8e6,0 0 16px #b9dcff;animation:tw 1.7s ease-in-out infinite}
 @keyframes tw{0%,100%{opacity:.15;transform:scale(.55) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(25deg)}}
 @media (prefers-reduced-motion:reduce){#cotC,#cotName span,.spk{animation:none}#cotIn{transition:none}}
+#menuB{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:13px;font-weight:800;color:#fff3df;background:rgba(40,22,8,.55);border:1px solid rgba(255,230,190,.35);border-radius:999px;padding:7px 12px;cursor:pointer}
+#menu{position:fixed;inset:0;z-index:25;background:rgba(10,6,20,.45);display:flex;align-items:flex-end;justify-content:center}#menu[hidden]{display:none}
+#sheet{width:min(100%,520px);max-height:82vh;box-sizing:border-box;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:#fff8ee;color:#2a1a10;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(0,0,0,.4)}
+#tabs{display:flex;gap:6px}#tabs button{flex:1;font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 2px;background:#eadccb;color:#5a3a1a;cursor:pointer}#tabs button.on{background:#c8732e;color:#fff}
+#pane{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
+.it{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #ecdcc8}.it .mtx{flex:1;min-width:0;text-align:left}.it b{display:block;font-size:14.5px}.it small{display:block;font-size:12px;color:#8a5a2a;margin-top:2px;line-height:1.5}
+.it button,.it a{font:inherit;font-size:12.5px;font-weight:800;border:0;border-radius:999px;padding:7px 11px;background:#eadccb;color:#5a3a1a;text-decoration:none;white-space:nowrap;cursor:pointer}.it .go{background:#c8732e;color:#fff}.it .on{background:#3a8a4a;color:#fff}
+.hd{font-size:12.5px;font-weight:800;color:#8a5a2a;margin:2px 2px 4px}.ok{color:#3a8a4a;font-weight:800}
+#menuX{font:inherit;font-weight:800;border:0;border-radius:999px;padding:9px;background:#eadccb;color:#5a3a1a;cursor:pointer}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
 </head><body><canvas id="c"></canvas>
 <div class="tx" id="top">おかしな港町<small id="sub">じゅんびちゅう…</small></div>
-<div id="found">豆知識 <span id="fN">0</span> / <span id="fT">9</span></div>
+<div id="found" role="button" tabindex="0" aria-label="見つけた豆知識の一覧">豆知識 <span id="fN">0</span> / <span id="fT">12</span> ›</div>
 <div class="tx" id="hint">左の丸＝飛ぶ・▲▼＝上下・空や町をなぞる＝見まわす<br>海をなぞる＝光の波・家や住人をタップ＝かじる　♪音あり</div>
 <div id="joy"><div id="knob"></div></div><button class="ud" id="upB" type="button">▲</button><button class="ud" id="dnB" type="button">▼</button>
 <div id="card" hidden><b id="cName"></b><small id="cSub"></small><p id="cText"></p><div class="src" id="cSrc"></div><div class="row"><a id="go" target="_blank" rel="noopener" hidden>この場所へ ›</a><button id="close" type="button">とじる</button></div></div>
 <div id="tip"><p id="tipQ"></p><div class="row"><button id="tipYes" type="button">うん</button><button id="tipNo" type="button">まだ！ つれてって</button></div></div>
 <div id="cotton" hidden><canvas id="cotC"></canvas><div id="cotIn"><div id="cotTag"></div><div id="cotName"></div><p id="cotText"></p><div id="cotSrc"></div><button id="cotOk" type="button">なるほど！</button></div></div>
+<button id="menuB" type="button" aria-haspopup="dialog">☰ メニュー</button>
+<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button></div></div>
 <div id="fps" hidden></div>
 <script type="module">
 // 冬の夜の、北欧の入り江の港町。湾を囲むハーバーに、お菓子の家（ジンジャーブレッドの壁・フロスティングの屋根・飴の窓）が坂の上まで段々に続く
@@ -62,7 +73,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { makeSky } from './space.js';
-import { gel, timeU } from './mat.js';
+import { gel, fadeEdge, timeU } from './mat.js';
 import { gemEnv } from './gemshader.js';
 import { MORE_GEMS, makeGem } from './gems.js';
 import { CHARS, buildType, instantiate } from './chars.js';
@@ -70,6 +81,7 @@ import { CEILING, ROSE, paint } from './designs.js';
 import * as SW from './sweets.js';
 import { makeYacht } from './yacht.js';
 import * as SND from './town_sound.js';
+import { BGM } from './town_bgm.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
 const $ = (id) => document.getElementById(id);
@@ -85,7 +97,7 @@ const GEM_ENV = gemEnv(renderer);
   scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.02).texture; }
 scene.add(new THREE.HemisphereLight('#8aa0d8', '#140e1e', 0.34));
 const moonL = new THREE.DirectionalLight('#cfdcff', 0.65); moonL.position.set(-8, 14, 10); scene.add(moonL);
-const V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), V3 = new THREE.Vector3();
+const V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), V3 = new THREE.Vector3(), V4 = new THREE.Vector3(), V5 = new THREE.Vector3(), HM2 = new THREE.Matrix4(), QQ2 = new THREE.Quaternion();
 const ctex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
 const glowTex = ctex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
 const sprite = (col, s, op = 1) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending })); m.scale.setScalar(s); return m; };
@@ -136,6 +148,9 @@ reserve(AREAPOS.bakery[0], AREAPOS.bakery[1], 2.4); reserve(AREAPOS.post[0], ARE
 // 名所と広場の下は、地面を平らにならす
 for (const [k, r] of [['ice', 3.9], ['chapel', 5.0], ['museum', 4.4], ['theater', 3.7], ['toy', 3.9], ['post', 2.8], ['bakery', 2.8], ['square', 3.4]]) { const [x, z] = AREAPOS[k]; PADS.push([x, z, r, landH0(x, z)]); }
 { const [sx, sz] = AREAPOS.square; PADS.push([sx + 4.6, sz + 2.8, 1.6, landH0(sx + 4.6, sz + 2.8)]); }
+// 広場の奥：ガラス玉の屋台と、ひと休みするトナカイ（どちらも豆知識）。住人やルシアの行列が歩くだ円の外に置く
+const MARKET = { bauble: [SQ[0] - 5.6, SQ[1] - 4.0], deer: [SQ[0] + 5.8, SQ[1] - 3.6] };
+for (const [x, z] of Object.values(MARKET)) { PADS.push([x, z, 1.9, landH0(x, z)]); reserve(x, z, 2.0); }
 // 地面：粉砂糖の雪（世界の座標で模様を貼る）。海の底は暗く
 let GROUND = null, ROAD_HASH = null;
 // 雪の見た目（地面と道で共通）：世界の位置で決まる値のノイズ。ふきだまりの明暗と、近くだけのきらめき（見る位置が動くと、またたく）
@@ -180,14 +195,17 @@ function snowify(m, roadEdges) {
 
 // ---------- 海：さざ波。空とオーロラを映し、町の灯りが縦にゆらぐ。触ると、光の波が本当にうねって輪に広がる（高さ・傾き・波頭の光） ----------
 const WAVES = Array.from({ length: 12 }, () => new THREE.Vector4(0, 0, -99, 0));
+// 水面は2枚（湾の細かい網＝x ±56・z −4〜104 と、その外の穴あきの大きな板）。外の板は境目に頂点がないので、波紋の高さを境目の3m手前で0へ寄せて、縁をそろえる
+// （寄せないと、波紋が境目に届いた時に網だけが上下して、海に切れ目の線が出た）。光り方は寄せない
 const WAVE_GLSL = `uniform vec4 uW[12];
+float seaEdge(vec2 p) { return smoothstep(0.0, 3.0, 56.0 - abs(p.x)) * smoothstep(0.0, 3.0, 104.0 - p.y) * smoothstep(0.0, 3.0, p.y + 4.0); }
 float waveAt(vec2 p, float t, out vec2 grad, out vec3 glow) { float h = 0.0; grad = vec2(0.0); glow = vec3(0.0);
   for (int i = 0; i < 12; i++) { vec4 w = uW[i]; float dt = t - w.z; if (dt < 0.0 || dt > 13.0) continue;
     vec2 dv = p - w.xy; float d = length(dv) + 1e-3, r = dt * 6.5, ph = d - r, sg = 2.0 + dt * 0.35, A = w.w * 0.55 * exp(-dt * 0.17) / sqrt(1.0 + r * 0.12), env = exp(-ph * ph / (2.0 * sg * sg)), c = cos(ph * 1.5);
     h += A * env * c; grad += A * env * (-ph / (sg * sg) * c - 1.5 * sin(ph * 1.5)) * dv / d;
     float crest = smoothstep(0.6, 0.98, c) * env, hue = atan(dv.y, dv.x) / 6.2832 + t * 0.12 + float(i) * 0.13;
     glow += mix(vec3(0.45, 0.75, 1.0), clamp(abs(fract(hue + vec3(0.0, 0.333, 0.667)) * 6.0 - 3.0) - 1.0, 0.0, 1.0), 0.6) * (crest * 0.75 + env * 0.05) * w.w * exp(-dt * 0.3); }
-  return h; }
+  return h * seaEdge(p); }
 `;
 const waterMat = new THREE.ShaderMaterial({ uniforms: { uT: { value: 0 }, uFog: { value: FOG }, uAur: { value: 1 }, uHue: { value: 0 }, uW: { value: WAVES } },
   vertexShader: WAVE_GLSL + 'uniform float uT; varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec2 gr; vec3 gl; w.y += waveAt(w.xz, uT, gr, gl); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
@@ -212,7 +230,7 @@ const waterMat = new THREE.ShaderMaterial({ uniforms: { uT: { value: 0 }, uFog: 
   const hole = new THREE.Path(); hole.moveTo(-56, -104); hole.lineTo(-56, 4); hole.lineTo(56, 4); hole.lineTo(56, -104); hole.closePath(); sh.holes.push(hole);
   for (const g of [inner, new THREE.ShapeGeometry(sh).rotateX(-Math.PI / 2)]) { const m = new THREE.Mesh(g, waterMat); m.position.y = WATER_Y; m.frustumCulled = false; scene.add(m); } }
 // 同じうねりの高さ（ヨットを波に乗せる）
-function waveH(x, z, t) { let h = 0; for (const w of WAVES) { const dt = t - w.z; if (dt < 0 || dt > 13) continue; const d = Math.hypot(x - w.x, z - w.y) + 1e-3, r = dt * 6.5, ph = d - r, sg = 2 + dt * 0.35; h += w.w * 0.55 * Math.exp(-dt * 0.17) / Math.sqrt(1 + r * 0.12) * Math.exp(-ph * ph / (2 * sg * sg)) * Math.cos(ph * 1.5); } return h; }
+function waveH(x, z, t) { let h = 0; for (const w of WAVES) { const dt = t - w.z; if (dt < 0 || dt > 13) continue; const d = Math.hypot(x - w.x, z - w.y) + 1e-3, r = dt * 6.5, ph = d - r, sg = 2 + dt * 0.35; h += w.w * 0.55 * Math.exp(-dt * 0.17) / Math.sqrt(1 + r * 0.12) * Math.exp(-ph * ph / (2 * sg * sg)) * Math.cos(ph * 1.5); } const ss = (v) => { const k = clamp(v / 3, 0, 1); return k * k * (3 - 2 * k); }; return h * ss(56 - Math.abs(x)) * ss(104 - z) * ss(z + 4); }
 // 灯りの映り込み（縦にのびる光の筋：港の入口のほうへ）
 // 灯りの映り込みは、1つの形をくり返し描く（1本ずつだと、描く回数が35ふえた）
 const STREAK = [], HC = new THREE.Color(), STREAK_M = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 120); STREAK_M.count = 0; STREAK_M.frustumCulled = false; scene.add(STREAK_M);
@@ -221,23 +239,109 @@ function addStreak(x, z, len, col = '#ffb868', w = 0.5) { if (STREAK.length >= 1
 // ---------- 山：かき氷（練乳・くだもの・ガラスの器）とパフェ（大きなグラス・層・ソフトクリーム）、ソフトクリーム（ワッフルの器）が連なる。東の崖（メロンのかき氷）から炭酸の滝 ----------
 const MTN = [['k', -44, -44, 15, 24, 'strawberry'], ['p', -20, -52, 12, 32, '#fff4e0', '#f2dcb8'], ['k', 4, -58, 18, 28, 'hawaii'], ['p', 26, -50, 13, 30, '#fff2dc', '#6a3a1e'], ['k', 46, -34, 15, 22, 'lemon'],
   ['s', -60, -16, 11, 24, '#ffd2e0', '#fff4f8'], ['k', 34, 8, 11, 16, 'melon'], ['p', 60, 6, 11, 26, '#dff0c4', '#fff8ea'], ['k', -56, 20, 13, 17, 'grape'], ['k', -32, -34, 9, 14, 'melon'], ['s', 14, -36, 8, 18, '#fff6e6', '#f6d8a8'], ['k', 64, -12, 12, 18, 'strawberry']];
-const MM = SW.mountainMats(GEM_ENV), MOUNTS = [];
+const MM = SW.mountainMats(GEM_ENV), MOUNTS = [], SYR = { strawberry: '#ff6a86', hawaii: '#52b6ff', lemon: '#ffe45a', melon: '#7ae08a', grape: '#a77ae6' };
 const sparkPos = [];
 MTN.forEach(([k, x0, z0, R0m, H0, a, b], i) => { const far = z0 < -20 ? 1.18 : 1, x = x0 * far, z = z0 * far - (z0 < -20 ? 4 : 0), R = R0m * 0.85, H = H0 * 0.85, y = landH(x, z) - 0.8;
   const g = k === 'k' ? SW.kakiMountain(MM, R, H, a, i + 1) : k === 'p' ? SW.parfaitMountain(MM, MATS.wafer, R, H, a, b, i + 1) : SW.serveMountain(MM, MATS.wafer, R, H, a, b, i + 1);
-  g.position.set(x, y, z); g.rotation.y = i * 1.7; scene.add(g); MOUNTS.push({ k, g });
+  g.position.set(x, y, z); g.rotation.y = i * 1.7; scene.add(g); MOUNTS.push({ k, g, R, H, col: k === 'k' ? SYR[a] : a });
   if (k === 'k') for (let j = 0; j < 120; j++) { const t = Math.pow(Math.random(), 0.7), ang = Math.random() * TAU, r0 = R * Math.pow(1 - Math.pow(t, 1.7), 0.55) * 1.02; sparkPos.push(x + Math.cos(ang) * r0, y + H * t, z + Math.sin(ang) * r0); } });
 { const sparkG = new THREE.BufferGeometry(); sparkG.setAttribute('position', new THREE.Float32BufferAttribute(sparkPos, 3)); scene.add(new THREE.Points(sparkG, new THREE.PointsMaterial({ map: glowTex, color: '#ffffff', size: 0.45, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }))); }
 // 動かない物は、部品を材質ごとに1つの形へまとめて描く（山だけで描く回数が88あった）。点・板（きらめき）はそのまま残す
-function mergeStatic(roots) { const bins = new Map(), keep = [];
+function mergeStatic(roots) { const bins = new Map(), keep = [], made = [];
   for (const r of roots) { r.updateMatrixWorld(true); r.traverse((o) => { if (!o.visible) return; if (o.isPoints || o.isSprite || o.isLine || o.isInstancedMesh) { keep.push(o); return; } if (!o.isMesh) return;
       const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(), key = o.material.uuid + '|' + Object.keys(g.attributes).sort().join(','); g.applyMatrix4(o.matrixWorld);
       if (!bins.has(key)) bins.set(key, { m: o.material, list: [] }); bins.get(key).list.push(g); }); }
   for (const o of keep) scene.attach(o); for (const r of roots) r.removeFromParent();
   for (const { m, list } of bins.values()) { const out = new THREE.BufferGeometry();
     for (const name of Object.keys(list[0].attributes)) { const sz = list[0].attributes[name].itemSize, arr = new Float32Array(list.reduce((n, g) => n + g.attributes[name].count * sz, 0)); let k = 0; for (const g of list) { arr.set(g.attributes[name].array, k); k += g.attributes[name].count * sz; } out.setAttribute(name, new THREE.BufferAttribute(arr, sz)); }
-    out.computeBoundingSphere(); scene.add(new THREE.Mesh(out, m)); for (const g of list) g.dispose(); } }
-mergeStatic(MOUNTS.map((M) => M.g));
+    out.computeBoundingSphere(); const mm = new THREE.Mesh(out, m); scene.add(mm); made.push(mm); for (const g of list) g.dispose(); } return made; }
+// ---------- 山を食べる ----------
+// 山ごとに番号（aMtn＝1〜12）を形に書いておく（材質ごとに1つにまとめて描いても、どの山の頂点か分かる）。あわせて輪郭（高さごとの、いちばん外の半径）を測り、タップの当たりとドローンの壁に使う
+const MTN_B = 28;
+MOUNTS.forEach((M, i) => { const g = M.g, P0 = g.position; let yMax = 0; g.updateMatrixWorld(true); const each = (fn) => g.traverse((o) => { if (o.isMesh && !o.isInstancedMesh) fn(o); });
+  each((o) => { const pa = o.geometry.attributes.position; o.geometry.setAttribute('aMtn', new THREE.BufferAttribute(new Float32Array(pa.count).fill(i + 1), 1)); for (let k = 0; k < pa.count; k++) yMax = Math.max(yMax, V1.fromBufferAttribute(pa, k).applyMatrix4(o.matrixWorld).y - P0.y); });
+  const rr = new Float32Array(MTN_B + 1); each((o) => { const pa = o.geometry.attributes.position; for (let k = 0; k < pa.count; k++) { V1.fromBufferAttribute(pa, k).applyMatrix4(o.matrixWorld); const b = clamp(Math.round(((V1.y - P0.y) / yMax) * MTN_B), 0, MTN_B); rr[b] = Math.max(rr[b], Math.hypot(V1.x - P0.x, V1.z - P0.z)); } });
+  for (let b = MTN_B - 1; b >= 0; b--) rr[b] = Math.max(rr[b], rr[b + 1] * 0.6);   // 部品のすき間の段で、輪郭が欠けないように
+  M.yMax = yMax; M.rr = rr; M.x = P0.x; M.y = P0.y; M.z = P0.z; M.rMax = Math.max(...rr);
+  const pts = []; for (let b = 0; b <= MTN_B; b++) pts.push(new THREE.Vector2(rr[b] * 0.96, (b / MTN_B) * yMax)); pts.push(new THREE.Vector2(0.001, yMax));
+  const hit = new THREE.Mesh(new THREE.LatheGeometry(pts, 20), new THREE.MeshBasicMaterial()); hit.position.copy(P0); hit.visible = false; scene.add(hit); M.hit = hit; });
+const mtnR = (M, yRel) => { if (yRel < 0) return M.rr[0]; if (yRel > M.yMax) return 0; const f = (yRel / M.yMax) * MTN_B, b = Math.floor(f), u = f - b; return M.rr[b] * (1 - u) + M.rr[Math.min(MTN_B, b + 1)] * u; };
+const MTN_MESHES = mergeStatic(MOUNTS.map((M) => M.g));
+// 食べた跡＝くぼみの球（中心と半径）と、すくう向き。球の中と、すくう向きの手前にある頂点を、すくう向きに沿って球の底の面まで動かす（＝山から球をくりぬいた形）
+// 面の向きに沿って押しこむと、練乳の細い管や飾りの裏の面が、ばらばらの向きへ飛び出した。本体（氷・クリーム）は底の面に、飾りはその少し奥へ沈めて隠す。かき氷の中は、シロップのない白い氷
+// 計算するのは、いま食べられている山の頂点だけ（ふだんは、どの頂点も何もしない）
+const DENT_N = 40, EAT = { dent: Array.from({ length: DENT_N }, () => new THREE.Vector4()), dir: Array.from({ length: DENT_N }, () => new THREE.Vector3(0, 1, 0)), dm: new Float32Array(DENT_N), on: new Float32Array(12), list: [], next: 0 };
+const EAT_U = { uDent: { value: EAT.dent }, uDentN: { value: EAT.dir }, uDentM: { value: EAT.dm }, uMtnOn: { value: EAT.on } };
+function eatable(m, white, deep) { const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
+  m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); Object.assign(sh.uniforms, EAT_U);
+    sh.vertexShader = `attribute float aMtn; uniform vec4 uDent[${DENT_N}]; uniform vec3 uDentN[${DENT_N}]; uniform float uDentM[${DENT_N}]; uniform float uMtnOn[12]; varying float vDent;\n` + sh.vertexShader
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+  vec3 dentOff = vec3(0.0); vDent = 0.0;
+  { int mi = int(aMtn + 0.5) - 1;
+    if (mi >= 0 && mi < 12 && uMtnOn[mi] > 0.5) for (int i = 0; i < ${DENT_N}; i++) { vec4 d = uDent[i]; if (d.w <= 0.0 || abs(uDentM[i] - aMtn) > 0.5) continue;
+      vec3 dir = uDentN[i], v = position + dentOff - d.xyz; float al = dot(v, dir); vec3 q = v - dir * al; float q2 = dot(q, q), r2 = d.w * d.w;
+      if (q2 < r2) { float bt = sqrt(r2 - q2); if (al > -bt) { dentOff += dir * (-bt - ${deep.toFixed(2)} - al); objectNormal = normalize(dir * bt - q); vDent = 1.0; } } } }`)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += dentOff;');
+    sh.fragmentShader = 'varying float vDent;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>' + (white ? '\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.95, 1.0), vDent);' : '')); };
+  m.customProgramCacheKey = () => (key ? key.call(m) : '') + '|eat'; m.defaultAttributeValues = Object.assign({}, m.defaultAttributeValues, { aMtn: [0] }); }   // 山でない物（屋台のウエハースなど）は、番号0＝何もしない
+{ const done = new Set(), body = new Set([MM.ice, MM.cream, MM.sponge, MM.flakes, MM.sauce]); for (const mm of MTN_MESHES) { const m = mm.material; if (!mm.geometry.attributes.aMtn || done.has(m) || m === MM.glass) continue; done.add(m); eatable(m, m === MM.ice, body.has(m) ? 0 : 0.35); } }
+function addDent(i, c, r, dir, grow = 0.15) { const slot = EAT.next; EAT.next = (EAT.next + 1) % DENT_N; const old = EAT.list.findIndex((D) => D.slot === slot); if (old >= 0) EAT.list.splice(old, 1);
+  const D = { slot, i, c: c.clone(), r, t: 0, grow, k: 1 }; EAT.list.push(D); EAT.dir[slot].copy(dir).normalize(); EAT.dm[slot] = i + 1; EAT.on[i] = 1; return D; }
+// 山の状態：すくった回数・最後にすくった時・スプーン・戻り
+const MTN_ST = MOUNTS.map(() => ({ taps: 0, last: -99, spoon: null, rest: null, eaten: false }));
+function mtnBite(i, p) { const M = MOUNTS[i], S = MTN_ST[i]; if (S.spoon || S.rest) return;
+  const r = clamp(M.R * 0.17, 1.4, 2.8); addDent(i, p, r, V1.copy(cam.position).sub(p)); S.taps++; S.last = nowS(); S.eaten = true; SND.shaku(); counts.mtnBites++;
+  for (let n = 0; n < 22 && SPARKS.length < FW_N - 1; n++) { const a = Math.random() * TAU; SPARKS.push({ p: p.clone(), v: new THREE.Vector3(Math.cos(a) * rnd(1, 3), rnd(1.5, 4.5), Math.sin(a) * rnd(1, 3)), t: 0, L: rnd(0.5, 1.1), c: new THREE.Color(n % 3 ? '#ffffff' : M.col), tr: 0, g: 1.6 }); }
+  if (S.taps >= 30) startSpoon(i); }
+// ---------- 大きなスプーン：空から降りてきて、山の上をひとすくい。山盛りのまま、天へ昇って消える ----------
+const SPOON = (() => { const g = new THREE.Group(), silver = new THREE.MeshStandardMaterial({ color: '#eef1fa', metalness: 0.8, roughness: 0.2, envMapIntensity: 1.6, emissive: '#6a7290', emissiveIntensity: 0.55, side: THREE.DoubleSide });
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(1, 36, 14, 0, TAU, Math.PI / 2, Math.PI / 2).scale(1, 0.4, 1.4), silver));
+  const hd = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.22, 4.4, 14).rotateX(Math.PI / 2).translate(0, 0.32, 3.55), silver); hd.rotation.x = -0.18; g.add(hd);
+  const end = new THREE.Mesh(new THREE.SphereGeometry(0.42, 18, 10).scale(1, 0.32, 1.5), silver); end.position.set(0, 1.2, 5.9); g.add(end);
+  const mound = new THREE.Mesh(new THREE.SphereGeometry(0.88, 24, 10, 0, TAU, 0, Math.PI / 2).scale(1, 0.75, 1.3), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.55, emissive: '#2a3050', emissiveIntensity: 0.4 })); g.add(mound);
+  const glow = sprite('#fff4d0', 6, 0); g.add(glow); g.visible = false; scene.add(g); return { g, mound, glow, i: -1, t: 0 }; })();
+function startSpoon(i) { const M = MOUNTS[i], S = MTN_ST[i]; if (SPOON.i >= 0) return; S.spoon = true; SPOON.i = i; SPOON.t = 0; SPOON.dent = null;
+  const top = new THREE.Vector3(M.x, M.y + M.yMax, M.z), toCam = V1.set(cam.position.x - M.x, 0, cam.position.z - M.z).normalize(), side = new THREE.Vector3(toCam.z, 0, -toCam.x);
+  // 見ている人から見て横へ、先を下げて進みながらすくう（先＝形の −z。柄は進む向きと反対）
+  SPOON.top = top; SPOON.yaw = Math.atan2(-side.x, -side.z); SPOON.fwd = side; SPOON.big = Math.min(M.yMax * 0.36, M.R * 0.75); SPOON.size = SPOON.big * 0.95; SPOON.g.scale.setScalar(SPOON.size);
+  SPOON.mound.material.color.set(M.col).lerp(new THREE.Color('#ffffff'), MOUNTS[i].k === 'k' ? 0.15 : 0.3); SPOON.mound.scale.setScalar(0.001); SPOON.g.visible = true; SND.spoonDown(); counts.spoons++; }
+function stepSpoon(dt) { if (SPOON.i < 0) return; const M = MOUNTS[SPOON.i], S = MTN_ST[SPOON.i], T = SPOON.top, sz = SPOON.size, f = SPOON.fwd, ease = (u) => u * u * (3 - 2 * u); SPOON.t += dt; const t = SPOON.t, g = SPOON.g;
+  let pos, pitch = -0.9;
+  if (t < 1.6) { const u = ease(t / 1.6); pos = V2.copy(T).addScaledVector(f, -sz * 1.2).add(V3.set(0, 3 + (1 - u) * 45, 0)); g.scale.setScalar(sz * (0.5 + 0.5 * u)); }
+  else if (t < 2.9) { const u = (t - 1.6) / 1.3, e = ease(u); pos = V2.copy(T).addScaledVector(f, sz * (-1.2 + 2.6 * e)).add(V3.set(0, 3 - Math.sin(u * Math.PI) * (M.yMax * 0.32 + 3), 0)); pitch = -0.9 + 1.4 * e;
+    if (u > 0.3 && !SPOON.dent) { SPOON.dent = addDent(SPOON.i, V1.set(T.x, T.y - M.yMax * 0.1, T.z), SPOON.big, V2.set(0, 1, 0), 0.7); SND.bigScoop(); for (let n = 0; n < 70 && SPARKS.length < FW_N - 1; n++) { const a = Math.random() * TAU; SPARKS.push({ p: T.clone(), v: new THREE.Vector3(Math.cos(a) * rnd(2, 7), rnd(3, 9), Math.sin(a) * rnd(2, 7)), t: 0, L: rnd(0.8, 1.6), c: new THREE.Color(n % 2 ? '#ffffff' : M.col), tr: 0, g: 3 }); } }
+    if (u > 0.45) SPOON.mound.scale.setScalar(Math.min(1, (u - 0.45) * 3)); }
+  else if (t < 5.4) { const u = (t - 2.9) / 2.5; pos = V2.copy(T).addScaledVector(f, sz * 1.4).add(V3.set(0, 3 + u * u * 80, 0)); pitch = 0.5 - 0.2 * u; g.scale.setScalar(sz * (1 - 0.5 * u)); if (t - dt < 2.9) SND.spoonUp();
+    if (Math.random() < 0.7 && SPARKS.length < FW_N - 1) SPARKS.push({ p: pos.clone(), v: new THREE.Vector3(rnd(-1, 1), rnd(-2, 0), rnd(-1, 1)), t: 0, L: rnd(0.6, 1.2), c: new THREE.Color('#fff2c0'), tr: 0, g: 0.2 });
+    SPOON.glow.material.opacity = Math.max(0, (u - 0.75) * 4) * 0.9; }
+  else { g.visible = false; SPOON.glow.material.opacity = 0; SPOON.i = -1; S.spoon = false; S.spoonEnd = nowS(); return; }
+  g.position.copy(pos); g.rotation.set(0, 0, 0); g.rotateY(SPOON.yaw); g.rotateX(pitch); }
+// ---------- 戻る：大きな雪の結晶と、星・氷のかけらの渦が、山を下から上へ。くぼみは低い順に、ふさがっていく ----------
+const FLAKE_TEX = ctex(256, 256, (c) => { c.translate(128, 128); c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineCap = 'round'; c.shadowColor = 'rgba(160,210,255,.9)'; c.shadowBlur = 10;
+  for (let k = 0; k < 6; k++) { c.save(); c.rotate((k / 6) * TAU); c.lineWidth = 7; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -108); c.stroke(); c.lineWidth = 5; for (const [y, l] of [[-40, 30], [-68, 24], [-92, 14]]) { c.beginPath(); c.moveTo(0, y); c.lineTo(-l, y - l * 0.9); c.moveTo(0, y); c.lineTo(l, y - l * 0.9); c.stroke(); } c.restore(); }
+  c.lineWidth = 4; c.beginPath(); for (let k = 0; k <= 6; k++) { const a = (k / 6) * TAU; c.lineTo(Math.cos(a) * 18, Math.sin(a) * 18); } c.stroke(); });
+const FLAKES = Array.from({ length: 8 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: FLAKE_TEX, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: '#cfe6ff' })); m.visible = false; scene.add(m); return m; });
+const SWIRL_N = 420, swirlPos = new Float32Array(SWIRL_N * 3), swirlCol = new Float32Array(SWIRL_N * 3), SWIRL_P = Array.from({ length: SWIRL_N }, (_, k) => ({ a: Math.random() * TAU, h: Math.random(), sp: rnd(1.2, 2.6), off: rnd(0.6, 2.4), c: new THREE.Color(['#ffffff', '#bfe4ff', '#ffe9a0', '#d8c8ff'][k % 4]) }));
+const swirlG = new THREE.BufferGeometry(); swirlG.setAttribute('position', new THREE.BufferAttribute(swirlPos, 3)); swirlG.setAttribute('color', new THREE.BufferAttribute(swirlCol, 3));
+const SWIRL = new THREE.Points(swirlG, new THREE.PointsMaterial({ map: glowTex, size: 1.1, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); SWIRL.frustumCulled = false; SWIRL.visible = false; scene.add(SWIRL);
+let RESTORING = -1;
+function startRestore(i) { const S = MTN_ST[i]; S.rest = { t: 0, order: EAT.list.filter((D) => D.i === i).sort((a, b) => a.c.y - b.c.y) }; RESTORING = i; SND.mtnRestore(); SWIRL.visible = true; for (const F of FLAKES) F.visible = true; }
+function stepRestore(dt, now) {
+  if (RESTORING < 0) { for (let i = 0; i < MTN_ST.length; i++) { const S = MTN_ST[i]; if (!S.eaten || S.spoon || SPOON.i === i) continue; if (now - Math.max(S.last, S.spoonEnd || -99) > (S.spoonEnd > S.last ? 9 : 16)) { startRestore(i); break; } } return; }
+  const i = RESTORING, M = MOUNTS[i], S = MTN_ST[i], R = S.rest, n = R.order.length, ease = (u) => u * u * (3 - 2 * u); R.t += dt; const t = R.t, front = clamp((t - 0.3) / 5.6, 0, 1);
+  R.order.forEach((D, j) => { const t0 = 0.4 + 5.0 * (n > 1 ? j / (n - 1) : 0), u = clamp((t - t0) / 1.2, 0, 1); D.k = 1 - ease(u); });
+  // 渦：山のまわりを回りながら、戻っていく所（下から上へ）の高さに集まる
+  SWIRL_P.forEach((Q, k) => { const yRel = clamp(front + (Q.h - 0.5) * 0.35, 0, 1) * M.yMax, rad = mtnR(M, yRel) + Q.off, a = Q.a + t * Q.sp; swirlPos[k * 3] = M.x + Math.cos(a) * rad; swirlPos[k * 3 + 1] = M.y + yRel + Math.sin(t * 3 + k) * 0.4; swirlPos[k * 3 + 2] = M.z + Math.sin(a) * rad;
+    const fade = Math.min(1, t * 2) * (1 - clamp((t - 6.2) / 0.8, 0, 1)) * (0.5 + 0.5 * Math.sin(t * 9 + k)); swirlCol[k * 3] = Q.c.r * fade; swirlCol[k * 3 + 1] = Q.c.g * fade; swirlCol[k * 3 + 2] = Q.c.b * fade; });
+  swirlG.attributes.position.needsUpdate = swirlG.attributes.color.needsUpdate = true;
+  // 大きな雪の結晶：下から順に、ふわっと開いて回り、消える
+  FLAKES.forEach((F, k) => { const t0 = 0.2 + k * 0.75, u = clamp((t - t0) / 1.6, 0, 1), yRel = (k / (FLAKES.length - 1)) * M.yMax * 0.95, a = k * 2.3; F.position.set(M.x + Math.cos(a) * (mtnR(M, yRel) + 2.5), M.y + yRel + 1, M.z + Math.sin(a) * (mtnR(M, yRel) + 2.5));
+    F.scale.setScalar((3 + M.R * 0.25) * (0.4 + 0.6 * ease(Math.min(1, u * 2)))); F.material.rotation = t * 0.8 + k; F.material.opacity = Math.sin(u * Math.PI) * 0.95; });
+  if (t > 7) { for (const D of R.order) { const x = EAT.list.indexOf(D); if (x >= 0) EAT.list.splice(x, 1); EAT.dent[D.slot].set(0, 0, 0, 0); EAT.dm[D.slot] = 0; } EAT.on[i] = EAT.list.some((D) => D.i === i) ? 1 : 0;
+    S.rest = null; S.taps = 0; S.eaten = false; S.spoonEnd = 0; RESTORING = -1; SWIRL.visible = false; for (const F of FLAKES) { F.visible = false; F.material.opacity = 0; } counts.mtnBack++; SND.chime(5); } }
+function stepMtn(dt) { const now = nowS();
+  for (const D of EAT.list) { D.t += dt; const g = D.grow > 0 ? Math.min(1, D.t / D.grow) : 1; EAT.dent[D.slot].set(D.c.x, D.c.y, D.c.z, D.r * g * D.k); }
+  stepSpoon(dt); stepRestore(dt, now); }
 // 炭酸の滝：崖の棚から湾へ。しゅわしゅわの泡がのぼり、下は白い泡
 const FALL = (() => { const W = 3.2, top = 11.5, x0 = 25.2, x1 = 21.6, z = 8.5, nx = 6, ny = 40, pos = [], uv = [], idx = [];
   for (let j = 0; j <= ny; j++) { const t = j / ny, y = top + (WATER_Y - top) * t, x = x0 + (x1 - x0) * Math.pow(t, 0.6); for (let i = 0; i <= nx; i++) { const s = i / nx; pos.push(x - 0.3 * Math.sin(s * Math.PI), y, z - W / 2 + s * W); uv.push(s, t); } }
@@ -283,13 +387,52 @@ const LAMPS = []; for (let f = QF0 + 0.05; f < QF1; f += 0.085) LAMPS.push(polar
 for (const g of LANES) for (const e of [1.3, 1.66, 2.04, 2.42, 2.8]) { const f = laneF(g, e), [x, z] = polar(e, f), [nx, nz] = nOut(f), tx = -nz, tz = nx; LAMPS.push([x + tx * (LANE_W / 2 + 0.15), z + tz * (LANE_W / 2 + 0.15)]); }
 { const [tx, tz, tr] = AREAPOS.toy, px = tx + Math.sin(tr) * 3.5, pz = tz + Math.cos(tr) * 3.5; for (let i = LAMPS.length - 1; i >= 0; i--) if (Math.hypot(LAMPS[i][0] - px, LAMPS[i][1] - pz) < 2.4) LAMPS.splice(i, 1); }   // テディの前をふさぐ街灯は置かない
 const trunkMat = gel('#e39a35', { glow: '#ffd27a', gl: 0.9 }); trunkMat.transparent = true; trunkMat.opacity = 0.86;
-{ const n = LAMPS.length, post = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.075, 2.2, 8).translate(0, 1.1, 0), MATS.stripe, n), lan = new THREE.InstancedMesh(new THREE.SphereGeometry(0.15, 12, 8), new THREE.MeshStandardMaterial({ color: '#ffd9a0', emissive: '#ffb060', emissiveIntensity: 2.4 }), n), mm = new THREE.Matrix4(), pos = [];
+const LAMP = (() => { const n = LAMPS.length, post = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.075, 2.2, 8).translate(0, 1.1, 0), MATS.stripe, n), lan = new THREE.InstancedMesh(new THREE.SphereGeometry(0.15, 12, 8), new THREE.MeshStandardMaterial({ color: '#ffd9a0', emissive: '#ffb060', emissiveIntensity: 2.4 }), n), mm = new THREE.Matrix4(), pos = [];
   LAMPS.forEach(([x, z], i) => { const y = landH(x, z); mm.makeTranslation(x, y, z); post.setMatrixAt(i, mm); mm.makeTranslation(x, y + 2.28, z); lan.setMatrixAt(i, mm); pos.push(x, y + 2.28, z); if (eOf(x, z) < 1.07 && i % 2 === 0) addStreak(x, z, rr(4, 7), '#ffd090', 0.35); });
-  scene.add(post, lan); const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); scene.add(new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: '#ffc080', size: 1.5, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); }
+  scene.add(post, lan); const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const glow = new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: '#ffc080', size: 1.5, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); scene.add(glow);
+  // 柱は細くて指で当てにくいので、見えない太めの筒で当てる
+  const hit = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.32, 0.32, 2.7, 6).translate(0, 1.35, 0), new THREE.MeshBasicMaterial(), n); hit.visible = false; LAMPS.forEach(([x, z], i) => hit.setMatrixAt(i, mm.makeTranslation(x, landH(x, z), z))); hit.computeBoundingSphere(); scene.add(hit);
+  return { post, lan, glow, hit, st: LAMPS.map(() => null) }; })();
+// 触ると、柱がポキポキと3つに折れる（根元は立ったまま、上の2つは飛んで転がる。灯りの玉は、いちばん上についたまま）。しばらくすると、下から順にカリカリと戻って、灯りがともる
+// かけらは、折れ目の高さごとに形を分けて、しま模様が元の柱とつながるようにする（1つの形をのばすと、しまの幅が変わった）
+const LP_CUT = [0, 0.8, 1.5, 2.2], LP_R = (y) => 0.075 - 0.025 * y / 2.2, LP_SLOTS = 10;
+const LP = [0, 1, 2].map((k) => { const y0 = LP_CUT[k], y1 = LP_CUT[k + 1], g = new THREE.CylinderGeometry(LP_R(y1), LP_R(y0), y1 - y0, 8).translate(0, (y1 - y0) / 2, 0), uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setY(i, (y0 + uv.getY(i) * (y1 - y0)) / 2.2);
+  const m = new THREE.InstancedMesh(g, MATS.stripe, LP_SLOTS); m.visible = false; m.frustumCulled = false; scene.add(m); return m; });
+const LP_FREE = [...Array(LP_SLOTS).keys()], LP_ZERO = new THREE.Matrix4().makeScale(0, 0, 0), LP_UP = new THREE.Vector3(0, 1, 0), LP_ONE = new THREE.Vector3(1, 1, 1);
+for (const m of LP) for (let i = 0; i < LP_SLOTS; i++) m.setMatrixAt(i, LP_ZERO);
+function lampBreak(i) { if (LAMP.st[i] || !LP_FREE.length) return; const [x, z] = LAMPS[i], y = landH(x, z), slot = LP_FREE.pop(), M = new THREE.Matrix4();
+  // 見ている人から見て横へ倒す（奥へ倒すと、画面では短い棒が立っているように見えた）。回る軸＝上向き×倒れる向き
+  const view = new THREE.Vector3(x - cam.position.x, 0, z - cam.position.z); if (view.lengthSq() < 0.01) view.set(0, 0, 1); view.normalize(); const F = new THREE.Vector3(-view.z, 0, view.x).multiplyScalar(Math.random() < 0.5 ? -1 : 1).addScaledVector(view, rnd(-0.3, 0.3)).normalize(), ax = new THREE.Vector3().crossVectors(LP_UP, F);
+  const parts = [1, 2].map((k) => ({ k, h: LP_CUT[k + 1] - LP_CUT[k], home: new THREE.Vector3(x, y + LP_CUT[k], z), p: new THREE.Vector3(x, y + LP_CUT[k], z), q: new THREE.Quaternion(),
+    v: F.clone().multiplyScalar(rnd(0.6, 1.0) * k).setY(rnd(1.4, 2.0) + k * 0.4), w: ax.clone().multiplyScalar(rnd(4, 6) * (k === 2 ? 1.5 : 1)) }));
+  LAMP.st[i] = { slot, t: 0, phase: 'down', parts, back: [false, false] }; LAMP.post.setMatrixAt(i, LP_ZERO); LAMP.post.instanceMatrix.needsUpdate = true;
+  LAMP.glow.geometry.attributes.position.setY(i, -999); LAMP.glow.geometry.attributes.position.needsUpdate = true;
+  LP[0].setMatrixAt(slot, M.makeTranslation(x, y, z)); for (const m of LP) { m.visible = true; m.count = LP_SLOTS; m.instanceMatrix.needsUpdate = true; }
+  SND.candySnap(); counts.lamps++; for (let n = 0; n < 14 && SPARKS.length < FW_N - 1; n++) SPARKS.push({ p: new THREE.Vector3(x, y + LP_CUT[1 + (n & 1)], z), v: new THREE.Vector3(rnd(-1, 1), rnd(0.2, 1.4), rnd(-1, 1)), t: 0, L: rnd(0.4, 0.8), c: new THREE.Color(n % 3 ? '#ffffff' : '#ff5060'), tr: 0, g: 1.2 }); }
+const LPQ = new THREE.Quaternion(), LPA = new THREE.Vector3(), LPB = new THREE.Vector3(), LPM = new THREE.Matrix4();
+function stepLamps(dt) { let any = false;
+  LAMP.st.forEach((S, i) => { if (!S) return; any = true; S.t += dt; const [x, z] = LAMPS[i], y = landH(x, z);
+    if (S.phase === 'down') { for (const P of S.parts) { if (P.rest) continue; P.v.y -= 9.8 * dt; P.p.addScaledVector(P.v, dt); const wl = P.w.length(); if (wl > 1e-4) P.q.premultiply(LPQ.setFromAxisAngle(LPA.copy(P.w).multiplyScalar(1 / wl), wl * dt));
+        LPA.set(0, P.h, 0).applyQuaternion(P.q).add(P.p); const r = 0.07, g0 = surfaceAt(P.p.x, P.p.z), g1 = surfaceAt(LPA.x, LPA.z), low = Math.min(P.p.y - g0, LPA.y - g1);
+        if (low < r) { P.p.y += r - low; if (P.v.y < 0) { if (P.v.y < -1.2) SND.candyClack(Math.min(1, -P.v.y / 4)); P.v.y = -P.v.y * 0.28; P.v.x *= 0.55; P.v.z *= 0.55; P.w.multiplyScalar(0.5); } P.land = 1; }
+        // 地面に着いたら、寝るまで傾ける（片方の端だけで立ったまま止まらないように）
+        if (P.land) { const ax = LPB.set(0, 1, 0).applyQuaternion(P.q), flat = LPA.set(ax.x, 0, ax.z); if (flat.lengthSq() < 1e-4) flat.set(1, 0, 0); flat.normalize(); P.q.premultiply(LPQ.setFromUnitVectors(ax, flat.lerp(ax, Math.exp(-dt * 5)).normalize()));
+          if (P.v.lengthSq() < 0.02 && P.w.lengthSq() < 0.05 && Math.abs(ax.y) < 0.08) P.rest = true; } }
+      if (S.t > 6.5) { S.phase = 'back'; S.t = 0; for (const P of S.parts) { P.from = P.p.clone(); P.fromQ = P.q.clone(); } } }
+    else { S.parts.forEach((P, n) => { const u = clamp((S.t - n * 0.45) / 0.8, 0, 1), e = u * u * (3 - 2 * u); P.p.lerpVectors(P.from, P.home, e); P.p.y += Math.sin(u * Math.PI) * 0.7; P.q.slerpQuaternions(P.fromQ, LPQ.identity(), e);
+        if (u >= 1 && !S.back[n]) { S.back[n] = true; SND.candyCrunch(); for (let k = 0; k < 10 && SPARKS.length < FW_N - 1; k++) SPARKS.push({ p: P.home.clone(), v: new THREE.Vector3(rnd(-0.6, 0.6), rnd(0.2, 1), rnd(-0.6, 0.6)), t: 0, L: rnd(0.3, 0.6), c: new THREE.Color('#fff2d0'), tr: 0, g: 0.8 }); } });
+      if (S.back[0] && S.back[1]) { LAMP.post.setMatrixAt(i, LPM.makeTranslation(x, y, z)); LAMP.post.instanceMatrix.needsUpdate = true; LAMP.lan.setMatrixAt(i, LPM.makeTranslation(x, y + 2.28, z)); LAMP.lan.instanceMatrix.needsUpdate = true;
+        LAMP.glow.geometry.attributes.position.setY(i, y + 2.28); LAMP.glow.geometry.attributes.position.needsUpdate = true; for (const m of LP) m.setMatrixAt(S.slot, LP_ZERO); LP_FREE.push(S.slot); LAMP.st[i] = null; SND.chime(3); counts.lampBack++; return; } }
+    for (const P of S.parts) LP[P.k].setMatrixAt(S.slot, LPM.compose(P.p, P.q, LP_ONE));
+    const top = S.parts[1]; LAMP.lan.setMatrixAt(i, LPM.compose(LPA.set(0, top.h + 0.08, 0).applyQuaternion(top.q).add(top.p), LPQ.identity(), LP_ONE)); LAMP.lan.instanceMatrix.needsUpdate = true; });
+  for (const m of LP) { m.instanceMatrix.needsUpdate = any; m.visible = any; } }
 for (const [x, z, s] of [[-12, 4.5, 30], [12, 4.5, 30], [SQ[0], SQ[1], 46], [-26, 9, 22]]) { const L = new THREE.PointLight('#ffb070', s, 16, 2); L.position.set(x, landH(x, z) + 4, z); scene.add(L); }
 
 // ---------- 名所（タップで寄って、その場所の試作へ） ----------
 const AREAS = [], PICK = [], PICKSET = new Set(); const addPick = (o, ref) => { o.userData.pick = ref; if (!PICKSET.has(o)) { PICKSET.add(o); PICK.push(o); } };
+addPick(LAMP.hit, { kind: 'lamp' });
+MOUNTS.forEach((M, i) => addPick(M.hit, { kind: 'mtn', i }));
 function label(text, sub) {
   const c = document.createElement('canvas'), g = c.getContext('2d'); g.font = '800 44px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif'; const tw = Math.ceil(g.measureText(text).width); c.width = tw + 70; c.height = sub ? 118 : 86; const W = c.width, H = c.height;
   g.fillStyle = '#a65a24'; g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 26); g.fill(); g.strokeStyle = '#fff6ea'; g.lineWidth = 4; g.setLineDash([10, 7]); g.beginPath(); g.roundRect(13, 13, W - 26, H - 26, 18); g.stroke();
@@ -566,7 +709,9 @@ function fillClear(ms) { const t0 = performance.now(); while (CLEAR_Q.length && 
 const slopeAt = (x, z) => Math.hypot(landH(x + 0.3, z) - landH(x - 0.3, z), landH(x, z + 0.3) - landH(x, z - 0.3)) / 0.6;
 function tiltTo(o, x, z, yaw) { const hx = landH(x + 0.3, z) - landH(x - 0.3, z), hz = landH(x, z + 0.3) - landH(x, z - 0.3); Q2.setFromUnitVectors(UP, V3.set(-hx / 0.6, 1, -hz / 0.6).normalize()); o.quaternion.copy(Q2).multiply(QQ.setFromAxisAngle(UP, yaw)); }
 function puyo(x, z, r, hex, ry = 0, parent = scene) { const grp = new THREE.Group(); grp.position.set(x, parent === scene ? surfaceAt(x, z) : 0, z); grp.rotation.y = ry; parent.add(grp);
-  const body = new THREE.Mesh(blobGeo, gel(hex, { glow: hex, gl: 0.9 })); body.scale.setScalar(r); body.position.y = r * BLOB_B - 0.02; grp.add(body);
+  // 体は少し透けるゼリー：外の膜は半透明、中に色の濃い芯（ふちで消える）。顔は膜の外に出ているので、くっきり見える
+  const body = new THREE.Mesh(blobGeo, gel(hex, { glow: hex, gl: 0.9 })); body.material.transparent = true; body.material.opacity = 0.76; body.renderOrder = 2; body.scale.setScalar(r); body.position.y = r * BLOB_B - 0.02; grp.add(body);
+  const deep = new THREE.Color(hex).multiplyScalar(0.72), core = new THREE.Mesh(blobGeo, fadeEdge(new THREE.MeshStandardMaterial({ color: deep, emissive: deep, emissiveIntensity: 0.6, roughness: 0.4, transparent: true, opacity: 0.85, depthWrite: false }), 1.1)); core.scale.setScalar(0.62); core.position.y = -0.06; core.renderOrder = 1; body.add(core);
   const face = new THREE.Group(); face.position.copy(body.position); face.scale.setScalar(r); face.add(new THREE.Mesh(faceGeo, darkMat), new THREE.Mesh(blushGeo, blushMat)); grp.add(face);
   const b = { grp, body, face, r, s: 0, v: 0, hop: 0, hv: 0, t0: rnd(0, 10), next: rnd(1, 5), kind: 'puyo', walk: parent === scene, home: [x, z], tgt: [x, z], hops: 0, vx: 0, vz: 0, crouch: 0, yawT: ry }; addPick(body, b); PUYOS.push(b); return b; }
 for (const [p, r, c] of [[[SQ[0] - 3.5, SQ[1] + 2.4], 0.5, '#ff8a3a'], [[SQ[0] + 3.2, SQ[1] - 2.2], 0.45, '#ff6fa0'], [[SQ[0] - 6, SQ[1] - 1.2], 0.42, '#7ad46a'], [[SQ[0] + 6.4, SQ[1] + 0.8], 0.4, '#b88cff'], [polar(RING[0], 4.0), 0.4, '#ffd23a'], [polar(RING[0], 4.9), 0.44, '#5fc8ff'], [polar(RING[0], 5.4), 0.38, '#ff5a5a'], [polar(RING[1], 4.3), 0.4, '#f0f0ff'], [polar(RING[2], 5.1), 0.42, '#ffb0e0']]) puyo(p[0], p[1], r, c, rnd(-1, 1));
@@ -588,6 +733,53 @@ const SANTA = (() => { const g = new THREE.Group(); scene.add(g); const parts = 
   for (let i = 0; i < 4; i++) { const m = SW.deerMaterial(dTex), d = new THREE.Mesh(dg, m), base = new THREE.Vector3(2.4 + (i >> 1) * 1.5, 0.5 + (i % 2) * 0.1, i % 2 ? -0.5 : 0.5); d.scale.setScalar(1.3); d.position.copy(base); g.add(d); parts.push(d); deer.push({ d, U: m.userData.U, base, ph: i * 0.4 + (i >> 1) * 0.25 }); if (i === 0) { const n = sprite('#ff3040', 0.5); n.position.set(0.48, 0.45, 0); d.add(n); } }
   const trail = []; for (let i = 0; i < 90; i++) trail.push(0, -999, 0); const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute(trail, 3)); const tp = new THREE.Points(tg, new THREE.PointsMaterial({ map: glowTex, color: '#fff2c0', size: 0.7, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); tp.frustumCulled = false; scene.add(tp);
   return { g, parts, deer, trail: tg, ti: 0 }; })();
+// ガラス玉の屋台：ドイツのラウシャの吹きガラス（内側を銀で鏡にした玉）。棒からつるした5つと、台に並べた6つ。さわると、つるした玉がゆれて、ちりんと鳴る
+const BAUBLE = { g: null, amp: 0, hang: [], balls: null, caps: null, strings: null };
+{ const [x, z] = MARKET.bauble, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = Math.atan2(SQ[0] - x, SQ[1] - z); scene.add(g); BAUBLE.g = g;
+  const acc = new SW.Acc(); acc.add('cookie', new THREE.BoxGeometry(1.8, 0.9, 0.8).translate(0, 0.45, 0), '#f6dcc0'); for (const s of [-1, 1]) acc.add('stripe', new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8).translate(s * 0.8, 1.6, -0.25)); acc.add('wafer', new THREE.BoxGeometry(2.1, 0.12, 1.2).rotateX(0.28).translate(0, 2.35, 0), '#ffffff');
+  acc.add('stripe', new THREE.CylinderGeometry(0.025, 0.025, 1.75, 8).rotateZ(Math.PI / 2).translate(0, 2.17, 0.3)); acc.add('frost', new THREE.BoxGeometry(1.5, 0.05, 0.5).translate(0, 0.925, 0.05));
+  for (const m of acc.build(MATS)) g.add(m);
+  const COL = ['#e4ecff', '#e8283a', '#ffc640', '#2f6cff', '#22b25a', '#c040ff'], gold = new THREE.MeshStandardMaterial({ color: '#ffcf5a', metalness: 1, roughness: 0.3 });
+  const glass = new THREE.MeshPhysicalMaterial({ metalness: 0.75, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.8 });
+  [[-0.64, 0.28, 0.13, 0], [-0.32, 0.4, 0.15, 1], [0, 0.24, 0.17, 2], [0.32, 0.36, 0.14, 3], [0.64, 0.3, 0.12, 4]].forEach(([hx, L, r, c], i) => BAUBLE.hang.push({ p: new THREE.Vector3(hx, 2.145, 0.3), L, r, c, ph: i * 1.7 }));
+  const SIT = [[-0.58, 0.1, 0.09, 5], [-0.36, -0.06, 0.1, 1], [-0.12, 0.12, 0.08, 3], [0.14, -0.04, 0.1, 0], [0.38, 0.12, 0.09, 2], [0.6, -0.05, 0.08, 4]], N = BAUBLE.hang.length + SIT.length;
+  BAUBLE.balls = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 16, 10), glass, N); BAUBLE.caps = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 10), gold, N); BAUBLE.strings = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.007, 0.007, 1, 4).translate(0, -0.5, 0), gold, BAUBLE.hang.length);
+  for (const m of [BAUBLE.balls, BAUBLE.caps, BAUBLE.strings]) g.add(m);
+  BAUBLE.hang.forEach((B, i) => BAUBLE.balls.setColorAt(i, new THREE.Color(COL[B.c])));
+  SIT.forEach(([sx, sz, r, c], k) => { const i = BAUBLE.hang.length + k; BAUBLE.balls.setColorAt(i, new THREE.Color(COL[c])); BAUBLE.balls.setMatrixAt(i, HM2.compose(V4.set(sx, 0.95 + r, sz), QQ2.identity(), V5.setScalar(r))); BAUBLE.caps.setMatrixAt(i, HM2.compose(V4.set(sx, 0.95 + r * 2.05, sz), QQ2.identity(), V5.setScalar(r))); }); }
+function stepBaubles(t, dt) { BAUBLE.amp *= Math.exp(-dt * 0.8); const E = new THREE.Euler();
+  BAUBLE.hang.forEach((B, i) => { const w = Math.sqrt(9.8 / (B.L + B.r)), a = 0.025 * Math.sin(t * 1.3 + B.ph) + BAUBLE.amp * Math.sin(t * w + B.ph); QQ2.setFromEuler(E.set(a, 0, 0.5 * a * Math.sin(B.ph + t * 0.7)));
+    BAUBLE.strings.setMatrixAt(i, HM2.compose(B.p, QQ2, V5.set(1, B.L, 1)));
+    BAUBLE.caps.setMatrixAt(i, HM2.compose(V4.set(0, -B.L - 0.15 * B.r, 0).applyQuaternion(QQ2).add(B.p), QQ2, V5.setScalar(B.r)));
+    BAUBLE.balls.setMatrixAt(i, HM2.compose(V4.set(0, -B.L - 1.15 * B.r, 0).applyQuaternion(QQ2).add(B.p), QQ2, V5.setScalar(B.r))); });
+  for (const m of [BAUBLE.balls, BAUBLE.caps, BAUBLE.strings]) m.instanceMatrix.needsUpdate = true; }
+// 礼拝堂の前のアドベントリース：木の輪に、ふだんの日の赤いろうそく20本と、日曜日の白い4本（1839年の最初のリースは、12月1日の日曜日から24日まで）
+// 見つけたあとは、さわるたびに1本ずつ灯り、ぜんぶ灯ると鈴が鳴ってきらめく。もう一度さわると、吹き消す
+const WR = { g: null, lit: 1, full: 0, flames: null, halo: null, glow: 0, pos: [] };
+{ const [x, z, ry] = AREAPOS.chapel, loc = new THREE.Vector3(2.0, 0, 4.3).applyAxisAngle(UP, ry), wx = x + loc.x, wz = z + loc.z, g = new THREE.Group(); g.position.set(wx, landH(wx, wz), wz); g.rotation.y = ry; scene.add(g); WR.g = g;
+  const acc = new SW.Acc(); acc.add('cookie', new THREE.CylinderGeometry(0.32, 0.36, 0.08, 20).translate(0, 0.04, 0), '#e6c09a'); acc.add('cookie', new THREE.CylinderGeometry(0.13, 0.19, 0.72, 16).translate(0, 0.44, 0), '#e6c09a'); acc.add('choco', new THREE.CylinderGeometry(0.64, 0.64, 0.06, 40).translate(0, 0.83, 0));
+  acc.add('cookie', new THREE.TorusGeometry(0.5, 0.05, 8, 48).rotateX(Math.PI / 2).translate(0, 0.88, 0), '#c98f5a'); for (let k = 0; k < 6; k++) acc.add('cookie', new THREE.BoxGeometry(0.9, 0.03, 0.05).rotateY((k / 6) * Math.PI).translate(0, 0.88, 0), '#c98f5a');
+  for (const m of acc.build(MATS)) g.add(m);
+  const lacc = new SW.Acc(); lacc.add('leaf', new THREE.TorusGeometry(0.5, 0.085, 12, 72).rotateX(Math.PI / 2).translate(0, 0.9, 0));
+  for (let k = 0; k < 44; k++) { const a = (k / 44) * TAU, rr = 0.5 + (k % 2 ? 0.07 : -0.07); lacc.add('leaf', new THREE.ConeGeometry(0.022, 0.1, 5).rotateZ(-Math.PI / 2 + 0.5).rotateY(-a + (k % 2 ? 0.6 : -0.6)).translate(Math.cos(a) * rr, 0.93, Math.sin(a) * rr)); }
+  for (let k = 0; k < 14; k++) { const a = ((k + 0.5) / 14) * TAU, rr = 0.5 + (k % 2 ? 0.075 : -0.075); lacc.add('berry', new THREE.SphereGeometry(0.03, 8, 6).translate(Math.cos(a) * rr, 0.965, Math.sin(a) * rr)); }
+  for (let i = 0; i < 24; i++) { const a = (i / 24) * TAU - Math.PI / 2, sun = i % 7 === 0, h = sun ? 0.28 : 0.15, cx = Math.cos(a) * 0.5, cz = Math.sin(a) * 0.5; lacc.add('candle', new THREE.CylinderGeometry(sun ? 0.034 : 0.022, sun ? 0.034 : 0.022, h, 10).translate(cx, 0.97 + h / 2, cz), sun ? '#fffaf0' : '#d01e2e'); WR.pos.push(cx, 0.97 + h + 0.045, cz); }
+  for (const m of lacc.build({ leaf: gel('#2a9a4e', { glow: '#5fe08a', gl: 0.45 }), berry: gel('#d8202e', { glow: '#ff5060', gl: 0.6 }), candle: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, emissive: '#5a3020', emissiveIntensity: 0.3 }) })) g.add(m);
+  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(WR.pos, 3)); fg.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(72), 3));
+  WR.flames = new THREE.Points(fg, new THREE.PointsMaterial({ map: glowTex, size: 0.3, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); WR.flames.frustumCulled = false; g.add(WR.flames);
+  WR.halo = sprite('#ffc870', 2.6, 0); WR.halo.position.y = 1.05; g.add(WR.halo); }
+function stepWreath(t, dt) { WR.glow = Math.max(0, WR.glow - dt * 0.6); const c = WR.flames.geometry.attributes.color;
+  for (let i = 0; i < 24; i++) { const on = i < WR.lit ? 1 : 0, f = on * (0.8 + 0.2 * Math.sin(t * 13 + i * 2.1) * Math.sin(t * 7.3 + i)) * (1 + WR.glow); c.setXYZ(i, f, f * 0.72, f * 0.32); }
+  c.needsUpdate = true; WR.halo.material.opacity = 0.04 + (WR.lit / 24) * 0.3 + WR.glow * 0.3; }
+function wreathTap() { if (WR.lit >= 24) { WR.lit = 0; SND.blow(); return; } WR.lit++; SND.candle(WR.lit);
+  if (WR.lit === 24) { WR.full++; WR.glow = 1; SND.suzu(); const p = WR.g.getWorldPosition(new THREE.Vector3()); for (let i = 0; i < 50 && SPARKS.length < FW_N - 1; i++) { const a = Math.random() * TAU; SPARKS.push({ p: new THREE.Vector3(p.x + Math.cos(a) * 0.5, p.y + 1.1, p.z + Math.sin(a) * 0.5), v: new THREE.Vector3(Math.cos(a) * 0.5, rnd(0.6, 1.6), Math.sin(a) * 0.5), t: 0, L: rnd(0.8, 1.5), c: new THREE.Color().setHSL(0.1 + Math.random() * 0.05, 0.9, 0.7), tr: 0, g: 0.3 }); } } }
+// ひと休みするトナカイ（2頭）と小さなそり：空のサンタと同じクッキー。首をゆっくり上げ下げし、さわると跳ねて、鈴が鳴る
+const REST = { g: null, deer: [], hop: 0 };
+{ const [x, z] = MARKET.deer, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = Math.atan2(SQ[0] - x, SQ[1] - z); scene.add(g); REST.g = g;
+  const sl = new THREE.Mesh(SANTA.parts[0].geometry, SANTA.parts[0].material); sl.scale.setScalar(1.2); sl.position.set(-0.95, 0.16, 0); g.add(sl);
+  [[0.55, 0.16], [1.55, -0.16]].forEach(([dx, dz], i) => { const m = SW.deerMaterial(SANTA.deer[0].d.material.map), d = new THREE.Mesh(SANTA.deer[0].d.geometry, m); d.scale.setScalar(1.05); d.position.set(dx, 0.33, dz); g.add(d); REST.deer.push({ d, U: m.userData.U, y0: 0.33, ph: i * 2.3 }); }); }
+function stepRest(t, dt) { REST.hop = Math.max(0, REST.hop - dt * 1.6);
+  REST.deer.forEach((D, i) => { const h = clamp(REST.hop * 1.6 - i * 0.3, 0, 1), up = Math.sin(h * Math.PI); D.d.position.y = D.y0 + up * 0.45; D.U.uNeck.value = 0.18 * Math.sin(t * 0.6 + D.ph) - 0.08; const L = up * 0.5; D.U.uLeg.value.set(L, L, -L, -L); }); }
 // ---------- 豆知識（確かめたもの・クリスマスにちなんだもの）。光る ✦ が目印 ----------
 const TRIVIA = [
   { id: 'gtown', obj: BAKERY_SIGN, name: 'ジンジャーブレッドの町', text: 'ノルウェーのベルゲンでは1991年から毎年、幼稚園や学校の子ども、地元の会社、たくさんのボランティアが作ったジンジャーブレッドの家を集めた町が開かれます。観光局は「世界最大のジンジャーブレッドの町」と紹介しています。', src: '出典：ノルウェー政府観光局（visitnorway.com）' },
@@ -598,6 +790,9 @@ const TRIVIA = [
   { id: 'lucia', obj: LUCIA, name: '聖ルシア祭', text: 'スウェーデンでは12月13日が聖ルシア祭。白い服の子どもたちが、光の冠をかぶったルシアを先頭に、歌いながら行進します。昔の暦では、一年でいちばん昼が短い日でした。', src: '出典：スウェーデン観光局（visitsweden.com）', y: 1.4 },
   { id: 'yule', obj: SHOE, name: '窓辺の靴', text: 'アイスランドの13人のいたずら小人「ユールラッズ」は、12月12日から一晩に1人ずつやって来ると言い伝えられています。窓辺に置いた靴に、よい子には小さな贈り物、悪い子にはジャガイモを入れていくそうです。', src: '出典：レイキャビク観光局（visitreykjavik.is）' },
   { id: 'almond', obj: BOWL, name: 'アーモンドが1粒', text: 'デンマークのクリスマスのデザート「リスアラマンド」には、丸ごとのアーモンドが1粒だけ隠されています。見つけた人は、プレゼントがもらえます。', src: '出典：デンマーク公式サイト（denmark.dk）' },
+  { id: 'bauble', obj: BAUBLE.g, name: 'ガラスのオーナメント', text: 'ツリーのガラス玉は、ドイツ・チューリンゲン地方の村ラウシャ生まれ。言い伝えでは1847年、高いクルミやリンゴを買えなかった貧しいガラス職人が、ガラスで飾りを作ったのが始まり。それまでツリーは、果物やナッツ、砂糖菓子で飾っていました。記録に残るいちばん古い注文は1848年です。', src: '出典：チューリンゲン州観光局（thueringen-entdecken.de）', y: 2.9 },
+  { id: 'wreath', obj: WR.g, name: 'アドベントのリース', text: 'アドベントのリースは1839年、ハンブルクの子どもの家「ラウエス・ハウス」で、ヨハン・ヒンリヒ・ヴィヒャーンが始めました。荷車の車輪ほどの木の輪に、ふだんの日は赤、日曜日は白のろうそく。毎日1本ずつ灯して、クリスマス・イブに全部が灯ります。', src: '出典：ハンブルク観光局（hamburg-travel.com）', y: 1.7 },
+  { id: 'reindeer', obj: REST.g, name: 'サンタとトナカイ', text: 'サンタがトナカイのそりに乗った姿が、はじめて絵になったのは1821年。ニューヨークの本屋が出した子ども向けの小さな本で、空を飛ぶトナカイがそりを引いていました。2年後の1823年12月23日には、新聞に作者の名前なしで載った詩に「小さなそりと、8頭の小さなトナカイ」と書かれました。', src: '出典：アメリカ古書協会（pastispresent.org）／アメリカ議会図書館（blogs.loc.gov）', y: 1.5 },
   { id: 'norad', obj: SANTA.g, name: 'サンタを追いかける', text: 'NORAD（北米航空宇宙防衛司令部）のサンタ追跡は1955年、デパートの広告の「サンタへの電話番号」が誤植で、防空司令部の作戦室につながったのが始まり。大佐は部下に、レーダーでサンタの行方を確かめさせました。', src: '出典：アメリカ陸軍（army.mil）', y: 2.2, big: true },
 ];
 const sparkTex = ctex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,240,200,.8)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.beginPath(); g.arc(32, 32, 30, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.95)'; for (const [w, h] of [[3, 30], [30, 3]]) { g.beginPath(); g.ellipse(32, 32, w, h, 0, 0, TAU); g.fill(); } });
@@ -630,7 +825,7 @@ const squid = new THREE.Points(sqG, sqMat); squid.frustumCulled = false; scene.a
 let wi = 0, aurBoost = 0, hueT = 0, fwEnergy = 0, lastShow = -99; const ROCKETS = [], SPARKS = [], FW_N = 6000, fwPos = new Float32Array(FW_N * 3), fwCol = new Float32Array(FW_N * 3), FW = { chance: 0.45, need: 5 };
 const fwG = new THREE.BufferGeometry(); fwG.setAttribute('position', new THREE.BufferAttribute(fwPos, 3)); fwG.setAttribute('color', new THREE.BufferAttribute(fwCol, 3));
 const fw = new THREE.Points(fwG, new THREE.PointsMaterial({ map: glowTex, size: 0.75, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fw.frustumCulled = false; scene.add(fw);
-const counts = { boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0, cotton: 0, angels: 0, angelBack: 0, steps: 0 }; let STEP_T = 0;
+const counts = { boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0, cotton: 0, angels: 0, angelBack: 0, steps: 0, bells: 0, menus: 0, lamps: 0, lampBack: 0, mtnBites: 0, spoons: 0, mtnBack: 0 }; let STEP_T = 0;
 // 光の波：s＝強さ（タップは1・なぞった跡は0.55）。触れるたびに花火の「たまり」が増え、たまると、ときどき盛大に上がる（毎回は上がらない）
 function seaWave(x, z, s = 1) { WAVES[wi].set(x, z, timeU.value, s); wi = (wi + 1) % WAVES.length; aurBoost = Math.max(aurBoost, s); if (s >= 1) SND.wave(); else SND.ripple(); counts.waves++;
   fwEnergy += s; if (fwEnergy >= FW.need && timeU.value - lastShow > 12 && Math.random() < FW.chance) { fwEnergy = 0; lastShow = timeU.value; grandShow(x, z); } }
@@ -753,9 +948,14 @@ function flyTo(target, lookAt, dist, up) { const dir = V1.copy(drone.p).sub(targ
 // 指の先にあるもの（海・豆知識・住人・名所・地面や家）
 function pickAt(x, y) {
   const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam);
-  const h = ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false)[0], tw = ray.ray.direction.y < 0 ? (WATER_Y - ray.ray.origin.y) / ray.ray.direction.y : Infinity;
+  const hs = ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false); let h = hs[0];
+  // 街灯の当たりの筒は柱より太いので、すぐ後ろに住人・豆知識などがいたら、そちらを優先（住人をかじるつもりが、街灯が折れていた）
+  if (h && h.object === LAMP.hit) { const alt = hs.find((x) => x.object !== LAMP.hit && x.object.userData.pick && x.distance - h.distance < 0.9); if (alt) h = alt; }
+  // 山の当たりは輪郭をなぞった大きな筒なので、すぐ奥（8m以内）に名所・住人・豆知識があれば、そちらを優先（崖のそばの美術館を押すと、山をかじっていた）
+  if (h && h.object.userData.pick && h.object.userData.pick.kind === 'mtn') { const alt = hs.find((x) => x.object.userData.pick && x.object.userData.pick.kind !== 'mtn' && x.object !== LAMP.hit && x.distance - h.distance < 8); if (alt) h = alt; }
+  const tw = ray.ray.direction.y < 0 ? (WATER_Y - ray.ray.origin.y) / ray.ray.direction.y : Infinity;
   if (tw < (h ? h.distance : Infinity)) { const p = ray.ray.origin.clone().addScaledVector(ray.ray.direction, tw); if (inWater(p.x, p.z)) return { kind: 'sea', point: p }; }
-  if (!h) return null; const o = h.object.userData.pick; if (o) return { kind: o.kind, o, point: h.point, obj: h.object };
+  if (!h) return null; const o = h.object.userData.pick; if (o) return { kind: o.kind, o, point: h.point, obj: h.object, id: h.instanceId };
   if (HOUSE_MESHES.includes(h.object) || BITE_EXTRA.includes(h.object)) return { kind: 'house', point: h.point, normal: h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 1, 0) };
   return { kind: 'ground', point: h.point };
 }
@@ -763,9 +963,11 @@ function tapAt(x, y) {
   const hit = pickAt(x, y); if (!hit) return null;
   if (hit.kind === 'sea') { seaWave(hit.point.x, hit.point.z); return { kind: 'sea' }; }
   if (hit.kind === 'house') { bite(hit.point, hit.normal); return { kind: 'house' }; }
+  if (hit.kind === 'lamp') { lampBreak(hit.id); return { kind: 'lamp' }; }
+  if (hit.kind === 'mtn') { mtnBite(hit.o.i, hit.point); return { kind: 'mtn' }; }
   const o = hit.o;
   // 鐘・空のサンタ・ツリーは、豆知識を見たあとは、さわるたびに鳴る・光るだけ（毎回、綿あめの雲が画面をおおうと、続けて叩けなかった）
-  if (o && o.kind === 'trivia') { const first = !found.has(o.id), play = o.id === 'silent' || o.id === 'norad' || o.id === 'tree'; if (first || !play) { found.add(o.id); $('fN').textContent = found.size; o.mk.material.color.set('#9fd0ff'); showTrivia(o, first); } if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
+  if (o && o.kind === 'trivia') { const first = !found.has(o.id), play = ['silent', 'norad', 'tree', 'bauble', 'wreath', 'reindeer'].includes(o.id); if (first || !play) { found.add(o.id); $('fN').textContent = found.size; o.mk.material.color.set('#9fd0ff'); showTrivia(o, first); } if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; counts.bells++; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else if (o.id === 'bauble') { BAUBLE.amp = Math.min(0.9, BAUBLE.amp + 0.5); SND.glassTink(); } else if (o.id === 'wreath') wreathTap(); else if (o.id === 'reindeer') { REST.hop = 1; SND.jingle(); } else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
   if (o && o.kind === 'gb') { gbBite(o); return o; }
   if (o && o.kind === 'puyo') { if (o.angel) return o; o.v += 7; o.hv = 4.2; SND.boing(o.r * 2); counts.boing++; const n = nowS(); o.taps = (o.taps || []).filter((x) => n - x < 5); o.taps.push(n); if (o.walk && o.taps.length >= 7) { o.taps = []; angelize(o); } return o; }
   if (o && o.kind === 'area') { SND.whoosh(); counts.focus++; o.seen = true; if (o.id === 'teddy') { TEDDY.userData.squish = 1; TOY.g.userData.wob = 1; counts.teddy++; SND.boing(3); } const c = o.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + o.view.h * 0.4); flyTo(look, look, o.view.d, o.view.h); showCard(o.name, o.sub, o.text, o.link || o.id === 'teddy' ? '' : '準備中', o.link); return o; }
@@ -804,12 +1006,34 @@ const TIPS = [
   { id: 'pull', q: 'テディの店のくまのグミ、ひっぱるとのびるよ。やってみた？', done: () => counts.pulls > 0, go: () => focusArea(AREAS.find((a) => a.id === 'teddy')) },
   { id: 'tree', q: '広場の大きなツリー、さわってみた？　ぷるんとゆれるよ', done: () => counts.treeTaps > 0, go: () => goPoint(BIGTREE.position.clone().setY(BIGTREE.position.y + 3), 11, 2) },
 ];
+// 見落としがちな所（そこまで作りこんであるとは…と思ってもらう所）。ふつうのヒントが出つくしたら出はじめ、一巡したら、また最初から
+const ENTER = (id) => () => { const A = AREAS.find((a) => a.id === id); if (!A || !A.link) return; const a = document.createElement('a'); a.href = A.link; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } document.body.appendChild(a); a.click(); a.remove(); };
+const TIP_OF = (id) => TIPS.find((t) => t.id === id);
+TIPS.push(
+  { deep: 1, id: 'deep:glassSanta', q: 'ステンドグラスのサンタに会えた？　ヒントは、空だよ', done: () => false, go: ENTER('glass') },
+  { deep: 1, id: 'deep:angel', q: 'ぷよの天使って、きれいだよね♪　気持ちよく、つつきまくろう！', done: () => counts.angels > 0, go: () => TIP_OF('puyo').go() },
+  { deep: 1, id: 'deep:show', q: '大きな花火、見てないの？　海の上で、波紋をいっぱい広げると…', done: () => counts.shows > 0, go: () => goPoint(SEA_P, 14, 7) },
+  { deep: 1, id: 'deep:bell', q: '礼拝堂の鐘、何回も鳴らしてみた？　り～ん、ご～ん', done: () => counts.bells >= 3, go: () => goPoint(BELL.getWorldPosition(new THREE.Vector3()), 7, 1.5) },
+  { deep: 1, id: 'deep:heal', q: 'お菓子の家をかじって、10秒まってみて。鈴の音がしたら…', done: () => counts.heals > 0, go: () => TIP_OF('bite').go() },
+  { deep: 1, id: 'deep:snow', q: '雪の上を、低く飛んでみて。さく、さく、さく', done: () => counts.steps > 8, go: () => goPoint(BIGTREE.position.clone().add(new THREE.Vector3(5, 0, 5)), 3, 0.8) },
+  { deep: 1, id: 'deep:aurora', q: '海をなぞると、オーロラまで明るくなるの、気づいた？', done: () => false, go: () => goPoint(SEA_P, 16, 9) },
+  { deep: 1, id: 'deep:gbBack', q: 'ジンジャークッキーの住人、食べちゃっても…しばらくすると？', done: () => counts.gbBack > 0, go: () => TIP_OF('gb').go() },
+  { deep: 1, id: 'deep:deer', q: 'サンタのそりのトナカイ、足と首で、ちゃんと駆けてるよ。近くで見てみて', done: () => false, go: () => goPoint(SANTA.g.position.clone(), 9, 2) },
+  { deep: 1, id: 'deep:crystal', q: '美術館のまんなかのクリスタル、長～く押したことある？　ちょっとこわいけど…', done: () => false, go: ENTER('museum') },
+  { deep: 1, id: 'deep:gemGlow', q: '美術館の宝石、じっと見ていると、自分で光る子がいるよ', done: () => false, go: ENTER('museum') },
+  { deep: 1, id: 'deep:ice', q: '氷の彫像の宝石は、ぜんぶで24種類。集めきると…？', done: () => false, go: ENTER('ice') },
+  { deep: 1, id: 'deep:water', q: 'ぷるぷる水そう、やわらかさを「みず」に変えてみた？　目いっぱい引っぱると…', done: () => false, go: ENTER('swim') },
+  { deep: 1, id: 'deep:spoon', q: '大きなスプーン、見れた？　遠くに見えるあいつも、たいらげちゃおう', done: () => counts.spoons > 0, go: () => { const M = MOUNTS[2]; goPoint(new THREE.Vector3(M.x, M.y + M.yMax * 0.6, M.z), M.rMax + 14, 6); } },
+  { deep: 1, id: 'deep:lamp', q: 'キャンディの街灯、さわってみた？　ポキッといくよ（ちゃんと戻るから、だいじょうぶ）', done: () => counts.lamps > 0, go: () => { const [x, z] = LAMPS[0]; goPoint(new THREE.Vector3(x, landH(x, z) + 1.2, z), 5, 1.5); } },
+  { deep: 1, id: 'deep:tower', q: 'グミのつみき、どこまで高く積める？', done: () => false, go: ENTER('blocks') });
 const tipEl = $('tip'); let tipT = 22, tipOn = null, tipHide = 0;
 function showTip(t) { tipOn = t; $('tipQ').textContent = t.q; tipEl.classList.add('on'); tipHide = 11; SND.chime(2); counts.tips++; }
 function hideTip() { tipEl.classList.remove('on'); tipOn = null; }
 $('tipYes').addEventListener('click', () => { if (tipOn) tipOn.asked = true; hideTip(); SND.tap(); });
 $('tipNo').addEventListener('click', () => { const t = tipOn; hideTip(); if (t) { t.asked = true; t.go(); SND.whoosh(); counts.tipGo++; } });
-function stepTips(dt) { if (tipOn) { if ((tipHide -= dt) <= 0) hideTip(); return; } if (!card.hidden || COT.open || auto) return; if ((tipT -= dt) > 0) return; tipT = rnd(35, 50); const c = TIPS.filter((t) => !t.asked && !t.done()); if (c.length) showTip(c[(Math.random() * c.length) | 0]); }
+function stepTips(dt) { if (tipOn) { if ((tipHide -= dt) <= 0) hideTip(); return; } if (!card.hidden || COT.open || auto) return; if (!$('menu').hidden || (tipT -= dt) > 0) return; tipT = rnd(35, 50);
+  let c = TIPS.filter((t) => !t.deep && !t.asked && !t.done()); if (!c.length) { c = TIPS.filter((t) => t.deep && !t.asked && !t.done()); if (!c.length) { for (const t of TIPS) if (t.deep) t.asked = false; c = TIPS.filter((t) => t.deep && !t.done()); } }
+  if (c.length) showTip(c[(Math.random() * c.length) | 0]); }
 // ---------- テディのグミ：つまんで引っぱると、そこだけのびる。はなすと、ぷるんぷるんと戻る（くまの足は台に固定） ----------
 const PULL = { uGrab: { value: new THREE.Vector3() }, uPull: { value: new THREE.Vector3() }, uSig: { value: 0.45 }, uFoot: { value: -9 } }, PULL_V = new THREE.Vector3();
 function pullable(m) { const prev = m.onBeforeCompile, pk = m.customProgramCacheKey.call(m);
@@ -833,6 +1057,7 @@ function stepDrone(dt, now) {
   // 地面・家の上に。町から離れすぎない
   const floor = (inWater(drone.p.x, drone.p.z) ? WATER_Y : landH(drone.p.x, drone.p.z)) + 1.2; if (drone.p.y < floor) { drone.p.y = floor; drone.v.y = Math.max(0, drone.v.y); }
   for (const H of HOUSES) { const dx = drone.p.x - H.x, dz = drone.p.z - H.z, d = Math.hypot(dx, dz); if (d < H.r + 0.6 && drone.p.y < H.top) { const k = (H.r + 0.6 - d) / Math.max(d, 0.01); drone.p.x += dx * k; drone.p.z += dz * k; } }
+  for (const M of MOUNTS) { let dx = drone.p.x - M.x, dz = drone.p.z - M.z, d = Math.hypot(dx, dz); if (d > M.rMax + 1.5) continue; const lim = mtnR(M, drone.p.y - M.y) + 1.2; if (lim > 1.2 && d < lim) { if (d < 0.05) { dx = -M.x; dz = 5 - M.z; d = Math.hypot(dx, dz); } const k = lim / d; drone.p.x = M.x + dx * k; drone.p.z = M.z + dz * k; } }   // 山の中に入りこまない
   drone.p.y = Math.min(drone.p.y, 48); const rad = Math.hypot(drone.p.x, drone.p.z - 5); if (rad > 85) { drone.p.x *= 85 / rad; drone.p.z = 5 + (drone.p.z - 5) * (85 / rad); }
   drone.yaw += (drone.tyaw - drone.yaw) * Math.min(1, dt * 8); drone.pitch += (drone.tpitch - drone.pitch) * Math.min(1, dt * 8);
   cam.position.copy(drone.p); cam.rotation.set(drone.pitch, drone.yaw, 0, 'YXZ');
@@ -892,6 +1117,7 @@ function frame() {
     b.body.scale.set(b.r * (1 - s * 0.5 - br - st * 0.5), b.r * (1 + s + br + st), b.r * (1 - s * 0.5 - br - st * 0.5)); b.body.position.y = b.r * BLOB_B * (1 + s + br + st) - 0.02 + b.hop; b.face.position.y = b.body.position.y; b.face.scale.set(b.r * (1 - s * 0.5 - st * 0.5), b.r * (1 + s + st), b.r * (1 - s * 0.5 - st * 0.5)); }
   { const a = t * 0.1, x = SQ[0] + Math.cos(a) * 3.6, z = SQ[1] + Math.sin(a) * 3.0; LUCIA.position.set(x, landH(x, z), z); LUCIA.rotation.y = -a; LUCIA.updateMatrixWorld();
     let li = 0; for (const b of PUYOS) if (!b.walk) { const ai = a - li * 0.28, xi = SQ[0] + Math.cos(ai) * 3.6, zi = SQ[1] + Math.sin(ai) * 3.0; b.grp.position.copy(LUCIA.worldToLocal(V1.set(xi, surfaceAt(xi, zi), zi))); b.grp.rotation.y = li * 0.28; li++; } }   // 後ろの子も、だ円の道の上を（まっすぐ後ろに並べると、ツリーの根元に入りこんだ）
+  stepBaubles(t, dt); stepWreath(t, dt); stepRest(t, dt); stepLamps(dt); stepMtn(dt);
   // サンタ：町の上空を大きく回る。トナカイは駆け足（後ろ脚で蹴って、前脚を伸ばす。首を振る）。光の尾
   { const a = t * 0.07, x = Math.cos(a) * 46, z = 2 + Math.sin(a) * 32, y = 27 + Math.sin(a * 3) * 3, nx = -Math.sin(a) * 46, nz = Math.cos(a) * 32; SANTA.g.position.set(x, y, z); SANTA.g.rotation.set(0, Math.atan2(-nz, nx), Math.sin(t * 2) * 0.05);
     for (const D of SANTA.deer) { const ph = t * 10 + D.ph, A = 0.62; D.U.uLeg.value.set(A * Math.sin(ph + 2.6), A * Math.sin(ph + 2.3), A * Math.sin(ph + 0.3), A * Math.sin(ph)); D.U.uNeck.value = 0.2 * Math.sin(ph + 1.2); D.d.position.set(D.base.x, D.base.y + 0.08 * Math.sin(2 * ph), D.base.z); D.d.rotation.z = 0.08 * Math.sin(ph + 0.6); }
@@ -929,23 +1155,61 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
     if (pts) return pts.map(([x, y]) => g.getImageData(x * d, y * d, 1, 1).data[3]); const D = g.getImageData(0, 0, c.width, c.height).data; let n = 0, m = 0; for (let i = 3; i < D.length; i += 64) { m++; if (D[i] > 128) n++; } return n / m; },
   puyoGround: () => { const rc = new THREE.Raycaster(), B = new THREE.Box3(), seen = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; }; scene.updateMatrixWorld(); const M = []; scene.traverse((o) => { if (o.isMesh) M.push(o); });
     // 散ったくず（並べて描く物）は地面に数えない。ぷよごとに、体のいちばん低い4点の真下の、見える地面との差（いちばん深い所）。坂では底のふちが下がるので、中心の真下では測らない
-    const mine = (o) => PUYOS.some((p) => { for (let q = o; q; q = q.parent) if (q === p.grp) return true; return false; }), down = new THREE.Vector3(0, -1, 0);
+    const movers = [...PUYOS.map((p) => p.grp), ...GBS.map((G) => G.g), LUCIA, SANTA.g], mine = (o) => { for (let q = o; q; q = q.parent) if (movers.includes(q)) return true; return false; }, down = new THREE.Vector3(0, -1, 0);   // 動く住人（ぷよ・クッキー・行列・サンタ）は地面に数えない
     return PUYOS.map((b, i) => { const pa = b.body.geometry.attributes.position, W = []; for (let k = 0; k < pa.count; k++) W.push(new THREE.Vector3().fromBufferAttribute(pa, k).applyMatrix4(b.body.matrixWorld)); W.sort((p, q) => p.y - q.y);
       let d = 9, kind = null; for (const v of W.slice(0, 4)) { rc.set(new THREE.Vector3(v.x, v.y + 0.6, v.z), down); const h = rc.intersectObjects(M, false).find((h) => seen(h.object) && !h.object.isInstancedMesh && h.object.material.visible !== false && !h.object.material.transparent && !mine(h.object)); if (h && v.y - h.point.y < d) { d = v.y - h.point.y; kind = [h.object.geometry.type, +(h.point.y - surfaceAt(v.x, v.z)).toFixed(3), '#' + (h.object.material.color ? h.object.material.color.getHexString() : '')]; } }
       return [i, +d.toFixed(3), kind, b.walk, +b.hop.toFixed(3)]; }); },
-  toyWob: () => TOY.g.userData.wob, bellSwing: () => BELL.userData.swing || 0, gbWallMax: () => GBS[0].m.geometry.attributes.aWall ? Math.max(...GBS[0].m.geometry.attributes.aWall.array.filter((v, i) => i % 4 === 3)) : 0,
+  toyWob: () => TOY.g.userData.wob, bgm: () => ({ on: BGM.on, track: BGM.track }), tipList: () => TIPS.map((t) => [t.id, !!t.deep, !!t.asked, t.done()]), tipShow: (id) => showTip(TIP_OF(id)), bellSwing: () => BELL.userData.swing || 0, gbWallMax: () => GBS[0].m.geometry.attributes.aWall ? Math.max(...GBS[0].m.geometry.attributes.aWall.array.filter((v, i) => i % 4 === 3)) : 0,
   angel: (i) => { const b = PUYOS[i]; return { st: b.angel ? b.angel.st : null, y: +b.grp.position.y.toFixed(2), vis: b.grp.visible, wings: !!(b.wings && b.wings[0].visible), halo: !!(b.halo && b.halo.visible) }; }, angelT: (i, t) => { if (PUYOS[i].angel) PUYOS[i].angel.t = t; }, angelParts: (i) => { const b = PUYOS[i], w = (o) => o.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)); return { grp: w(b.grp), body: w(b.body), halo: b.halo ? w(b.halo) : null, wingL: b.wings ? w(b.wings[0]) : null, wingR: b.wings ? w(b.wings[1]) : null, scale: +b.grp.scale.x.toFixed(2) }; },
   cotAt: (t) => { cancelAnimationFrame(COT.raf); COT.t0 = performance.now() - t * 1000; cotDraw(t); },
-  cotClose: (now) => closeTrivia(now), found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href }),
+  cotClose: (now) => closeTrivia(now), mtn: (i) => { const S = MTN_ST[i]; return { taps: S.taps, dents: EAT.list.filter((D) => D.i === i).length, spoon: SPOON.i === i ? +SPOON.t.toFixed(1) : null, rest: S.rest ? +S.rest.t.toFixed(1) : null, eaten: S.eaten }; }, mtnAt: (i) => { const M = MOUNTS[i]; return [M.x, M.y + M.yMax * 0.55, M.z, M.rMax, M.yMax]; }, mtnHurry: (i) => { const S = MTN_ST[i]; S.last -= 100; if (S.spoonEnd) S.spoonEnd -= 100; }, mtnN: () => MOUNTS.length, inMtn: () => MOUNTS.some((M) => Math.hypot(cam.position.x - M.x, cam.position.z - M.z) < mtnR(M, cam.position.y - M.y)), lamp: (i) => (LAMP.st[i] ? LAMP.st[i].phase : 'ok'), lampAt: (i) => { const [x, z] = LAMPS[i]; return [x, landH(x, z) + 1.3, z]; }, lampPiece: (i) => (LAMP.st[i] ? LAMP.st[i].parts.map((P) => +P.p.y.toFixed(2)) : null), lampsDown: () => LAMP.st.flatMap((S, i) => (S ? [i] : [])), wreath: () => WR.lit, bauble: () => BAUBLE.amp, rest: () => REST.hop, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href }),
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, p.z]; },
   where: (kind, id) => { const o = kind === 'area' ? AREAS.find((a) => a.id === id).g : kind === 'trivia' ? TRIVIA.find((T) => T.id === id).hit : kind === 'gb' ? GBS[id].m : PUYOS[id].body; return o.getWorldPosition(new THREE.Vector3()).toArray(); },
   place: (p, yaw, pitch) => { drone.p.set(...p); drone.v.set(0, 0, 0); drone.yaw = drone.tyaw = yaw; drone.pitch = drone.tpitch = pitch; auto = null; stepDrone(0, nowS()); },
   look: (v) => { const d = new THREE.Vector3(...v).sub(drone.p); drone.yaw = drone.tyaw = Math.atan2(-d.x, -d.z); drone.pitch = drone.tpitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); stepDrone(0, nowS()); },
-  tap: (x, y) => { const r = tapAt(x, y); return r ? [r.kind, r.id ?? null] : null; }, peek: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, h.o ? h.o.id ?? null : null] : null; }, pos: () => drone.p.toArray(), aur: () => sky.mat.uniforms.uAur.value, auto: () => !!auto, sparks: () => SPARKS.length, gbLimb: (i) => GBS[i].U.uLimb.value.toArray(), gbInfo: (i) => { const m = GBS[i].m, g = m.geometry; g.computeBoundingBox(); return { n: g.attributes.position.count, box: [g.boundingBox.min.toArray(), g.boundingBox.max.toArray()], wp: m.getWorldPosition(new THREE.Vector3()).toArray(), sc: m.scale.x, vis: m.visible, mats: Array.isArray(m.material) }; }, voices: SND.voices, inWater, landH,
+  tap: (x, y) => { const r = tapAt(x, y); return r ? [r.kind, r.id ?? null] : null; }, peek: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, h.o ? h.o.id ?? h.id ?? null : null] : null; }, pos: () => drone.p.toArray(), aur: () => sky.mat.uniforms.uAur.value, auto: () => !!auto, sparks: () => SPARKS.length, gbLimb: (i) => GBS[i].U.uLimb.value.toArray(), gbInfo: (i) => { const m = GBS[i].m, g = m.geometry; g.computeBoundingBox(); return { n: g.attributes.position.count, box: [g.boundingBox.min.toArray(), g.boundingBox.max.toArray()], wp: m.getWorldPosition(new THREE.Vector3()).toArray(), sc: m.scale.x, vis: m.visible, mats: Array.isArray(m.material) }; }, voices: SND.voices, inWater, landH,
   bites: () => SW.BITES.filter((b) => b.w > 0).length, gb: (i) => ({ state: GBS[i].state, eat: GBS[i].eat, vis: GBS[i].m.visible }), crumbs: () => CRUMBS.length, puyos: () => PUYOS.map((b) => [b.grp.position.x, b.grp.position.z, b.hop]),
   deer: () => SANTA.deer.map((D) => [...D.U.uLeg.value.toArray(), D.U.uNeck.value]), waveH: (x, z) => waveH(x, z, timeU.value), fw: (c, need) => { FW.chance = c; if (need != null) FW.need = need; }, energy: () => fwEnergy, rockets: () => ROCKETS.length + SPARKS.length,
   houseAt: (i) => { const H = HOUSES[i], o = H.o, p = new THREE.Vector3(o.w * 0.48, o.h * 0.2, o.d / 2 + 0.05).applyAxisAngle(new THREE.Vector3(0, 1, 0), o.ry); return [o.x + p.x, o.y + p.y, o.z + p.z]; }, houseFront: (i) => { const o = HOUSES[i].o, n = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), o.ry); return n.toArray(); },
   scaleOf: (id) => AREAS.find((a) => a.id === id).g.scale.x, halos: () => TRIVIA.filter((T) => (T.big ? SANTA_HALO.material.opacity : HALO_G.attributes.color.getX(T.k) + HALO_G.attributes.color.getY(T.k)) > 0.05).length, festoons: () => FESTOONS.length, boatsY: () => BOATS.map((b) => b.g.position.y), santaPos: () => SANTA.g.position.toArray(), tip: (i) => showTip(TIPS[i]), tips: () => TIPS.map((x) => x.id), tipNo: () => $('tipNo').click(), pull: () => PULL.uPull.value.length(), teddyFoot: () => { const T = TEDDY.userData.k; T.updateMatrixWorld(true); return new THREE.Box3().setFromObject(T).min.y - TEDDY.getWorldPosition(new THREE.Vector3()).y; }, tree: () => [TREE_J.j, TREE_J.spark], slope: (x, z) => slopeAt(x, z), padAt: (k) => { const [x, z] = AREAPOS[k]; return [landH(x - 2, z), landH(x + 2, z), landH(x, z - 2), landH(x, z + 2)]; }, cardAt: () => cardAt && cardAt.toArray(), rayAll: (x, y) => { pickAt(x, y); return ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false).slice(0, 6).map((h) => [+h.distance.toFixed(2), isTeddy(h.object), h.object.userData.key || h.object.material.type, PICK.includes(h.object)]); }, tedMeshes: () => { let n = 0, p = 0; TEDDY.traverse((o) => { if (o.isMesh) { n++; if (PICK.includes(o)) p++; } }); return [n, p]; }, pickObj: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, !!h.obj, h.obj ? isTeddy(h.obj) : null, h.obj ? h.obj.type + ':' + (h.obj.parent && h.obj.parent.type) : null] : null; }, teddyW: () => TEDDY.userData.k.localToWorld(new THREE.Vector3(0, 0, 0)).toArray(), teddyN: () => new THREE.Vector3(0, 0, 1).transformDirection(TOY.g.matrixWorld).toArray() };
+// ---------- メニュー：行ける場所・豆知識・つかいかた・音 ----------
+const WHERE = { bauble: '広場の奥の、ガラス玉の屋台', wreath: '礼拝堂の前の、ろうそくの輪', reindeer: '広場の奥で、ひと休みするトナカイ', gtown: 'パン屋の看板のあたり', seven: 'パン屋の窓辺', tree: '広場の大きなツリー', card: '郵便局の赤いポスト', silent: '礼拝堂の鐘', lucia: '広場をまわる、光の冠の行列', yule: '家の窓辺の靴', almond: '広場の屋台', norad: '夜空を走るそり' };
+const SOUND_KEY = 'xmas-town-sound', PREF = (() => { try { return Object.assign({ bgm: true, track: 'musicbox', se: true }, JSON.parse(localStorage.getItem(SOUND_KEY) || '{}')); } catch (e) { return { bgm: true, track: 'musicbox', se: true }; } })();
+const savePref = () => { try { localStorage.setItem(SOUND_KEY, JSON.stringify(PREF)); } catch (e) { /* その場かぎり */ } };
+BGM.setTrack(PREF.track); SND.setMute(!PREF.se);
+// 音は、最初に画面にさわった時から（スマホは、さわる前に音を出せない）。港町の中だけ鳴る（仕掛けのページには BGM がない）
+let soundStarted = false; const startSound = () => { if (soundStarted) return; soundStarted = true; BGM.set(SND.audio(), PREF.bgm); };
+addEventListener('pointerdown', startSound, { capture: true }); addEventListener('keydown', startSound, { capture: true });
+let menuTab = 'places';
+const mEl = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const mRow = (title, sub, ...btns) => { const r = mEl('div', 'it'), t = mEl('div', 'mtx'); t.append(mEl('b', null, title)); if (sub) t.append(mEl('small', null, sub)); r.append(t, ...btns); return r; };
+const mBtn = (label, fn, cls) => { const b = mEl('button', cls || null, label); b.type = 'button'; b.addEventListener('click', () => { SND.tap(); fn(); }); return b; };
+function openMenu(tab) { if (tab) menuTab = tab; closeTrivia(true); card.hidden = true; if (tipOn) hideTip(); $('menu').hidden = false; drawMenu(); counts.menus++; }
+function closeMenu() { $('menu').hidden = true; }
+function drawMenu() {
+  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.t === menuTab);
+  const P = $('pane'); P.textContent = ''; P.scrollTop = 0;
+  if (menuTab === 'places') { P.append(mEl('div', 'hd', 'さわると、そこへ飛びます。「入る」で、中の仕掛けへ'));
+    for (const A of AREAS) { const bs = [mBtn('ここへ', () => { closeMenu(); focusArea(A); })]; if (A.link) { const a = mEl('a', 'go', '入る ›'); a.href = A.link; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } bs.push(a); }
+      P.append(mRow((A.seen ? '✓ ' : '') + A.name, A.sub, ...bs)); } }
+  else if (menuTab === 'trivia') { P.append(mEl('div', 'hd', `見つけた豆知識　${found.size} / ${TRIVIA.length}`));
+    for (const T of TRIVIA) { const tip = TIP_OF('trivia:' + T.id);
+      if (found.has(T.id)) P.append(mRow('✓ ' + T.name, WHERE[T.id], mBtn('読む', () => { closeMenu(); tip.go(); setTimeout(() => showTrivia(T, false), 900); })));
+      else P.append(mRow('？？？', 'ヒント：' + WHERE[T.id], mBtn('さがしに行く', () => { closeMenu(); tip.go(); }, 'go'))); } }
+  else if (menuTab === 'howto') { P.append(mEl('div', 'hd', 'おかしな港町の、あそびかた'));
+    for (const [a, b] of [['左の丸', '飛ぶ（上＝前・下＝うしろ・左右＝横へ）'], ['▲ ▼', '上がる・下がる'], ['空や町をなぞる', 'まわりを見まわす'], ['2本指をひろげる・せばめる', '近づく・はなれる'],
+      ['家や住人をタップ', 'かじる（しばらくすると、もとどおり）'], ['遠くのかき氷・パフェの山をタップ', 'すくって食べる（たくさん食べると…？）'], ['海をなぞる', '光の波が広がる。何度も広げると…？'], ['名所の看板の建物をタップ', 'そばへ飛んで、「この場所へ」で中の仕掛けへ'], ['✦ の光', '豆知識。さわると読めます'],
+      ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b)); }
+  else { P.append(mEl('div', 'hd', 'BGM は、この港町の中だけで鳴ります'));
+    P.append(mRow('BGM', PREF.bgm ? '鳴らす' : '鳴らさない', mBtn(PREF.bgm ? 'オン' : 'オフ', () => { PREF.bgm = !PREF.bgm; savePref(); soundStarted = true; BGM.set(SND.audio(), PREF.bgm); drawMenu(); }, PREF.bgm ? 'on' : null)));
+    for (const T of BGM.tracks) P.append(mRow((BGM.track === T.id ? '♪ ' : '') + T.name, T.desc, mBtn(BGM.track === T.id ? 'えらんでいる' : 'これにする', () => { PREF.track = T.id; PREF.bgm = true; savePref(); BGM.setTrack(T.id); soundStarted = true; BGM.set(SND.audio(), true); drawMenu(); }, BGM.track === T.id ? 'on' : null)));
+    P.append(mRow('効果音', 'さわった時の音', mBtn(PREF.se ? 'オン' : 'オフ', () => { PREF.se = !PREF.se; savePref(); SND.setMute(!PREF.se); drawMenu(); }, PREF.se ? 'on' : null))); } }
+$('menuB').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu(); });
+// 右上の「豆知識 ○/12」からも、豆知識の一覧へ（一度見た豆知識は、ふつうに触っても雲が出ないものがあるので、ここで読み返す）
+$('found').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu('trivia'); });
+$('menuX').addEventListener('click', () => { SND.tap(); closeMenu(); });
+$('menu').addEventListener('click', (e) => { if (e.target.id === 'menu') closeMenu(); });
+for (const b of $('tabs').children) b.addEventListener('click', () => { SND.tap(); menuTab = b.dataset.t; drawMenu(); });
 // 仕掛けの「港町へもどる」で来た時（#museum など）は、その建物の前から
 { const A = AREAS.find((a) => '#' + a.id === location.hash); if (A) { A.seen = true; saveProgress(); const c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; counts.flights--; } }
 queueClear();

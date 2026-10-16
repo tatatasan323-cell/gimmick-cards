@@ -8,13 +8,19 @@ export function audio() {
 }
 const r = (a, b) => a + Math.random() * (b - a), live = () => ac && ac.state === 'running';
 const safe = (fn) => (...a) => { if (!live()) return; try { fn(...a); } catch (e) { /* 音が出なくても遊べる */ } };
-function partial(f, vol, t, dur, atk = 0.002, type = 'sine') { if (f > 15000 || f < 20) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); }
+// 同時に鳴っている音の数を数え、多すぎる時は新しい音を省く（大クリスタルが倒れると、崩れた展示が一斉に戻って700近く重なり、スマホでは途中から無音になった）
+// ふだんの音は CAP まで。大クリスタルの音（軋む・砕ける・よみがえる・旋律）は優先して、その倍まで鳴らす
+let act = 0, HI = 0; const CAP = 150;
+const room = () => act < (HI ? CAP * 2 : CAP), go = (o) => { act++; o.onended = () => { act--; }; };
+const hi = (fn) => safe((...a) => { HI++; try { fn(...a); } finally { HI--; } });
+export const voices = () => act;
+function partial(f, vol, t, dur, atk = 0.002, type = 'sine') { if (f > 15000 || f < 20 || !room()) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); go(o); }
 const noiseBuf = () => { if (!noise) { noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return noise; };
-function hiss(vol, t, dur, type, freq, q = 0.8) { const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02); }
-function glide(f0, f1, vol, t, dur, type = 'sine') { const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); }
-function wobble(f, vol, t, dur, atk, rate, depth, type = 'sine') { const o = ac.createOscillator(), g = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain(); o.type = type; o.frequency.value = f; l.frequency.value = rate; lg.gain.value = f * depth; l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02); }
-function tremolo(f, vol, t, dur, rate) { const o = ac.createOscillator(), g = ac.createGain(), am = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain(); o.frequency.value = f; l.frequency.value = rate; lg.gain.value = 0.45; am.gain.value = 0.55; l.connect(lg); lg.connect(am.gain); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(am); am.connect(g); g.connect(out); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02); }
-function pluck(f, vol, t, dur) { const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain(); o.type = 'sawtooth'; o.frequency.value = f; lp.type = 'lowpass'; lp.Q.value = 2; lp.frequency.setValueAtTime(f * 7, t); lp.frequency.exponentialRampToValueAtTime(f * 1.2, t + 0.35); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); }
+function hiss(vol, t, dur, type, freq, q = 0.8) { if (!room()) return; const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02); go(s); }
+function glide(f0, f1, vol, t, dur, type = 'sine') { if (!room()) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); go(o); }
+function wobble(f, vol, t, dur, atk, rate, depth, type = 'sine') { if (!room()) return; const o = ac.createOscillator(), g = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain(); o.type = type; o.frequency.value = f; l.frequency.value = rate; lg.gain.value = f * depth; l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02); go(o); }
+function tremolo(f, vol, t, dur, rate) { if (!room()) return; const o = ac.createOscillator(), g = ac.createGain(), am = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain(); o.frequency.value = f; l.frequency.value = rate; lg.gain.value = 0.45; am.gain.value = 0.55; l.connect(lg); lg.connect(am.gain); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(am); am.connect(g); g.connect(out); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02); go(o); }
+function pluck(f, vol, t, dur) { if (!room()) return; const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain(); o.type = 'sawtooth'; o.frequency.value = f; lp.type = 'lowpass'; lp.Q.value = 2; lp.frequency.setValueAtTime(f * 7, t); lp.frequency.exponentialRampToValueAtTime(f * 1.2, t + 0.35); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); go(o); }
 
 // 音階：ハ長調の五音（ド・レ・ミ・ソ・ラ）を2オクターブと少し
 export const SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 1567.98, 1760, 2093];
@@ -33,8 +39,9 @@ const TIMBRE = {
 export const TIMBRES = Object.keys(TIMBRE);
 let lastNote = 0;
 export const note = safe((kind, k, vol = 1) => { const now = performance.now(); if (now - lastNote < 40) return; lastNote = now; TIMBRE[kind](SCALE[Math.max(0, Math.min(SCALE.length - 1, k))], 0.09 * vol, ac.currentTime); });
-// 戻る時：その宝石の音色で、5つ上っていって、最後に和音
-export const restore = safe((kind, k) => { const t = ac.currentTime; for (let i = 0; i < 5; i++) TIMBRE[kind](SCALE[Math.min(SCALE.length - 1, k + i)] / (i < 2 ? 2 : 1), 0.05, t + 0.12 + i * 0.32); for (const d of [0, 2, 4]) TIMBRE[kind](SCALE[Math.min(SCALE.length - 1, k + d)], 0.045, t + 1.9); for (let i = 0; i < 6; i++) partial(r(3000, 7000), 0.008, t + r(0, 1.8), r(0.2, 0.6), 0.01); });
+// 戻る時：その宝石の音色で、5つ上っていって、最後に和音。いくつも同時に戻る時（大クリスタルが倒れたあと）は、2つ目からは1音だけ
+let lastRestore = -9;
+export const restore = safe((kind, k) => { const t = ac.currentTime; if (t - lastRestore < 1.6) { TIMBRE[kind](SCALE[Math.min(SCALE.length - 1, k + 2)], 0.04, t + r(0.1, 0.6)); return; } lastRestore = t; for (let i = 0; i < 5; i++) TIMBRE[kind](SCALE[Math.min(SCALE.length - 1, k + i)] / (i < 2 ? 2 : 1), 0.05, t + 0.12 + i * 0.32); for (const d of [0, 2, 4]) TIMBRE[kind](SCALE[Math.min(SCALE.length - 1, k + d)], 0.045, t + 1.9); for (let i = 0; i < 6; i++) partial(r(3000, 7000), 0.008, t + r(0, 1.8), r(0.2, 0.6), 0.01); });
 // ふつうの、きらめきの粒
 export const shimmer = safe(() => { const t = ac.currentTime; for (let i = 0; i < 4; i++) partial(r(3500, 7500), 0.01, t + r(0, 0.25), r(0.2, 0.5), 0.01); });
 // 長押し：ガラスが軋む「ピキッ」（強さ 0〜1）
@@ -64,20 +71,20 @@ const WALTZ = [
 ];
 let wIdx = 0, wFree = 0;
 // 1節を鳴らす（前の節が鳴っている間なら、そのあとにつなげる）。返り値＝鳴りはじめるまでの秒
-export const crystalPhrase = safe((vol = 1) => { const beat = 0.42, t = Math.max(ac.currentTime + 0.03, wFree); if (t - ac.currentTime > 3) return; const P = WALTZ[wIdx++ % WALTZ.length];
+export const crystalPhrase = hi((vol = 1) => { const beat = 0.42, t = Math.max(ac.currentTime + 0.03, wFree); if (t - ac.currentTime > 3) return; const P = WALTZ[wIdx++ % WALTZ.length];
   for (const [b, n] of P.mel) { TIMBRE.celesta(MIDI(n), 0.085 * vol, t + b * beat); TIMBRE.crystal(MIDI(n - 12), 0.012 * vol, t + b * beat); }
   P.bars.forEach(([bass, ch], k) => { const t0 = t + k * 3 * beat; TIMBRE.glass(MIDI(bass + 12), 0.045 * vol, t0); for (const bb of [1, 2]) for (const c of ch) TIMBRE.harp(MIDI(c + 12), 0.03 * vol, t0 + bb * beat); });
   for (let i = 0; i < 5; i++) partial(r(4000, 8000), 0.007 * vol, t + r(0, 2.4), r(0.2, 0.5), 0.01);
   wFree = t + 6 * beat; });
 // ひびの入る音：低く、重く（強さ 0〜1）
-export const creakBig = safe((k) => { const t = ac.currentTime; glide(180 + k * 60, 90, 0.06 + k * 0.08, t, 0.35, 'triangle'); hiss(0.05 + k * 0.08, t, 0.08, 'bandpass', 1800 + k * 1500, 1.5); partial(r(1200, 2200), 0.03 + k * 0.04, t, 0.4, 0.002); });
+export const creakBig = hi((k) => { const t = ac.currentTime; glide(180 + k * 60, 90, 0.06 + k * 0.08, t, 0.35, 'triangle'); hiss(0.05 + k * 0.08, t, 0.08, 'bandpass', 1800 + k * 1500, 1.5); partial(r(1200, 2200), 0.03 + k * 0.04, t, 0.4, 0.002); });
 // 倒れはじめる：ゴゴゴ…と軋みながら傾く
-export const groan = safe(() => { const t = ac.currentTime; glide(140, 60, 0.12, t, 1.2, 'sawtooth'); hiss(0.06, t, 1.1, 'lowpass', 500, 0.8); for (let i = 0; i < 6; i++) partial(r(900, 2400), 0.02, t + i * 0.16, 0.25, 0.003); });
+export const groan = hi(() => { const t = ac.currentTime; glide(140, 60, 0.12, t, 1.2, 'sawtooth'); hiss(0.06, t, 1.1, 'lowpass', 500, 0.8); for (let i = 0; i < 6; i++) partial(r(900, 2400), 0.02, t + i * 0.16, 0.25, 0.003); });
 // 床に倒れて砕ける：床が揺れるドーン・大きなガラスが砕けるガシャーン・破片の雨・虹の響き
-export const megaCrash = safe(() => { const t = ac.currentTime;
+export const megaCrash = hi(() => { const t = ac.currentTime;
   glide(95, 26, 0.42, t, 1.8); glide(150, 38, 0.22, t, 1.0, 'triangle'); hiss(0.3, t, 1.5, 'lowpass', 380, 0.7);
   hiss(0.32, t + 0.02, 1.3, 'bandpass', 2600, 0.6); hiss(0.2, t + 0.02, 0.7, 'highpass', 6000);
   for (let i = 0; i < 60; i++) partial(r(1800, 9500), r(0.008, 0.035), t + r(0, 2.4), r(0.05, 0.4));
   for (const n of [72, 76, 79, 83, 86]) TIMBRE.crystal(MIDI(n), 0.03, t + 0.4); });
 // よみがえる：虹のかけらが集まって、上っていく響きと和音
-export const crystalRise = safe(() => { const t = ac.currentTime; for (let i = 0; i < 10; i++) TIMBRE.celesta(MIDI(60 + [0, 4, 7, 12, 16, 19, 24, 28, 31, 36][i]), 0.05, t + i * 0.18); for (const n of [60, 64, 67, 72]) TIMBRE.glass(MIDI(n + 12), 0.04, t + 1.9); });
+export const crystalRise = hi(() => { const t = ac.currentTime; for (let i = 0; i < 10; i++) TIMBRE.celesta(MIDI(60 + [0, 4, 7, 12, 16, 19, 24, 28, 31, 36][i]), 0.05, t + i * 0.18); for (const n of [60, 64, 67, 72]) TIMBRE.glass(MIDI(n + 12), 0.04, t + 1.9); });

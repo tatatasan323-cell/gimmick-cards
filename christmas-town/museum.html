@@ -22,13 +22,13 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 <a id="toTown" href="./#museum">‹ 港町へもどる</a>
 <div class="tx" id="top">宝石の美術館<small id="sub">じゅんびちゅう…</small></div>
 <div id="joy"><div id="knob"></div></div>
-<div class="tx" id="hint">左の丸＝歩く・床を タップ＝そこへ歩く・なぞる＝見まわす<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
+<div class="tx" id="hint">左の丸＝歩く・なぞる＝見まわす<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
 <div id="card" hidden><b id="cardName"></b><small id="cardSub"></small><p id="cardFact" hidden></p></div>
 <div id="fps" hidden></div>
 <script type="module">
 // 夜の大ホール。真ん中に大きな虹色のクリスタル（触るとワルツ・なかなか割れないが、倒れると衝撃でまわりも崩れる）。宝石48種（誕生石を中心に、よく知られた宝石・光り方に特徴のある石・鉱物）が、ホールのあちこちの台座の上・光の台の上・宙を飛びまわって（指輪とピアスだけガラスケース）、突き当たりの天窓とバラ窓の下に宝石のクリスマスツリー
 // 照明は落としてある：展示は天井のレールの細いスポットだけが照らし、浮かぶろうそくの灯りが揺れ、左のステンドグラス・バラ窓・天窓から月明かりが差しこむ（月は少しずつ動き、雲で明るさが変わる）。ときどき宝石が自分で光る
-// 一人称で歩きまわり（床をタップ・キー）、なぞって見まわし、2本指で拡大縮小。宝石は光の屈折と中の跳ね返りを計算して描く（虹色のファイア・きらめき）
+// 一人称で歩きまわり（左の丸・キー）、なぞって見まわし、2本指で拡大縮小。宝石は光の屈折と中の跳ね返りを計算して描く（虹色のファイア・きらめき）
 // やさしく触ると、その宝石の音色で歌い、回って煌く。激しく連打・長押しすると大惨事（運が悪いと宝石も砕ける）。しばらくすると、端から・根元から元の姿へ
 import * as THREE from 'three';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
@@ -908,7 +908,7 @@ function standFor(ex, withFree = true) {   // withFree＝飛んでいる宝石�
   return null;
 }
 // ---------- 歩く・見まわす・拡大縮小・触る ----------
-const EYE = 1.5, me = new THREE.Vector3(0, 0, 11.2); let walkTo = null, bob = 0;
+const EYE = 1.5, me = new THREE.Vector3(0, 0, 11.2); let bob = 0;
 const cam = new THREE.PerspectiveCamera(56, 1, 0.05, 700); let yaw = Math.PI, pitch = -0.02, tYaw = yaw, tPitch = pitch, fov0 = 56, fovZ = 0.9;
 const portrait = () => innerWidth / innerHeight < 0.8;
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; fov0 = portrait() ? 64 : 48; cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); }
@@ -922,7 +922,6 @@ function walkable(v) {
   for (const b of BENCHES) { const ox = 0.62 - Math.abs(v.x - b.x), oz = 1.3 - Math.abs(v.z - b.z); if (ox > 0 && oz > 0) { if (ox < oz) v.x += Math.sign(v.x - b.x || 1) * ox; else v.z += Math.sign(v.z - b.z || 1) * oz; } }
   return v;
 }
-const marker = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 40), new THREE.MeshBasicMaterial({ color: '#fff4d8', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); marker.rotation.x = -Math.PI / 2; marker.renderOrder = 5; scene.add(marker);
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map(), keys = new Set(), held = new Map();
 const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
 // 何に触れたか：床に落ちた宝石（丸ごとの球で当てる）→ 展示・ツリー・宙の飾り（いちばん手前）→ 床
@@ -940,7 +939,6 @@ function hitAt(x, y) {
   if (dec && (!h || dt < h.distance)) return { decor: dec };
   if (h && h.object.userData.bench) return { bench: h.object.userData.bench };
   if (h) { let o = h.object; while (o && !o.userData.ex && !o.userData.tree) o = o.parent; if (o && o.userData.ex) return { ex: o.userData.ex, onFloor: false }; if (o && o.userData.tree) return { tree: true }; }
-  if (ray.ray.direction.y < -0.02) { const t = -ray.ray.origin.y / ray.ray.direction.y; return { floor: ray.ray.origin.clone().addScaledVector(ray.ray.direction, t) }; }
   return null;
 }
 const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
@@ -956,11 +954,11 @@ cvs.addEventListener('pointerdown', (e) => {
   if (h && h.ex && h.ex.state === 'ok') { ptrs.set(e.pointerId, { ...base, mode: 'press', ex: h.ex }); return; }
   if (h && h.tree && tree.state === 'ok') { ptrs.set(e.pointerId, { ...base, mode: 'press', tree: true }); return; }
   if (h && h.bench) { ptrs.set(e.pointerId, { ...base, mode: 'press', bench: h.bench }); return; }
-  ptrs.set(e.pointerId, { ...base, mode: h && h.floor ? 'floor' : 'look', at: h && h.floor });
+  ptrs.set(e.pointerId, { ...base, mode: 'look' });
 });
 cvs.addEventListener('pointermove', (e) => {
   const s = ptrs.get(e.pointerId); if (!s) return; if (e.pointerType === 'mouse' && e.buttons === 0) { endPtr(e); return; }
-  if ((s.mode === 'press' || s.mode === 'floor' || s.mode === 'tapped') && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) > 12) s.mode = 'look';   // 指が動いたら、触る・歩くでなく見まわす
+  if ((s.mode === 'press' || s.mode === 'tapped') && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) > 12) s.mode = 'look';   // 指が動いたら、触るのでなく見まわす
   if (s.mode !== 'look') return; const looks = [...ptrs.entries()].filter(([, v]) => v.mode === 'look');
   if (looks.length === 2) { const pts = looks.map(([id, v]) => (id === e.pointerId ? [e.clientX, e.clientY] : [v.cx ?? v.x, v.cy ?? v.y])); s.cx = e.clientX; s.cy = e.clientY; const d = Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]); if (!s.pd) { s.pd = d; s.pz = fovZ; } fovZ = clamp(s.pz * (s.pd / d), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); return; }
   tYaw = s.yaw + (e.clientX - s.x) * 0.0055 * fovZ; tPitch = clamp(s.pitch + (e.clientY - s.y) * 0.004 * fovZ, -0.9, 1.1);
@@ -968,18 +966,17 @@ cvs.addEventListener('pointermove', (e) => {
 function endPtr(e) {
   const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (!s) return; const quick = nowS() - s.t0 < 0.4;
   if (s.mode === 'press' && quick) { if (s.tree) { if (!tree.pressing) treeTap(); } else if (s.bench) { if (!s.bench.pressing) benchTap(s.bench); } else if (s.crystal) { if (!CRY.pressing) crystalTap(); } else if (!s.ex.pressing) tapGem(s.ex); }
-  if (s.mode === 'floor' && quick && s.at) { walkTo = walkable(s.at.clone().setY(0)); marker.position.set(walkTo.x, 0.01, walkTo.z); marker.material.opacity = 0.8; }
 }
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); addEventListener('blur', () => { ptrs.clear(); held.clear(); }); document.addEventListener('visibilitychange', () => held.clear());
 cvs.addEventListener('wheel', (e) => { fovZ = clamp(fovZ * (1 + Math.sign(e.deltaY) * 0.08), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); e.preventDefault(); }, { passive: false });
 // キー：文字ではなく「キーの場所」で受ける（日本語入力がオンだと、押した時の文字が届かない）。
 // 離した知らせが届かないことがある（本人「離しても止まらない」が2度）。押しっぱなしの間はくり返しの知らせが続くので、
 // 最後に押したキーの知らせが途切れたら、離したとみなす。前に押したキー（くり返しが止まる）は、離した知らせを信じる
-// 左の丸：上下＝前・後ろ、左右＝横へ（港町と同じ。床をタップして歩くより、思った所へ寄りやすい）
+// 左の丸：上下＝前・後ろ、左右＝横へ（港町と同じ）
 const joy = { x: 0, y: 0, id: null };
 { const J = document.getElementById('joy'), K = document.getElementById('knob'), setK = (x, y) => { K.style.transform = `translate(${x * 39}px, ${y * 39}px)`; };
   const mv = (e) => { const r = J.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2), L = Math.hypot(dx, dy), k = L > 1 ? 1 / L : 1; joy.x = dx * k; joy.y = dy * k; setK(joy.x, joy.y); };
-  J.addEventListener('pointerdown', (e) => { J.setPointerCapture(e.pointerId); joy.id = e.pointerId; walkTo = null; SND.audio(); mv(e); });
+  J.addEventListener('pointerdown', (e) => { J.setPointerCapture(e.pointerId); joy.id = e.pointerId; SND.audio(); mv(e); });
   J.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) mv(e); });
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) J.addEventListener(t, (e) => { if (e.pointerId === joy.id) { joy.id = null; joy.x = joy.y = 0; setK(0, 0); } }); }
 const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', KeyQ: 'tl', KeyE: 'tr' };
@@ -1003,12 +1000,11 @@ let frames = 0, tf = performance.now(), acc = 0, fAcc = 0, fN = 0, fTot = 0, rea
 const STEP = 1 / 60, LOOK = new THREE.Vector3();
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), now = nowS();
-  // 歩く：床をタップした所へ。キーなら W/S＝前後・A/D＝横・←→（Q/E）＝向き
+  // 歩く：左の丸か、キー（W/S＝前後・A/D＝横・←→（Q/E）＝向き）
   readKeys(now); const K = (k) => (keys.has(k) ? 1 : 0), dz = (v) => (Math.abs(v) > 0.12 ? v : 0), kz = K('f') - K('b') - dz(joy.y), kx = K('r') - K('l') + dz(joy.x); tYaw += (K('tl') - K('tr')) * dt * 1.7;
   const fw = V3.set(Math.sin(yaw), 0, Math.cos(yaw)); let moved = 0;
-  if (kx || kz) { walkTo = null; const st = dt * 2.4; me.addScaledVector(fw, kz * st).add(V2.set(-fw.z, 0, fw.x).multiplyScalar(kx * st)); moved = st; }
-  else if (walkTo) { const d = V2.copy(walkTo).sub(me).setY(0), L = d.length(); if (L < 0.03) walkTo = null; else { const st = Math.min(L, dt * Math.min(2.6, 0.7 + L * 1.6)); me.addScaledVector(d.multiplyScalar(1 / L), st); moved = st; } }
-  walkable(me); bob += moved * 5.5; marker.material.opacity = walkTo ? 0.5 + 0.3 * Math.sin(now * 6) : Math.max(0, marker.material.opacity - dt * 2);
+  if (kx || kz) { const st = dt * 2.4; me.addScaledVector(fw, kz * st).add(V2.set(-fw.z, 0, fw.x).multiplyScalar(kx * st)); moved = st; }
+  walkable(me); bob += moved * 5.5;
   yaw += (tYaw - yaw) * Math.min(1, dt * 7); pitch += (tPitch - pitch) * Math.min(1, dt * 7); shake *= Math.exp(-dt * 8);
   cam.position.set(me.x + rnd(-1, 1) * shake, EYE + Math.sin(bob) * 0.012 * Math.min(1, moved * 60) + rnd(-1, 1) * shake, me.z + rnd(-1, 1) * shake);
   cam.lookAt(LOOK.set(cam.position.x + Math.sin(yaw) * Math.cos(pitch), cam.position.y + Math.sin(pitch), cam.position.z + Math.cos(yaw) * Math.cos(pitch)));
@@ -1097,10 +1093,10 @@ rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticCo
 })();
 if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer, freeze: (v) => { FREEZE = v; }, loadT: () => LOADT.map(([k, t], i) => [k, Math.round(t - (i ? LOADT[i - 1][1] : 0))]),
   // 展示 i の前（通路の側 2.2m）に立って、宝石を見る
-  face: (i) => { const p = exhibits[i].holder.getWorldPosition(new THREE.Vector3()), st = standFor(exhibits[i]); if (st) me.copy(st); else { me.set(p.x - Math.sign(p.x || 1) * 2.2, 0, p.z); walkable(me); } walkTo = null; yaw = tYaw = Math.atan2(p.x - me.x, p.z - me.z); pitch = tPitch = Math.atan2(p.y - EYE, Math.hypot(p.x - me.x, p.z - me.z)); return !!st; },
-  faceTree: () => { me.set(0, 0, TREE.z + 5.2); walkTo = null; yaw = tYaw = Math.PI; pitch = tPitch = 0.12; },
+  face: (i) => { const p = exhibits[i].holder.getWorldPosition(new THREE.Vector3()), st = standFor(exhibits[i]); if (st) me.copy(st); else { me.set(p.x - Math.sign(p.x || 1) * 2.2, 0, p.z); walkable(me); } yaw = tYaw = Math.atan2(p.x - me.x, p.z - me.z); pitch = tPitch = Math.atan2(p.y - EYE, Math.hypot(p.x - me.x, p.z - me.z)); return !!st; },
+  faceTree: () => { me.set(0, 0, TREE.z + 5.2); yaw = tYaw = Math.PI; pitch = tPitch = 0.12; },
   aimAt: (v) => { yaw = tYaw = Math.atan2(v[0] - me.x, v[2] - me.z); pitch = tPitch = Math.atan2(v[1] - EYE, Math.hypot(v[0] - me.x, v[2] - me.z)); },
-  look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, pos: () => [me.x, me.z], place: (x, z) => { me.set(x, 0, z); walkTo = null; }, walking: () => !!walkTo, keys: () => [...keys], winPainted: () => winPainted,
+  look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, pos: () => [me.x, me.z], place: (x, z) => { me.set(x, 0, z); }, keys: () => [...keys], winPainted: () => winPainted,
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight]; },
   gemW: (i) => exhibits[i].gem.group.getWorldPosition(new THREE.Vector3()).toArray(), homeW: (i) => exhibits[i].holder.getWorldPosition(new THREE.Vector3()).toArray(),
   treeW: () => [TREE.x, 2.2, TREE.z], ornY: () => tree.orns.reduce((s, o) => s + o.p.y, 0) / tree.orns.length, ornHome: () => Math.max(...tree.orns.map((o) => o.p.distanceTo(o.home))),

@@ -27,3 +27,7 @@ export function flick() { tone(300, 820, 0.12, 0.12); tone(820, 520, 0.18, 0.06,
 export function grab() { tone(170, 320, 0.11, 0.09); }                                         // とぷ
 export function drop() { tone(320, 200, 0.16, 0.08, 0, 20); }                                  // はなす
 export function spawn() { tone(520, 1100, 0.07, 0.1); tone(900, 660, 0.12, 0.05, 0.05); }     // ぽんっ
+// とろける「じゅわ〜」：ふるえながら低く下がる音と、小さな泡の音
+export function melt() { tone(420, 140, 1.2, 0.07, 0, 6); for (let i = 0; i < 6; i++) { const f = r(500, 900); tone(f, f * 1.6, 0.07, 0.035, 0.15 + i * r(0.12, 0.22)); } }
+// しずくが落ちる「ぴちょん」
+export function drip() { const f = r(900, 1300); tone(f, f * 1.9, 0.09, 0.03); }
