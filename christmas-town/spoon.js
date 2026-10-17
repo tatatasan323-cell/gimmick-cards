@@ -43,13 +43,14 @@ function forkW(z) { if (z < 0.1) return FH; const p = 3.2, head = FH * (1 - sste
 const forkY = (x, z) => 0.95 * Math.pow(sstep(B * 0.7, END, z), 1.3) + 0.12 * sstep(0.6, -0.4, z);
 function forkGeometry() {
   const body = sheet(forkW, forkY, -0.25, END, 130, 24), parts = [body.toNonIndexed()];
-  const TL = 2.1, nT = 4;
-  for (let k = 0; k < nT; k++) { const x0 = (-1 + (2 * k + 1) / nT) * FH * 0.86, N = 40, R = 10, pos = [], uv = [], idx = [];
-    for (let j = 0; j <= N; j++) { const t = j / N, z = -0.2 - TL * t, w = 0.085 * (1 - 0.55 * t ** 1.4), h = 0.045 * (1 - 0.4 * t), y = forkY(x0, -0.2) + 0.28 * t ** 2.4, xc = x0 * (1 - 0.06 * t);
+  // 外側の歯の外のふちは、根元から先まで頭の幅（±FH）にそろえる（内へ寄せると、先が頭より細くすぼまって見えた。本人 2026-10-17）
+  const TL = 2.1, nT = 4, W0 = 0.095, tw = (t) => W0 * (1 - 0.55 * t ** 1.4);
+  for (let k = 0; k < nT; k++) { const u = (-1 + (2 * k + 1) / nT) * nT / (nT - 1), x0 = u * (FH - W0), N = 40, R = 10, pos = [], uv = [], idx = [];
+    for (let j = 0; j <= N; j++) { const t = j / N, z = -0.2 - TL * t, w = tw(t), h = 0.045 * (1 - 0.4 * t), y = forkY(x0, -0.2) + 0.28 * t ** 2.4, xc = u * (FH - w);
       for (let i = 0; i <= R; i++) { const a = (i / R) * TAU; pos.push(xc + Math.cos(a) * w, y + Math.sin(a) * h, z); uv.push(0.5, 0); } }
     for (let j = 0; j < N; j++) for (let i = 0; i < R; i++) { const a = j * (R + 1) + i, b = a + R + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); parts.push(g.toNonIndexed());
-    const tip = new THREE.SphereGeometry(1, 10, 8).scale(0.085 * 0.45, 0.045 * 0.6, 0.06).translate(x0 * 0.94, forkY(x0, -0.2) + 0.28, -0.2 - TL); parts.push(tip.toNonIndexed()); }
+    const tip = new THREE.SphereGeometry(1, 10, 8).scale(tw(1), 0.045 * 0.6, 0.06).translate(u * (FH - tw(1)), forkY(x0, -0.2) + 0.28, -0.2 - TL); parts.push(tip.toNonIndexed()); }
   const n = parts.reduce((a, g) => a + g.attributes.position.count, 0), pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2); let o = 0;
   for (const g of parts) { const c = g.attributes.position.count; pos.set(g.attributes.position.array, o * 3); nrm.set(g.attributes.normal.array, o * 3); uv.set(g.attributes.uv.array, o * 2); o += c; }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g;
