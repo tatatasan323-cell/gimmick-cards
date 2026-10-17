@@ -1020,6 +1020,26 @@ function readKeys(now) {
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
 let frames = 0, tf = performance.now(), acc = 0, fAcc = 0, fN = 0, fTot = 0, ready = false;
 const STEP = 1 / 60, LOOK = new THREE.Vector3();
+// 宙を飛ぶ宝石：ゆったりした8の字の軌道へ引かれながら飛ぶ（速さを持つ）。ほかの宝石に触れたら、はじき合い、軌道の位相がずれて、行き先が変わる
+// （軌道を時間の式だけで決めていた時は、宝石どうしが空中で通り抜けた。本人 2026-10-17）。こわれている途中の宝石には当たらない
+const FLYB = { n: 0 }, FLY_LO = new THREE.Vector3(-4.3, 1.75, -8.3), FLY_HI = new THREE.Vector3(4.3, 5.2, 11.5);
+const flyAim = (F, T, out) => out.set(F.c.x * 0.4 + Math.sin(T * F.w[0] + F.ph[0]) * 3.6, F.c.y + Math.sin(T * F.w[1] + F.ph[1]) * 1.2, F.c.z + Math.sin(T * F.w[2] + F.ph[2]) * 4.5).clamp(FLY_LO, FLY_HI);
+function stepFly(dt) {
+  const L = exhibits.filter((e) => e.fly), A = new THREE.Vector3(), N = new THREE.Vector3();
+  for (const ex of L) { const F = ex.fly;
+    if (!F.p) { F.p = flyAim(F, flyT, new THREE.Vector3()); F.v = flyAim(F, flyT + 0.1, new THREE.Vector3()).sub(F.p).multiplyScalar(10); const bb = new THREE.Box3(); ex.gem.group.updateMatrixWorld(true); ex.gem.group.traverse((o) => { if (o.isMesh) bb.expandByObject(o); }); F.r = Math.max(0.18, bb.getBoundingSphere(new THREE.Sphere()).radius * 0.85); }
+    flyAim(F, flyT, A); F.v.addScaledVector(A.sub(F.p), dt * 2.2).multiplyScalar(Math.exp(-dt * 1.3)); F.p.addScaledVector(F.v, dt);
+    for (const k of ['x', 'y', 'z']) { if (F.p[k] < FLY_LO[k]) { F.p[k] = FLY_LO[k]; F.v[k] = Math.abs(F.v[k]); } if (F.p[k] > FLY_HI[k]) { F.p[k] = FLY_HI[k]; F.v[k] = -Math.abs(F.v[k]); } } }
+  if (!FLYB.off) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const a = L[i], b = L[j]; if (a.state !== 'ok' || b.state !== 'ok') continue;
+    const P = a.fly, Q = b.fly, R = P.r + Q.r; N.subVectors(Q.p, P.p); const d = N.length(); if (d >= R || d < 1e-5) continue; N.multiplyScalar(1 / d);
+    P.p.addScaledVector(N, -(R - d) / 2); Q.p.addScaledVector(N, (R - d) / 2);   // 重なった分を半分ずつ押し戻す
+    const vn = A.subVectors(Q.v, P.v).dot(N); if (vn >= 0) continue;   // もう離れていく向きなら、はじかない
+    const J = Math.max(-vn * 0.9, 0.7); P.v.addScaledVector(N, -J); Q.v.addScaledVector(N, J);   // はじき合う（ゆっくりでも、見て分かる強さで）
+    for (const F of [P, Q]) for (let k = 0; k < 3; k++) F.ph[k] += rnd(0.25, 0.45) * (Math.random() < 0.5 ? -1 : 1);   // 軌道がずれる（同じ所でまたぶつからない）
+    FLYB.n++; A.copy(P.p).lerp(Q.p, 0.5); for (let k = 0; k < 6; k++) put(GLINT, V1.copy(A).add(V2.set(rnd(-0.15, 0.15), rnd(-0.15, 0.15), rnd(-0.15, 0.15))), WHITE, 0.9);
+    SND.clink(Math.max(a.spec.hard, b.spec.hard), Math.min(1, 0.35 + -vn * 0.25)); }
+  for (const ex of L) ex.grp.position.copy(ex.fly.p);
+}
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), now = nowS();
   // 歩く：左の丸か、キー（W/S＝前後・A/D＝横・←→（Q/E）＝向き）
@@ -1035,8 +1055,8 @@ function frame() {
   for (const ex of exhibits) ex.pressing = false; tree.pressing = false; CRY.pressing = false; for (const b of BENCHES) b.pressing = false;
   for (const s of ptrs.values()) if (s.mode === 'press' && now - s.t0 > 0.4) { if (s.tree) tree.pressing = tree.state === 'ok'; else if (s.bench) s.bench.pressing = s.bench.state === 'ok'; else if (s.crystal) CRY.pressing = CRY.state === 'ok'; else if (s.ex.state === 'ok') s.ex.pressing = true; }
   for (const b of BENCHES) stepBench(b, dt, now);
+  if (!FREEZE) stepFly(dt);
   for (const ex of exhibits) {
-    if (ex.fly) { const F = ex.fly, T = flyT; ex.grp.position.set(clamp(F.c.x * 0.4 + Math.sin(T * F.w[0] + F.ph[0]) * 3.6, -4.3, 4.3), clamp(F.c.y + Math.sin(T * F.w[1] + F.ph[1]) * 1.2, 1.75, 5.2), clamp(F.c.z + Math.sin(T * F.w[2] + F.ph[2]) * 4.5, -8.3, 11.5)); }   // 宙を飛びまわる
     if (ex.state === 'ok') {
       if (ex.pressing) { ex.press += dt / 1.3; for (const th of [0.3, 0.55, 0.75, 0.9]) if (ex.press >= th && ex.creakK < th) { ex.creakK = th; SND.creak(th); if (ex.type === 'case') burst(holderW(ex, V3), WHITE, 3, 0.4); } if (ex.press >= 1) { disaster(ex, 'press'); for (const s of ptrs.values()) if (s.ex === ex) s.mode = 'none'; continue; } }
       else { ex.press = Math.max(0, ex.press - dt * 1.4); if (ex.press < 0.25) ex.creakK = 0; }
@@ -1113,7 +1133,11 @@ rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticCo
   try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
   LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; ready = true; window.__ok = true; clock.getDelta(); frame(); setTimeout(readMoon, 1200);
 })();
-if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer, freeze: (v) => { FREEZE = v; }, loadT: () => LOADT.map(([k, t], i) => [k, Math.round(t - (i ? LOADT[i - 1][1] : 0))]),
+if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer,
+  // 宙の宝石の当たりの検査：2つを正面からぶつかるコースに置く／いちばん重なっている量（負＝めり込み）／はじき合った回数。off＝当たりを切る（判定が効くかの確かめ用）
+  flyAim2: () => { const L = exhibits.filter((e) => e.fly && e.state === 'ok' && e.fly.p); const [a, b] = L; a.fly.p.set(-1.2, 3.2, 2); b.fly.p.set(1.2, 3.2, 2); a.fly.v.set(2.4, 0, 0); b.fly.v.set(-2.4, 0, 0); for (const F of [a.fly, b.fly]) { F.c.set(0, 3.2, 2); for (let k = 0; k < 3; k++) F.ph[k] = -flyT * F.w[k]; } return [a.spec.id, b.spec.id]; },   // 2つの行き先を真ん中の1点にそろえて、正面からぶつける
+  flyGap: () => { const L = exhibits.filter((e) => e.fly && e.state === 'ok' && e.fly.p); let m = 9; for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) m = Math.min(m, L[i].fly.p.distanceTo(L[j].fly.p) - L[i].fly.r - L[j].fly.r); return +m.toFixed(3); },
+  flyBumps: () => FLYB.n, flyOff: (v) => { FLYB.off = v; }, freeze: (v) => { FREEZE = v; }, loadT: () => LOADT.map(([k, t], i) => [k, Math.round(t - (i ? LOADT[i - 1][1] : 0))]),
   // 展示 i の前（通路の側 2.2m）に立って、宝石を見る
   face: (i) => { const p = exhibits[i].holder.getWorldPosition(new THREE.Vector3()), st = standFor(exhibits[i]); if (st) me.copy(st); else { me.set(p.x - Math.sign(p.x || 1) * 2.2, 0, p.z); walkable(me); } yaw = tYaw = Math.atan2(p.x - me.x, p.z - me.z); pitch = tPitch = Math.atan2(p.y - EYE, Math.hypot(p.x - me.x, p.z - me.z)); return !!st; },
   faceTree: () => { me.set(0, 0, TREE.z + 5.2); yaw = tYaw = Math.PI; pitch = tPitch = 0.12; },

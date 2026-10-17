@@ -124,11 +124,15 @@ import { BGM } from './town_bgm.js';
 import { QR_SVG, QR_URL } from './town_qr.js';
 import { Card } from './card_code.js';
 import { gstats, gcount } from './gdone.js';
-import { Batcher, HIDDEN, twin, compileVisible, compileRest } from './batch.js';
+import { Batcher, HIDDEN, twin, compileVisible } from './batch.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
 const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
+// 端末で描けないシェーダーがあった時の手がかり（?fps の時だけ左上に出す）：GPU の名前と、シェーダーのエラーの頭。スマホのブラウザだけで山・海・店の飴が描かれなかった（2026-10-17）
+const GLDIAG = { gpu: '', err: [] };
+try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); GLDIAG.gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { /* 名前が取れない端末もある */ }
+renderer.debug.onShaderError = (gl, prog, vs, fs) => { const pick = (s) => (s || '').split('\n').filter((l) => /error/i.test(l)).slice(0, 2).join(' / '); const m = pick(gl.getShaderInfoLog(vs)) || pick(gl.getShaderInfoLog(fs)) || pick(gl.getProgramInfoLog(prog)) || 'link failed'; GLDIAG.err.push(m); console.error('shader error:', m); };
 let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#04060f'); const FOG = new THREE.Color('#080d22'); scene.fog = new THREE.FogExp2(FOG, 0.0085);
@@ -243,11 +247,11 @@ const WAVES = Array.from({ length: 12 }, () => new THREE.Vector4(0, 0, -99, 0));
 const WAVE_GLSL = `uniform vec4 uW[12];
 float seaEdge(vec2 p) { return smoothstep(0.0, 3.0, 56.0 - abs(p.x)) * smoothstep(0.0, 3.0, 104.0 - p.y) * smoothstep(0.0, 3.0, p.y + 4.0); }
 float waveAt(vec2 p, float t, out vec2 grad, out vec3 glow) { float h = 0.0; grad = vec2(0.0); glow = vec3(0.0);
-  for (int i = 0; i < 12; i++) { vec4 w = uW[i]; float dt = t - w.z; if (dt < 0.0 || dt > 13.0) continue;
+  for (int i = 0; i < 12; i++) { vec4 w = uW[i]; float dt = t - w.z; if (dt >= 0.0 && dt <= 13.0) {
     vec2 dv = p - w.xy; float d = length(dv) + 1e-3, r = dt * 6.5, ph = d - r, sg = 2.0 + dt * 0.35, A = w.w * 0.55 * exp(-dt * 0.17) / sqrt(1.0 + r * 0.12), env = exp(-ph * ph / (2.0 * sg * sg)), c = cos(ph * 1.5);
     h += A * env * c; grad += A * env * (-ph / (sg * sg) * c - 1.5 * sin(ph * 1.5)) * dv / d;
     float crest = smoothstep(0.6, 0.98, c) * env, hue = atan(dv.y, dv.x) / 6.2832 + t * 0.12 + float(i) * 0.13;
-    glow += mix(vec3(0.45, 0.75, 1.0), clamp(abs(fract(hue + vec3(0.0, 0.333, 0.667)) * 6.0 - 3.0) - 1.0, 0.0, 1.0), 0.6) * (crest * 0.75 + env * 0.05) * w.w * exp(-dt * 0.3); }
+    glow += mix(vec3(0.45, 0.75, 1.0), clamp(abs(fract(hue + vec3(0.0, 0.333, 0.667)) * 6.0 - 3.0) - 1.0, 0.0, 1.0), 0.6) * (crest * 0.75 + env * 0.05) * w.w * exp(-dt * 0.3); } }
   return h * seaEdge(p); }
 `;
 const waterMat = new THREE.ShaderMaterial({ uniforms: { uT: { value: 0 }, uFog: { value: FOG }, uAur: { value: 1 }, uHue: { value: 0 }, uW: { value: WAVES } },
@@ -341,11 +345,11 @@ function eatable(m, inner, deep, tag = '') { const prev = m.onBeforeCompile, key
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
   vec3 dentOff = vec3(0.0); vDent = 0.0; vEatY = position.y;
   { int mi = int(aMtn + 0.5) - 1;
-    if (mi >= 0 && mi < ${EAT_N} && mtnOn(mi) > 0.5) for (int i = 0; i < ${DENT_N}; i++) { vec4 d = uDent[i], dn = uDentN[i]; if (d.w <= 0.0 || abs(dn.w - aMtn) > 0.5) continue;
-      vec3 dir = dn.xyz, v = position + dentOff - d.xyz;
-      if (dot(dir, dir) < 0.25) { float L = length(v); if (L < d.w) { vec3 nv = v / max(L, 1e-4); dentOff += nv * (d.w - L + ${deep.toFixed(2)}); objectNormal = -nv; vDent = 1.0; } continue; }
-      float al = dot(v, dir); vec3 q = v - dir * al; float q2 = dot(q, q), r2 = d.w * d.w;
-      if (q2 < r2) { float bt = sqrt(r2 - q2); if (al > -bt) { dentOff += dir * (-bt - ${deep.toFixed(2)} - al); objectNormal = normalize(dir * bt - q); vDent = 1.0; } } } }`)
+    if (mi >= 0 && mi < ${EAT_N} && mtnOn(mi) > 0.5) for (int i = 0; i < ${DENT_N}; i++) { vec4 d = uDent[i], dn = uDentN[i];
+      if (d.w > 0.0 && abs(dn.w - aMtn) <= 0.5) { vec3 dir = dn.xyz, v = position + dentOff - d.xyz;
+        if (dot(dir, dir) < 0.25) { float L = length(v); if (L < d.w) { vec3 nv = v / max(L, 1e-4); dentOff += nv * (d.w - L + ${deep.toFixed(2)}); objectNormal = -nv; vDent = 1.0; } }
+        else { float al = dot(v, dir); vec3 q = v - dir * al; float q2 = dot(q, q), r2 = d.w * d.w;
+          if (q2 < r2) { float bt = sqrt(r2 - q2); if (al > -bt) { dentOff += dir * (-bt - ${deep.toFixed(2)} - al); objectNormal = normalize(dir * bt - q); vDent = 1.0; } } } } } }`)   // 繰り返しの中で continue を使わない（スマホのブラウザで、頂点の繰り返しに continue があるシェーダーが描かれなかった疑い 2026-10-17）
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += dentOff;');
     sh.fragmentShader = 'varying float vDent; varying float vEatY;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>' + (inner ? '\n ' + INNER[inner] : '')); };
   m.customProgramCacheKey = () => (key ? key.call(m) : '') + '|eat' + (inner || '') + tag; m.defaultAttributeValues = Object.assign({}, m.defaultAttributeValues, { aMtn: [0] }); }   // 山でない物（屋台のウエハースなど）は、番号0＝何もしない
@@ -361,9 +365,12 @@ let DENT_SEQ = 0;
 function dropDent(D) { const x = EAT.list.indexOf(D); if (x < 0) return; EAT.list.splice(x, 1); EAT.dent[D.slot].set(0, 0, 0, 0); EAT.dm[D.slot] = 0; }   // 一覧にない跡（もう枠を譲った跡）は、その枠の今の持ち主を消さない
 function addDent(i, c, r, dir, grow = 0.15, pin = false) { const used = new Set(EAT.list.map((D) => D.slot)), ball = dir.lengthSq() < 1e-6; let slot = -1;
   for (let k = 0; k < DENT_N && slot < 0; k++) if (!used.has(k)) slot = k;
-  if (slot < 0 && ball && !pin) { let best = null, bd = 1e9; for (const D of EAT.list) if (D.i === i && D.ball && !D.pin) { const d = D.c.distanceTo(c); if (d < bd) { bd = d; best = D; } }
-    if (best && bd < best.r + r) { const R = Math.min(Math.max(best.r, r) + bd * 0.35, Math.max(best.r, r) * 1.6); best.c.lerp(c, 0.5); best.r = R; return best; } }   // 重なる跡は1つの大きな跡に（前の跡が、ふいに元へ戻らないように）
-  if (slot < 0) { const pool = EAT.list.filter((D) => !D.pin), old = (pool.length ? pool : EAT.list).reduce((a, b) => (a.seq < b.seq ? a : b)); slot = old.slot; dropDent(old); }
+  // 枠がない時：同じ物の、いちばん重なり合う2つの跡を1つの少し大きな跡にまとめて枠を空ける。まとめられる組がなければ、ほかの物の古い跡を譲ってもらう
+  // （古い跡を消して空けると、その所がふいに元へ戻った。新しくかじった跡にまとめると、かじっても欠けなかった＝どちらも枠の少ないスマホで 2026-10-17）
+  if (slot < 0) { let best = null, bs = 1e9; const Ls = EAT.list;
+    for (let a = 0; a < Ls.length; a++) for (let b = a + 1; b < Ls.length; b++) { const A = Ls[a], B = Ls[b]; if (A.i !== B.i || !A.ball || !B.ball || A.pin || B.pin || A.i === RESTORING) continue; const sc = A.c.distanceTo(B.c) / (A.r + B.r); if (sc < bs) { bs = sc; best = [A, B]; } }
+    if (best && bs < 1.2) { const [A, B] = best, d = A.c.distanceTo(B.c), m = Math.max(A.r, B.r); A.c.lerp(B.c, B.r / (A.r + B.r)); A.r = Math.min(m + d * 0.5, m * 2.2); A.seq = Math.max(A.seq, B.seq); slot = B.slot; dropDent(B); } }
+  if (slot < 0) { const other = EAT.list.filter((D) => !D.pin && D.i !== i), pool = other.length ? other : EAT.list.filter((D) => !D.pin), old = (pool.length ? pool : EAT.list).reduce((a, b) => (a.seq < b.seq ? a : b)); slot = old.slot; dropDent(old); EAT.evict = (EAT.evict || 0) + 1; }
   const D = { slot, i, c: c.clone(), r, t: 0, grow, k: 1, pin, ball, seq: DENT_SEQ++ }; EAT.list.push(D); EAT.dir[slot].copy(dir).normalize(); EAT.dm[slot] = i + 1; EAT.on[i] = 1; return D; }
 // 山の状態：すくった回数・最後にすくった時・スプーン（ケーキはフォーク）・戻り
 const MTN_ST = MOUNTS.map(() => ({ taps: 0, last: -99, spoon: null, rest: null, eaten: false }));
@@ -391,6 +398,15 @@ function chunkOf(i, C, r, ball = false) { const out = new THREE.Group();
       g.setAttribute(name, new THREE.BufferAttribute(arr, sz)); }
     const m = new THREE.Mesh(g, mm.material); m.frustumCulled = false; out.add(m); }
   return out; }
+// 皿にのせる高さ＝塊の本体（氷・クリーム）の頂点のほとんどが乗っている高さ（下から3%）。そこより下へはみ出す三角は捨てる（山の中の粗い芯など）
+// （いちばん下の点でそろえると、背の高いソフトクリームでは、中の粗い芯の大きな三角だけが下まで伸びていて、上のクリームが皿から浮いた 2026-10-17）
+function trimChunk(ch, C) { const Y = [], BODY = [MM.ice, MM.cream, MM.sponge, MM.flakes, MM.sauce];
+  ch.traverse((o) => { if (!o.isMesh || !BODY.includes(o.material)) return; const p = o.geometry.attributes.position; for (let k = 0; k < p.count; k++) Y.push(p.getY(k)); });
+  if (Y.length < 30) return new THREE.Box3().setFromObject(ch).min.y;
+  Y.sort((a, b) => a - b); const base = Y[Math.floor(Y.length * 0.03)], cut = base - (Y[Y.length - 1] - base) * 0.03;
+  ch.traverse((o) => { if (!o.isMesh) return; const g = o.geometry, p = g.attributes.position, keep = []; for (let t = 0; t + 2 < p.count; t += 3) if (Math.min(p.getY(t), p.getY(t + 1), p.getY(t + 2)) >= cut) keep.push(t);
+    for (const name of Object.keys(g.attributes)) { const a = g.attributes[name], sz = a.itemSize, arr = new Float32Array(keep.length * 3 * sz); keep.forEach((t, j) => arr.set(a.array.subarray(t * sz, (t + 3) * sz), j * 3 * sz)); g.setAttribute(name, new THREE.BufferAttribute(arr, sz)); } });
+  return base; }
 const dropChunk = (o) => { if (!o) return; o.removeFromParent(); o.traverse((m) => { if (m.isMesh) m.geometry.dispose(); }); };
 // ---------- 大きなスプーン：空から降りてきて、山の上半分をごっそりすくい、山盛りのまま見せてから、らせんを描いて天へ（かけらがこぼれる） ----------
 // 形と材質は 共通/spoon.js（つながった面・首にリボン・柄の端に飾り）。皿の上の山盛りは、すくった所の形そのもの（シロップ・練乳・くだもの・クリームが、山にあったとおり）
@@ -414,7 +430,8 @@ function stepSpoon(dt) { if (SPOON.i < 0) return; const M = MOUNTS[SPOON.i], S =
     if (u > 0.15 && !SPOON.dent) { const r = M.rMax * 1.5, C = new THREE.Vector3(T.x, T.y - M.yMax * 0.48 + r, T.z); SPOON.dent = addDent(SPOON.i, C, r, V2b.set(0, 1, 0), 1.2, true); SND.bigScoop();
       for (const D of EAT.list.filter((D) => D.i === SPOON.i && D !== SPOON.dent)) { const qd = Math.hypot(D.c.x - C.x, D.c.z - C.z); if (qd < r && D.c.y - D.r > C.y - Math.sqrt(r * r - qd * qd) + 0.05) dropDent(D); }   // すくった所の中のかじり跡は、もう見えないので枠を空ける   // 真上から、球の底の面まで押し下げる（球の表面へ外向きに押し出すと、山より大きい球なので、ウエハースやポッキーが空中へ引き伸ばされた 2026-10-17）
       // すくった所の形を、皿の上へ：皿の幅に合わせて縮め、底を皿のくぼみに。見ている人に向いていた面は、皿の上でもこちらを向く
-      const ch = chunkOf(SPOON.i, C, r, true), box = new THREE.Box3(); ch.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox); } });
+      // 山に開ける跡と同じ形（球の底の面より上）で写し取る。球の中だけを写すと、ソフトクリームの中の芯だけが低い所まで入り、皿の上でクリームが浮いた
+      const ch = chunkOf(SPOON.i, C, r, false), base = trimChunk(ch, C), box = new THREE.Box3(); ch.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox); } }); box.min.y = base;
       const s = 2.1 / Math.max(0.5, box.max.x - box.min.x, box.max.z - box.min.z), X = new THREE.Matrix4().makeTranslation(0, -0.36, 0).multiply(new THREE.Matrix4().makeRotationY(-SPOON.yaw)).multiply(new THREE.Matrix4().makeScale(s, s, s)).multiply(new THREE.Matrix4().makeTranslation(-C.x, -box.min.y, -C.z));
       ch.traverse((o) => { if (o.isMesh) { o.geometry.applyMatrix4(X); o.geometry.computeBoundingSphere(); } }); SPOON.tilt.add(ch); SPOON.chunk = ch; }
     const k = clamp((u - 0.2) / 0.6, 0, 1); SPOON.setFill(k * 0.8); if (SPOON.chunk) SPOON.chunk.scale.set(Math.min(1, 0.4 + 0.6 * k), Math.max(0.001, k), Math.min(1, 0.4 + 0.6 * k));
@@ -1011,7 +1028,7 @@ function* obstaclesNear(x, z, R) { const out = [], near = [], W = [new THREE.Vec
     // 町じゅうにまたがる、まとめた形（家の部品・屋台など）：すみかの近くの三角だけを抜き出す
     const p = geo.attributes.position, ix = geo.index, N = ix ? ix.count : p.count;
     for (let i = 0; i + 2 < N; i += 3) { for (let k = 0; k < 3; k++) W[k].fromBufferAttribute(p, ix ? ix.getX(i + k) : i + k).applyMatrix4(o.matrixWorld); const cx = (W[0].x + W[1].x + W[2].x) / 3, cz = (W[0].z + W[1].z + W[2].z) / 3;
-      if (Math.abs(cx - x) < R + 1 && Math.abs(cz - z) < R + 1) for (const w of W) near.push(w.x, w.y, w.z); if (i % 3000 === 0) yield; }
+      if (Math.abs(cx - x) < R + 1 && Math.abs(cz - z) < R + 1) for (const w of W) near.push(w.x, w.y, w.z); if (i % 600 === 0) yield; }
     yield; }
   if (near.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(near, 3)); out.push(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }))); }   // 場面には足さない（調べるためだけ）
   return out; }
@@ -1029,7 +1046,7 @@ function* clearJob(b) { const obs = yield* obstaclesNear(b.home[0], b.home[1], 5
       const d = (Bv.z - C.z) * (A.x - C.x) + (C.x - Bv.x) * (A.z - C.z);
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * N + i; if (B[k]) continue; const px = (x0 + i) * S, pz = (z0 + j) * S, l1 = ((Bv.z - C.z) * (px - C.x) + (C.x - Bv.x) * (pz - C.z)) / d, l2 = ((C.z - A.z) * (px - C.x) + (A.x - C.x) * (pz - C.z)) / d, l3 = 1 - l1 - l2;
         if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue; const y = l1 * A.y + l2 * Bv.y + l3 * C.y; if (y > G[k] + 0.04 && y < G[k] + 2.5) B[k] = 1; }
-      if (++work % 400 === 0) yield; } }
+      if (++work % 150 === 0) yield; } }
   b.cm = { x0, z0, N, B }; }
 function clearAt(b, x, z, r) { if (!b.cm) for (const _ of (b.job || (b.job = clearJob(b)))) { /* まだ塗り終わっていなければ、ここで終わらせる */ }
   const { x0, z0, N, B } = b.cm;
@@ -1059,6 +1076,42 @@ const LUCIA = new THREE.Group(); scene.add(LUCIA);
 const LUCIA_CROWN = gel('#2fb05a', { glow: '#2fb05a', gl: 0.6 }), LUCIA_CANDLE = new THREE.MeshStandardMaterial({ color: '#fff8ee' });   // 3人とも同じ材質（束ねて1回で描く）
 for (let i = 0; i < 3; i++) { const b = puyo(0, 0, i ? 0.32 : 0.38, '#fbf8ff', 0, LUCIA); b.grp.position.set(0, 0, -i * 0.95); const crown = new THREE.Group(); crown.position.y = b.r * 1.22; b.grp.add(crown); crown.add(new THREE.Mesh(new THREE.TorusGeometry(b.r * 0.55, 0.045, 8, 20).rotateX(Math.PI / 2), LUCIA_CROWN));
   for (let k = 0; k < (i ? 1 : 4); k++) { const a = (k / 4) * TAU, c = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 8), LUCIA_CANDLE); c.position.set(Math.cos(a) * b.r * 0.55, 0.08, Math.sin(a) * b.r * 0.55); crown.add(c); const f = sprite('#ffcf6a', 0.32, 0.95); f.position.set(c.position.x, 0.22, c.position.z); crown.add(f); } }
+// キャラどうしは、すり抜けない（本人 2026-10-17）：ぷよ・クッキーの住人・行列の白ぷよ。触れたら押し戻して、お互いの動きを変える
+// 行列は譲らない：先頭の少し前に誰かいれば止まって待ち、その相手が道を空ける（ぷよは離れる方へ跳ぶ・住人は引き返す）
+// 住人は道から外れられないので、向かい合ってぶつかったら両方とも引き返し、後ろから追いついた方は少し待つ。ぷよは押し戻されて、跳ぶ向きを変える
+const LUC = { a: 0, wait: 0 }, CROWD = { off: false, bumps: 0, snd: 0 }, LUC_DIR = new THREE.Vector2();
+const gbRadius = (b) => { const g = b.m.geometry; if (!g.boundingBox) g.computeBoundingBox(); return (g.boundingBox.max.x - g.boundingBox.min.x) * b.m.scale.x * 0.32; };
+function crowdAgents() { const A = [];
+  for (const b of PUYOS) { if (b.angel || !b.grp.visible) continue; const p = b.walk ? b.grp.position : LUCIA.localToWorld(V5.copy(b.grp.position)); A.push({ k: b.walk ? 'puyo' : 'luc', b, x: p.x, z: p.z, r: b.r * 0.95 }); }
+  for (const b of GBS) { if (b.state !== 'walk') continue; b.cr = b.cr || gbRadius(b); A.push({ k: 'gb', b, x: b.g.position.x, z: b.g.position.z, r: b.cr }); }
+  return A; }
+function puyoAway(q, nx, nz, push) { const b = q.b, P = b.grp.position; P.x += nx * push; P.z += nz * push; q.x = P.x; q.z = P.z;   // n＝相手から離れる向き
+  if (b.hop > 0 && b.vx * nx + b.vz * nz < 0) { const vn = b.vx * nx + b.vz * nz; b.vx -= 2 * vn * nx; b.vz -= 2 * vn * nz; }   // 跳んでいる途中なら、はね返る
+  // よける先：離れる向きを中心に、近い順に探す。すみかの近くで見つからなければ、すみかを少し越えてでもよける（行列がずっと止まらないように）
+  for (const far of [4.2, 5]) for (const L of [1.4, 1.0, 2.0]) for (const da of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) { const c = Math.cos(da), s = Math.sin(da), ux = nx * c - nz * s, uz = nx * s + nz * c, tx = P.x + ux * L, tz = P.z + uz * L;
+    if (Math.hypot(tx - b.home[0], tz - b.home[1]) < far && !inWater(tx, tz) && clearAt(b, tx, tz, b.r)) { b.tgt = [tx, tz]; b.hops = 1; b.next = Math.min(b.next, 0.25); return true; } }
+  return false; }
+function gbTurn(b, now) { if (now - (b.turned || -9) < 1.5) return; b.turned = now; b.back = !b.back; b.shake = Math.max(b.shake, 0.5); }
+function bumpSound(x, z, kind) { const now = performance.now(); if (now - CROWD.snd < 250 || Math.hypot(x - cam.position.x, z - cam.position.z) > 14) return; CROWD.snd = now; if (kind === 'gb') SND.tap(); else SND.boing(0.5); }
+function crowd(dt) { if (CROWD.off) return; const A = crowdAgents(), now = timeU.value, lead = A.find((q) => q.k === 'luc');
+  // 行列の先頭の前（進む向きに0.7m）がつかえていたら、止まって待つ。つかえた相手は道を空ける
+  if (lead) { const a = LUC.a; LUC_DIR.set(-Math.sin(a) * 3.6, Math.cos(a) * 3.0).normalize(); const fx = lead.x + LUC_DIR.x * 0.7, fz = lead.z + LUC_DIR.y * 0.7;
+    for (const q of A) { if (q.k === 'luc') continue; if (Math.hypot(q.x - fx, q.z - fz) < q.r + lead.r * 0.8) { LUC.wait = 0.35; LUC.by = q;
+        // どく向きは、行列の進む向きに対して横（だ円の外側）。先頭から離れる向きだと前へ押し出して、また前をふさいだ
+        let sx = q.x - SQ[0], sz = q.z - SQ[1]; const al = sx * LUC_DIR.x + sz * LUC_DIR.y; sx -= LUC_DIR.x * al; sz -= LUC_DIR.y * al; const d = Math.hypot(sx, sz) || 1;
+        if (q.k === 'gb') { const g = q.b; if (Math.cos(g.dir) * (q.x - lead.x) - Math.sin(g.dir) * (q.z - lead.z) < 0) { g.back = !g.back; g.turned = now; } g.wait = 0; g.hurry = 1.8; }   // 住人は道から外れられないので、行列から遠ざかる向きへ、少し急いで歩く
+        else if (!(q.b.hop > 0) && !puyoAway(q, sx / d, sz / d, 0)) puyoAway(q, sx / d, sz / d, dt * 1.2); } } }   // 跳ぶ先が見つからない時は、すべるようにどく（行列がずっと止まらないように）
+  for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { const a = A[i], b = A[j]; if (a.k === 'luc' && b.k === 'luc') continue;
+    const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), R = a.r + b.r; if (d >= R) continue; const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0, o = R - d;   // n＝a から b へ
+    const key = a.b.id ?? (a.b.id = Math.random()), key2 = b.b.id ?? (b.b.id = Math.random()), pair = key < key2 ? key + '|' + key2 : key2 + '|' + key, fresh = !(CROWD.touch && CROWD.touch.has(pair)); (CROWD.next || (CROWD.next = new Set())).add(pair);
+    if (fresh) { CROWD.bumps++; bumpSound((a.x + b.x) / 2, (a.z + b.z) / 2, a.k === 'gb' && b.k === 'gb' ? 'gb' : 'puyo'); }
+    if (a.k === 'luc' || b.k === 'luc') { const q = a.k === 'luc' ? b : a, s = q === b ? 1 : -1; if (q.k === 'puyo') puyoAway(q, nx * s, nz * s, o); else gbTurn(q.b, now); LUC.wait = Math.max(LUC.wait, 0.35); continue; }   // 行列は動かない。相手がよける
+    if (a.k === 'puyo' && b.k === 'puyo') { puyoAway(a, -nx, -nz, o / 2); puyoAway(b, nx, nz, o / 2); if (fresh) { a.b.v += 2.5; b.b.v += 2.5; } continue; }   // ぷよどうし：半分ずつ押し戻して、ぽよんと離れる
+    if (a.k === 'puyo' || b.k === 'puyo') { const p = a.k === 'puyo' ? a : b, g = p === a ? b : a, s = p === b ? 1 : -1; puyoAway(p, nx * s, nz * s, o); if (fresh) p.b.v += 2.5;   // ぷよと住人：住人は道から外れないので、ぷよが押し戻される
+      const gd = g.b.dir, ahead = Math.cos(gd) * (p.x - g.x) - Math.sin(gd) * (p.z - g.z); if (ahead > 0) g.b.wait = Math.max(g.b.wait || 0, 0.6); continue; }   // ぷよが住人の前なら、住人は少し待つ
+    { const ua = [Math.cos(a.b.dir), -Math.sin(a.b.dir)], ub = [Math.cos(b.b.dir), -Math.sin(b.b.dir)], aTo = ua[0] * nx + ua[1] * nz > 0, bTo = -(ub[0] * nx + ub[1] * nz) > 0;   // 住人どうし：向かい合っていれば両方引き返す。追いついた方は待つ
+      if (aTo && bTo) { gbTurn(a.b, now); gbTurn(b.b, now); } else if (aTo) a.b.wait = Math.max(a.b.wait || 0, 0.8); else if (bTo) b.b.wait = Math.max(b.b.wait || 0, 0.8); } }
+  CROWD.touch = CROWD.next; CROWD.next = null; }
 // 窓辺の靴（豆知識：ユールラッズ）：遊歩道ぞいの家の窓台に、小さな赤い靴
 let SHOE = null;
 { const h = HOUSES.find((H) => H.k === 0 && Math.abs(H.x) < 10) || HOUSES[0], o = h.o; SHOE = new THREE.Group(); const s = new THREE.Shape(); s.moveTo(-0.08, 0.2); s.lineTo(0.04, 0.2); s.lineTo(0.05, 0.06); s.quadraticCurveTo(0.2, 0.05, 0.22, -0.02); s.lineTo(0.22, -0.06); s.lineTo(-0.09, -0.06); s.lineTo(-0.08, 0.2);
@@ -1244,13 +1297,16 @@ function shopExterior() { if (!SHOP_HOUSE || SHOP_AREA) return; const o = SHOP_H
   SHOP_AREA = area('candy', '世界の飴工房', '世界の飴を、かじって食べる', '世界中の飴が並ぶお店。お店に入って飴をタップすると、カリッとかじって食べられます。食べきると、その飴の豆知識。', null, SHOP_G, { d: 10, h: 2.5 }, o.h + o.rh + 3.4);
   SHOP_AREA.enter = enterShop; SHOP_AREA.scale = 1; size();
   if (!TIPS.some((t) => t.id === 'area:candy')) TIPS.push(areaTip(SHOP_AREA)); }
-function openShop(fanfare) { if (OPEN.shop && SHOP_AREA) return; OPEN.shop = true; saveProgress(); updateFound(); shopExterior(); if (!fanfare || !SHOP_AREA) return;
+// 隠れていた物が出る時に、その物だけシェーダーを用意する（隠れた物をまとめて裏で用意すると、スマホで固まって音が飛んだ 2026-10-17）
+function readyUp(objs, then) { Promise.all(objs.map((o) => renderer.compileAsync(o, cam, scene).catch(() => {}))).then(() => { if (then) then(); }); }
+function openShop(fanfare) { if (OPEN.shop && SHOP_AREA) return; readyUp(RAIN.map((R) => R.m)); OPEN.shop = true; saveProgress(); updateFound(); shopExterior(); if (!fanfare || !SHOP_AREA) return;
   SND.fanfare(); const c = SHOP_G.getWorldPosition(new THREE.Vector3()); for (let i = 0; i < 160 && SPARKS.length < FW_N - 1; i++) { const a = Math.random() * TAU; SPARKS.push({ p: c.clone().add(V1.set(Math.cos(a) * 2.5, rnd(0, 5), Math.sin(a) * 2.5)), v: new THREE.Vector3(Math.cos(a) * rnd(0.5, 2), rnd(1, 4), Math.sin(a) * rnd(0.5, 2)), t: 0, L: rnd(1, 2.2), c: new THREE.Color().setHSL(Math.random(), 0.9, 0.7), tr: 0, g: 0.5 }); }
   const look = c.clone().setY(c.y + 2); flyTo(look, look, 11, 3); showCard('世界の飴工房が開店！', '町の豆知識を、ぜんぶ集めたお祝い', '左上の奥の家が、世界の飴のお店に変わりました。空からも、世界の飴が降ってきます。お店の中の飴は、かじって食べられます。', '', null, SHOP_AREA); }
 // ---------- ケーキの山が見つかる：豆知識（町12＋飴9）をぜんぶ集めて、仕掛けの館とお店をぜんぶ遊ぶと、地面からせり上がる ----------
 const USE_ALL = ['glass', 'museum', 'ice', 'swim', 'blocks', 'post', 'teddy', 'candy'], CAKE_RISE = { t: -1 };
 const allTrivia = () => [...TRIVIA, ...CANDIES].every((T) => found.has(T.id));
-function openCakes(fanfare) { if (CAKE_RISE.done) return; CAKE_RISE.done = true; OPEN.cakes = true; saveProgress(); for (const M of MOUNTS) if (M.cake) M.on = true; for (const m of CAKE_MESHES) m.visible = true; if (!fanfare) return;
+function openCakes(fanfare) { if (CAKE_RISE.done) return; CAKE_RISE.done = true; OPEN.cakes = true; saveProgress(); for (const M of MOUNTS) if (M.cake) M.on = true; if (!fanfare) { for (const m of CAKE_MESHES) m.visible = true; return; }
+  readyUp(CAKES.map((M) => M.g), () => { for (const m of CAKE_MESHES) m.visible = true; });   // せり上がる最初の一瞬に、ケーキのシェーダーだけを用意してから見せる
   CAKE_RISE.t = 0; SND.fanfare(); const M = MOUNTS.find((q) => q.k === 'b'), look = new THREE.Vector3(M.x, M.y + M.yMax * 0.5, M.z); flyTo(look, look, 26, 8);
   showCard('クリスマスケーキが現れた！', '山の奥と、東と西の岬', '豆知識をぜんぶ集めて、仕掛けもぜんぶ遊んだごほうび。タワーケーキ・いちごのショートケーキ・ブッシュ・ド・ノエル。どれも食べられます。たくさん食べると…？'); }
 function stepCakeRise(dt) { if (CAKE_RISE.t < 0) return; CAKE_RISE.t += dt; const u = clamp(CAKE_RISE.t / 3.2, 0, 1), e = 1 - (1 - u) * (1 - u) * (1 - u); for (const m of CAKE_MESHES) m.position.y = -(1 - e) * 20;
@@ -1275,8 +1331,8 @@ function biteMat(C) { const U = { uBt: { value: Array.from({ length: BT_N }, () 
   const m = candyMat(C, { env: scene.environment, glow: 0.1, key: 'shop', extra: (sh) => { sh.uniforms.uBt = U.uBt;
     sh.vertexShader = `uniform vec4 uBt[${BT_N}]; varying float vBt;\n` + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
   vec3 btOff = vec3(0.0); vBt = 0.0;
-  for (int i = 0; i < ${BT_N}; i++) { vec4 b = uBt[i]; if (b.w <= 0.0) continue; vec3 v = position + btOff - b.xyz; float d = length(v); float rr = b.w * (1.0 + 0.08 * sin(atan(v.y, v.x) * 9.0 + b.z * 37.0));
-    if (d < rr) { vec3 nv = v / max(d, 1e-4); btOff += nv * rr - v; objectNormal = -nv; vBt = 1.0; } }`).replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += btOff;');
+  for (int i = 0; i < ${BT_N}; i++) { vec4 b = uBt[i]; if (b.w > 0.0) { vec3 v = position + btOff - b.xyz; float d = length(v); float rr = b.w * (1.0 + 0.08 * sin(atan(v.y, v.x) * 9.0 + b.z * 37.0));
+    if (d < rr) { vec3 nv = v / max(d, 1e-4); btOff += nv * rr - v; objectNormal = -nv; vBt = 1.0; } } }`).replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += btOff;');
     sh.fragmentShader = 'varying float vBt;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.12 + 0.05, vBt);'); } });
   m.userData.U = U; return m; }
 function buildShop() {
@@ -1648,7 +1704,8 @@ function frame() {
     else if (b.eat > 0 && t - b.lastBite > 6) { b.pull = true; b.eat = Math.max(0, b.eat - dt * 0.25); if (b.eat === 0) b.pull = false; }   // 少しかじっただけなら、かけらが戻ってきて元どおり
     b.U.uEat.value = b.eat; b.shake = Math.max(0, b.shake - dt * 3);
     if (b.state !== 'walk') continue;
-    b.t += dt; const [x, z] = b.route(b.t), y = surfaceAt(x, z); if (b.last) { const dx = x - b.last[0], dz = z - b.last[1]; if (dx * dx + dz * dz > 1e-8) b.dir = Math.atan2(-dz, dx); } b.last = [x, z];
+    if (b.wait > 0) b.wait -= dt; else { b.t += dt * (b.back ? -1 : 1) * (b.hurry || 1); if (b.hurry > 1) b.hurry = Math.max(1, b.hurry - dt * 0.5); }   // wait＝前がつかえて待つ／back＝ぶつかって引き返す（道の上を逆向きに）
+    const [x, z] = b.route(b.t), y = surfaceAt(x, z); if (b.last) { const dx = x - b.last[0], dz = z - b.last[1]; if (dx * dx + dz * dz > 1e-8) b.dir = Math.atan2(-dz, dx); } b.last = [x, z];
     const ph = b.t * 7.5 / b.s, sw = Math.sin(ph); b.U.uLimb.value.set(0.25 + 0.55 * sw, -0.25 + 0.55 * sw, 0.55 * sw, -0.55 * sw); b.U.uCurl.value = 1.6;
     b.g.position.set(x, y + Math.abs(Math.cos(ph)) * 0.06, z); b.g.rotation.set(0, b.dir + Math.sin(t * 40) * 0.08 * b.shake, Math.sin(ph) * 0.06 + Math.sin(t * 33) * 0.1 * b.shake); }
   for (let i = CRUMBS.length - 1; i >= 0; i--) { const c = CRUMBS[i]; c.t += dt; let k = 1;
@@ -1672,8 +1729,10 @@ function frame() {
     const was = b.hop; b.hv -= 18 * dt; b.hop = Math.max(0, b.hop + b.hv * dt); if (b.hop === 0) { if (was > 0) { b.v += Math.min(7, -b.hv * 1.3); b.vx = b.vz = 0; } b.hv = 0; }
     const s = clamp(b.s * 0.06, -0.3, 0.3), st = b.hop > 0 ? clamp(Math.abs(b.hv) * 0.035, 0, 0.16) : 0, br = Math.sin(t * 2 + b.t0) * 0.02;
     b.body.scale.set(b.r * (1 - s * 0.5 - br - st * 0.5), b.r * (1 + s + br + st), b.r * (1 - s * 0.5 - br - st * 0.5)); b.body.position.y = b.r * BLOB_B * (1 + s + br + st) - 0.02 + b.hop; b.face.position.y = b.body.position.y; b.face.scale.set(b.r * (1 - s * 0.5 - st * 0.5), b.r * (1 + s + st), b.r * (1 - s * 0.5 - st * 0.5)); }
-  { const a = t * 0.1, x = SQ[0] + Math.cos(a) * 3.6, z = SQ[1] + Math.sin(a) * 3.0; LUCIA.position.set(x, landH(x, z), z); LUCIA.rotation.y = -a; LUCIA.updateMatrixWorld();
+  // 行列は譲らない。先頭の前がつかえたら止まって待つ（crowd）
+  { if (LUC.wait > 0) LUC.wait -= dt; else LUC.a += dt * 0.1; const a = LUC.a, x = SQ[0] + Math.cos(a) * 3.6, z = SQ[1] + Math.sin(a) * 3.0; LUCIA.position.set(x, landH(x, z), z); LUCIA.rotation.y = -a; LUCIA.updateMatrixWorld();
     let li = 0; for (const b of PUYOS) if (!b.walk) { const ai = a - li * 0.28, xi = SQ[0] + Math.cos(ai) * 3.6, zi = SQ[1] + Math.sin(ai) * 3.0; b.grp.position.copy(LUCIA.worldToLocal(V1.set(xi, surfaceAt(xi, zi), zi))); b.grp.rotation.y = li * 0.28; li++; } }   // 後ろの子も、だ円の道の上を（まっすぐ後ろに並べると、ツリーの根元に入りこんだ）
+  crowd(dt);
   stepBaubles(t, dt); stepWreath(t, dt); stepRest(t, dt); stepLamps(dt); stepMtn(dt); stepLighthouse(dt); stepPicks(dt); stepRain(dt, t); stepCakeRise(dt); stepIntro(dt);
   // サンタ：町の上空を大きく回る。トナカイは駆け足（後ろ脚で蹴って、前脚を伸ばす。首を振る）。光の尾
   { const a = t * 0.07, x = Math.cos(a) * 46, z = 2 + Math.sin(a) * 32, y = 27 + Math.sin(a * 3) * 3, nx = -Math.sin(a) * 46, nz = Math.cos(a) * 32; SANTA.g.position.set(x, y, z); SANTA.g.rotation.set(0, Math.atan2(-nz, nx), Math.sin(t * 2) * 0.05);
@@ -1703,11 +1762,18 @@ function frame() {
   { const p = snowG.attributes.position; for (let i = 0; i < SNOW_N; i++) { let y = p.getY(i) - snowV[i] * dt * 0.8, x = p.getX(i), z = p.getZ(i); if (y < cam.position.y - 14) y = cam.position.y + 12; if (Math.abs(x - cam.position.x) > 30) x = cam.position.x + rnd(-30, 30); if (Math.abs(z - cam.position.z) > 30) z = cam.position.z + rnd(-30, 30); p.setXYZ(i, x + Math.sin(t * 0.5 + i) * dt * 0.08, y, z); } p.needsUpdate = true; }
   renderer.render(scene, cam); if (INTRO.t >= 0) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(INTRO.sc, cam); renderer.autoClear = true; }
   if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
-  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}`; frames = 0; tf = performance.now(); }
+  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}\n${GLDIAG.gpu.slice(0, 48)} VU${VU} D${DENT_N} shaderErr ${GLDIAG.err.length}${GLDIAG.err.length ? '\n' + GLDIAG.err[0].slice(0, 140) : ''}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }
 let BATCH = null;
-if (fpsEl) window.__dbg = { scene, cam, drone, counts, batch: () => BATCH.stats(), gbAll: () => GBS.map((G) => G.m.getWorldPosition(new THREE.Vector3()).toArray()), programs: () => renderer.info.programs.map((p) => [p.name, p.cacheKey, p.usedTimes]),
+if (fpsEl) window.__dbg = { scene, cam, drone, counts,
+  // キャラの当たりの検査：いちばん重なっている量（負＝めり込み。行列どうしは数えない）／当たりを切る／ぶつかった回数／行列の進み
+  crowdGap: () => { const A = crowdAgents(); let m = 9, who = null; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { if (A[i].k === 'luc' && A[j].k === 'luc') continue; const g = Math.hypot(A[i].x - A[j].x, A[i].z - A[j].z) - A[i].r - A[j].r; if (g < m) { m = g; who = [A[i].k, A[j].k]; } } return [+m.toFixed(3), who]; },
+  crowdOff: (v) => { CROWD.off = v; }, crowdBumps: () => CROWD.bumps, lucA: () => +LUC.a.toFixed(4), lucBy: () => { const q = LUC.by; if (!q) return null; const b = q.b; return q.k === 'gb' ? ['gb', GBS.indexOf(b), b.back, +(b.wait || 0).toFixed(2)] : ['puyo', PUYOS.indexOf(b), +b.hop.toFixed(2), b.hops, +b.next.toFixed(2), b.tgt.map((v) => +v.toFixed(1)), [+b.grp.position.x.toFixed(2), +b.grp.position.z.toFixed(2)], b.home]; },
+  // 行列の先頭のすぐ前に、すみかの近いぷよを置く（行列が止まって待ち、ぷよがよけるか）。2匹のぷよを重ねて置く
+  lucBlock: () => { const A = crowdAgents(), lead = A.find((q) => q.k === 'luc'), a = LUC.a; LUC_DIR.set(-Math.sin(a) * 3.6, Math.cos(a) * 3.0).normalize(); const fx = lead.x + LUC_DIR.x * 0.75, fz = lead.z + LUC_DIR.y * 0.75;
+    const b = PUYOS.filter((p) => p.walk && !p.angel).sort((p, q) => Math.hypot(p.home[0] - fx, p.home[1] - fz) - Math.hypot(q.home[0] - fx, q.home[1] - fz))[0]; b.grp.position.set(fx, surfaceAt(fx, fz), fz); b.hop = 0; b.hv = 0; b.vx = b.vz = 0; b.hops = 0; b.next = 5; return PUYOS.indexOf(b); },
+  puyoStack: () => { const L = PUYOS.filter((p) => p.walk && !p.angel), a = L[0], b = L[1]; b.grp.position.set(a.grp.position.x + 0.1, a.grp.position.y, a.grp.position.z); for (const p of [a, b]) { p.hop = 0; p.hv = 0; p.vx = p.vz = 0; p.next = 5; } return [PUYOS.indexOf(a), PUYOS.indexOf(b)]; }, batch: () => BATCH.stats(), dentEvict: () => EAT.evict || 0, gbAll: () => GBS.map((G) => G.m.getWorldPosition(new THREE.Vector3()).toArray()), programs: () => renderer.info.programs.map((p) => [p.name, p.cacheKey, p.usedTimes]),
   // すくった跡の飛び出しの検査：スプーンの跡（球の外へ押し出す式 'ball'／真上から押し下げる式 'up'）を頂点に当てた時、山の輪郭の外へ出る頂点の数 [外へ出た, 動いた]
   spillOf: (i, mode) => { const M = MOUNTS[i], r = M.rMax * 1.5, C = new THREE.Vector3(M.x, M.y + M.yMax - M.yMax * 0.48 + r, M.z), P = new THREE.Vector3(), d = new THREE.Vector3(); let n = 0, all = 0;
     for (const mm of EAT_MESHES) { const R = mm.userData.rng[i + 1]; if (!R || mm.material === MM.glass) continue; const deep = mm.material.userData.deep ?? 0, pa = mm.geometry.attributes.position;
@@ -1729,7 +1795,7 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts, batch: () => BATCH.stats(
   lh: () => ({ st: LIGHTHOUSE.st, bites: LIGHTHOUSE.bites, t: +LIGHTHOUSE.t.toFixed(1), dents: EAT.list.filter((D) => D.i === LH_I).length, top: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].p.y.toFixed(2), home: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].home.y.toFixed(2), beam: LIGHTHOUSE.beam.visible }), lhAt: (k = 2) => LIGHTHOUSE.segs[k].home.toArray(), lhHurry: () => { LIGHTHOUSE.t = 11.95; },
   pick: () => PICKS.map((P) => [P.st, P.kind, +P.t.toFixed(1), P.H.away]), pickHouse: (i) => { const H = HOUSES.filter((h) => h.c0 && !h.shop)[i]; startPick(H); return [H.x, H.o.y, H.z]; }, pickHurry: () => { for (const P of PICKS) if (P.st === 'gone') P.t = 23.95; }, pickParts: () => PICKS.map((P) => (P.g ? P.g.children.length : 0)),
   houseHidden: (i) => { const H = HOUSES.filter((h) => h.c0 && !h.shop)[i]; const mm = HOUSE_MESHES[0], off = HOUSE_OFF[mm.userData.key], a = off[H.c0[mm.userData.key] ?? 0]; return mm.geometry.attributes.position.getY(a); },
-  metal: (k) => { FORCE_METAL = k; }, spoonKind: () => (SPOON.i >= 0 ? SPOON.kind : null), spoonChunk: () => { let n = 0; if (SPOON.chunk) SPOON.chunk.traverse((o) => { if (o.isMesh) n += o.geometry.attributes.position.count; }); return n; },
+  metal: (k) => { FORCE_METAL = k; }, spoonScreen: () => { if (!SPOON.chunk) return null; const b = new THREE.Box3(); SPOON.chunk.updateMatrixWorld(true); SPOON.chunk.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } }); const sc = (v) => { const p = v.clone().project(cam); return [Math.round((p.x * 0.5 + 0.5) * innerWidth), Math.round((-p.y * 0.5 + 0.5) * innerHeight)]; }; const mw = SPOON.mound.getWorldPosition(new THREE.Vector3()); return { chunkCenter: sc(b.getCenter(new THREE.Vector3())), chunkTop: sc(new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y, (b.min.z + b.max.z) / 2)), mound: sc(mw), mats: [...new Set((() => { const a = []; SPOON.chunk.traverse((o) => { if (o.isMesh) a.push(o.material.type + (o.material.defaultAttributeValues ? '+def' : '') + ':' + Object.keys(o.geometry.attributes).join('/')); }); return a; })())] }; }, spoonChunkVis: (v) => { if (SPOON.chunk) SPOON.chunk.visible = v; }, spoonParts: () => { if (!SPOON.chunk) return null; const out = []; const names = new Map(Object.entries(MM).map(([k, v]) => [v, k])); SPOON.chunk.traverse((o) => { if (!o.isMesh) return; const p = o.geometry.attributes.position; let lo = 1e9, hi = -1e9, rmax = 0; for (let k = 0; k < p.count; k++) { lo = Math.min(lo, p.getY(k)); hi = Math.max(hi, p.getY(k)); rmax = Math.max(rmax, Math.hypot(p.getX(k), p.getZ(k))); } out.push([names.get(o.material) || o.material.type, p.count, +lo.toFixed(2), +hi.toFixed(2), +rmax.toFixed(2)]); }); return out; }, spoonBox: () => { if (!SPOON.chunk) return null; const b = new THREE.Box3(), m = new THREE.Box3(); SPOON.chunk.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox); } }); SPOON.mound.geometry.computeBoundingBox(); m.copy(SPOON.mound.geometry.boundingBox).applyMatrix4(SPOON.mound.matrix); const r = (v) => v.toArray().map((x) => +x.toFixed(2)); return { chunk: [r(b.min), r(b.max)], chunkPos: r(SPOON.chunk.position), chunkScale: r(SPOON.chunk.scale), mound: [r(m.min), r(m.max)], parent: SPOON.chunk.parent === SPOON.tilt }; }, spoonKind: () => (SPOON.i >= 0 ? SPOON.kind : null), spoonChunk: () => { let n = 0; if (SPOON.chunk) SPOON.chunk.traverse((o) => { if (o.isMesh) n += o.geometry.attributes.position.count; }); return n; },
   fork: () => (FORK.i >= 0 ? { i: FORK.i, t: +FORK.t.toFixed(1), kind: FORK.kind, stabbed: FORK.stabbed, chunk: FORK.chunk ? FORK.chunk.children.length : 0 } : null), mtnTap: (i, n) => { const M = MOUNTS[i]; for (let k = 0; k < n; k++) mtnBite(i, new THREE.Vector3(M.x + rnd(-1, 1), M.y + M.yMax * 0.7, M.z + M.R * 0.5)); return MTN_ST[i].taps; },
   collide: () => counts.collide, collN: () => COLL.length, rainPause: (on) => { RAIN.paused = on; }, acState: () => SND.state(), canvasWH: () => [cvs.width, cvs.height, innerWidth, innerHeight], tipNow: () => (tipOn ? tipOn.id : null), tipsLive: () => TIPS.filter((t) => (!t.when || t.when()) && !t.done()).map((t) => t.id),
   cotton: () => { const r = COT.inn.getBoundingClientRect(); return { open: COT.open, vis: !COT.el.hidden, t: (performance.now() - COT.t0) / 1000, box: [r.left, r.top, r.width, r.height], name: $('cotName').textContent, op: +getComputedStyle(COT.inn).opacity }; },
@@ -1899,9 +1965,10 @@ $('invLater').addEventListener('click', () => { SND.tap(); closeInvite(); });
 $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
 (async () => { size(); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
   BATCH = new Batcher(scene).add([...BOATS.map((b) => b.g), ...AREAS.map((A) => A.g), BAKERY.g, BIGTREE, BAUBLE.g, WR.g, REST.g, BOWL.parent, SHOE, LUCIA, ...PUYOS.filter((b) => b.grp.parent === scene).map((b) => b.grp)]).addSprites(SPR);   // 同じ材質の部品は、持ち主をまたいで1回で描く
+  makeTools();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
   // 町のシェーダーを用意する間（GPU の待ちで、画面の処理は手が空く）に、題字だけ先に用意して降らせる。町の用意ができたら、題字がはじけて町が現れる
   let early = false; try { await renderer.compileAsync(INTRO.sc, cam); startIntro(); early = INTRO.t >= 0; } catch (e) { /* 古いブラウザは、町の用意のあとに */ }
   if (early) { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
-  await compileVisible(renderer, scene, cam); setTimeout(makeTools, 2500); setTimeout(() => compileRest(renderer, scene, cam), 6000); ready = true; INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); frame(); })();   // 隠れている物（ケーキ・スプーン…）のシェーダーは、開いてから裏で   // 隠れている物（ケーキ・スプーン…）のシェーダーは、開いてから裏で
+  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); frame(); })();   // 隠れている物（ケーキ・スプーン…）のシェーダーは、開いてから裏で   // 隠れている物（ケーキ・スプーン…）のシェーダーは、開いてから裏で
 </script>
 </body></html>

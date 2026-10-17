@@ -140,7 +140,7 @@ void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(vK.rgb * t.rgb, 
 }
 
 // 開く前のシェーダーの用意は、最初に見える物だけ（three の compile は、隠れている物の材質まで全部作る＝まだ見つかっていないケーキ・出てこないスプーン・束ねた元の部品の分まで）
-// 隠れている枝と、描かない層の部品を一度だけ場面から外して用意し、元の場所（同じ順番）へ戻す。外した物は、開いた後に compileRest で裏でゆっくり用意する
+// 隠れている枝と、描かない層の部品を一度だけ場面から外して用意し、元の場所（同じ順番）へ戻す。外した物は、出てくる時にその物だけ用意する（町の readyUp）
 export async function compileVisible(renderer, scene, cam) {
   const out = []; (function walk(o) { for (let k = 0; k < o.children.length; k++) { const c = o.children[k]; if (!c.visible || (!c.layers.isEnabled(0) && !c.children.length)) out.push([c, o, k]); else walk(c); } })(scene);
   for (let n = out.length - 1; n >= 0; n--) { const [c, p, k] = out[n]; p.children.splice(k, 1); c.parent = null; }
@@ -148,4 +148,3 @@ export async function compileVisible(renderer, scene, cam) {
   for (const [c, p, k] of out) { p.children.splice(k, 0, c); c.parent = p; }
   return out.length;
 }
-export function compileRest(renderer, scene, cam) { try { return renderer.compileAsync(scene, cam); } catch (e) { return Promise.resolve(); } }
