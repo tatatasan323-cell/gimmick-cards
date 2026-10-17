@@ -33,6 +33,8 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 // 雪の夜の広場に、氷の彫像が5体（サンタ・ツリー・オーナメント・プレゼント・ゆきだるま）。1体に宝石が3つずつ。ノミでコンコン、機械でガリガリ削って取り出す
 // 根元を削りすぎると折れて倒れ、宙に浮いた氷は落ちて砕ける。宝石を取り出しきると雪が降り、結晶が渦を巻いて吸い込まれ、氷が下から波のように組み上がる（新しい宝石が3つ中に）
 import * as THREE from 'three';
+import { watchOrientation } from './orient.js';
+import { gdone } from './gdone.js';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { IceGrid, Mesher } from './icegrid.js';
 import { STATUES } from './statues.js';
@@ -301,7 +303,7 @@ function crystalPos(c, u, out) {
 const cam = new THREE.PerspectiveCamera(50, 1, 0.05, 700); let yaw = 0, pitch = 0.5, dist = 15, tYaw = yaw, tPitch = pitch, tDist = dist, focus = -1; const TGT = new THREE.Vector3(0, 1.2, 0), tTGT = TGT.clone();
 const portrait = () => innerWidth / innerHeight < 0.8;
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = portrait() ? 64 : 48; cam.updateProjectionMatrix(); }
-addEventListener('resize', size); size();
+addEventListener('resize', size); size(); watchOrientation(size);
 const nearestAngle = (cur, a) => cur + ((((a - cur) % TAU) + TAU * 1.5) % TAU) - TAU / 2;
 function overview() { focus = -1; tTGT.set(0, 1.0, 0); tDist = portrait() ? 12.5 : 9; tPitch = 0.42; markButtons(); }   // 最初の位置は、彫像に近め（本人 2026-10-16）
 function focusOn(i) { const st = statues[i]; focus = i; tTGT.copy(st.grp.position).setY(st.top * 0.45); tYaw = nearestAngle(tYaw, st.a); tDist = portrait() ? 6.8 : 5.6; tPitch = 0.22; markButtons(); }
@@ -355,7 +357,7 @@ cvs.addEventListener('pointermove', (e) => {
   }
   if (s.mode !== 'look') return; const looks = [...ptrs.entries()].filter(([, v]) => v.mode === 'look');
   if (looks.length === 2) { const [a, b] = looks.map(([id, v]) => (id === e.pointerId ? { x: e.clientX, y: e.clientY, v } : { x: v.cx ?? v.x, y: v.cy ?? v.y, v })); s.cx = e.clientX; s.cy = e.clientY; const d = Math.hypot(a.x - b.x, a.y - b.y); if (!s.pd) { s.pd = d; s.pdist = tDist; } tDist = Math.max(3, Math.min(18, s.pdist * (s.pd / d))); return; }
-  tYaw = s.yaw - (e.clientX - s.x) * 0.006; tPitch = Math.max(-0.05, Math.min(1.2, s.pitch + (e.clientY - s.y) * 0.004));
+  tYaw = s.yaw + (e.clientX - s.x) * 0.006; tPitch = Math.max(-0.05, Math.min(1.2, s.pitch - (e.clientY - s.y) * 0.004));   // なぞった方へ、カメラが向く（本人 2026-10-17）
 });
 function endPtr(e) { const s = ptrs.get(e.pointerId); if (s && s.machine) SND.grindStop(); ptrs.delete(e.pointerId); }
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); addEventListener('blur', () => { ptrs.clear(); SND.grindStop(); });
@@ -367,7 +369,7 @@ cnEl.textContent = got.size;
 function pickGem(g) {
   g.state = 'picked'; g.pickT = 0; g.from = g.obj.group.position.clone(); if (g.body) { world.removeRigidBody(g.body); g.body = null; } g.st.lastPick = nowS();
   SND.pick(); burst(g.from, g.colW, 22, 1.6);
-  got.add(g.spec.id); try { localStorage.setItem(KEY, JSON.stringify([...got])); } catch (e) { /* 同上 */ } cnEl.textContent = got.size;
+  got.add(g.spec.id); try { localStorage.setItem(KEY, JSON.stringify([...got])); } catch (e) { /* 同上 */ } cnEl.textContent = got.size; if (got.size >= 24) gdone('ice24');
   const nm = document.getElementById('cardName'); nm.textContent = ''; const dot = document.createElement('i'); dot.style.background = g.spec.color; nm.append(dot, document.createTextNode(g.spec.name + (g.spec.kind === 'ring' ? 'の指輪' : g.spec.kind === 'earring' ? 'のピアス' : '')));
   document.getElementById('cardSub').textContent = gemLabel(g.spec) || '宝石'; const f = document.getElementById('cardFact'); f.textContent = g.spec.fact || ''; f.hidden = !g.spec.fact;
   cardEl.hidden = false; cardEl.style.opacity = 1; clearTimeout(cardTimer); cardTimer = setTimeout(() => { cardEl.style.opacity = 0; setTimeout(() => (cardEl.hidden = true), 400); }, g.spec.fact ? 5200 : 2600);

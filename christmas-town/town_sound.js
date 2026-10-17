@@ -126,3 +126,27 @@ export function spoonUp() { tone(400, 1600, 0.04, 0, 1.6, 'triangle'); hiss(0.05
 // 山が戻る：下から上へ、きらめきの音が昇っていく
 export function mtnRestore() { [523.3, 587.3, 659.3, 784, 880, 1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 2637].forEach((f, i) => { tone(f, f, 0.03, 0.3 + i * 0.45, 1.6); tone(f * 2, f * 2, 0.01, 0.3 + i * 0.45, 0.8); }); hiss(0.03, 0, 6.5, 'bandpass', 3000, 0.4); }
 export function jingle() { for (let i = 0; i < 6; i++) { const f = r(3800, 6200); tone(f, f, 0.018, i * 0.09, 0.5); tone(f * 1.41, f * 1.41, 0.01, i * 0.09, 0.4); } }
+// ケーキをすくう：やわらかい「もふっ」と、スポンジの「しゅわっ」
+export function cakeBite() { hiss(0.07, 0, 0.12, 'lowpass', 900, 0.8); hiss(0.035, 0.03, 0.18, 'bandpass', 2400, 0.9); tone(r(240, 300), 150, 0.05, 0, 0.16, 'triangle'); }
+// 銀のスプーン（フォーク）：澄んだ鈴のきらめき／金：さらに高く、和音で輝く
+export function silverShine() { [2093, 2637, 3136, 4186].forEach((f, i) => { tone(f, f, 0.03, 0.4 + i * 0.09, 1.1); tone(f * 2.76, f * 2.76, 0.006, 0.4 + i * 0.09, 0.4); }); }
+export function goldShine() { [1046.5, 1318.5, 1568, 2093, 2637, 3136].forEach((f, i) => { tone(f, f, 0.035, 0.35 + i * 0.08, 1.6); tone(f * 1.5, f * 1.5, 0.012, 0.35 + i * 0.08, 1.0); }); for (let i = 0; i < 10; i++) { const f = r(4000, 7000); tone(f, f, 0.012, 0.9 + i * 0.07, 0.4); } }
+// フォークが刺さる：ずぶっ（重く低い）と、ふわっとしたスポンジの音
+export function forkStab() { tone(180, 70, 0.14, 0, 0.35, 'triangle'); hiss(0.12, 0, 0.35, 'lowpass', 700, 0.7); hiss(0.05, 0.05, 0.4, 'bandpass', 1800, 0.8); }
+// ピックが家に刺さる：ぷすっ・ちーん
+export function pickStab() { tone(220, 90, 0.11, 0, 0.22, 'triangle'); hiss(0.08, 0, 0.12, 'bandpass', 1500, 1.2); tone(2637, 2637, 0.04, 0.12, 0.9); tone(3951, 3951, 0.02, 0.15, 0.6); }
+// 家がピックごと昇っていく：ひゅるるる（上がっていく音）
+export function pickUp() { tone(300, 1400, 0.045, 0, 2.6, 'triangle'); hiss(0.04, 0, 2.4, 'bandpass', 1600, 0.6); }
+// 空にぱくっと食べられる：ぱくっ・もぐもぐ
+export function skyBite() { tone(520, 180, 0.09, 0, 0.12, 'triangle'); hiss(0.06, 0, 0.08, 'bandpass', 900, 1.0); for (let i = 0; i < 3; i++) { tone(200, 140, 0.04, 0.25 + i * 0.18, 0.1, 'triangle'); hiss(0.03, 0.25 + i * 0.18, 0.06, 'lowpass', 600); } }
+// 世界の飴をかじる：かたさ（0〜1）と音の高さ（pitch）で、カリッ・ポリポリ・ガリッ・サクサク。最初の一口は大きく、あとはかみしめる粒の音
+export function eatCandy(hard = 0.8, pitch = 1, first = true) { if (!live()) return; const B = candyBank();
+  playBuf(B.snap[(Math.random() * 3) | 0], (first ? 0.3 : 0.18) * (0.6 + hard * 0.5), pitch * r(0.92, 1.08));
+  const n = 3 + ((Math.random() * 3) | 0); for (let i = 0; i < n; i++) playBuf(B.crunch[(Math.random() * 4) | 0], 0.12 * (0.5 + hard * 0.6) * (1 - i * 0.15), pitch * r(0.85, 1.2) * (hard < 0.5 ? 0.8 : 1), 0.12 + i * r(0.11, 0.17)); }
+// 落ちている飴をはじく：コツン・ころころ
+export function candyFlick() { if (!live()) return; const B = candyBank(); playBuf(B.snap[0], 0.16, r(1.5, 2.0)); for (let i = 0; i < 3; i++) playBuf(B.snap[1], 0.05 * (1 - i * 0.25), r(1.8, 2.3), 0.15 + i * 0.12); }
+// 開店・ケーキの山が見つかる：ファンファーレ（ベルとチェレスタ）
+export function fanfare() { [[523.3, 0], [659.3, 0.14], [784, 0.28], [1046.5, 0.42], [784, 0.7], [1046.5, 0.84], [1318.5, 1.0]].forEach(([f, t]) => { tone(f, f, 0.05, t, 0.9); tone(f * 2, f * 2, 0.015, t, 0.5); tone(f * 3.01, f * 3.01, 0.006, t, 0.3); }); setTimeout(() => { try { suzu(); } catch (e) { /* 音が出なくても遊べる */ } }, 1200); }
+// 音をまとめて止める・戻す（見えていない画面・ほかの画面が鳴りはじめた時）
+export function pause(on) { if (!ac) return; try { if (on) ac.suspend(); else ac.resume(); } catch (e) { /* 音が出なくても遊べる */ } }
+export const state = () => (ac ? ac.state : 'none');   // 検査用：音の状態（鳴らしはしない）

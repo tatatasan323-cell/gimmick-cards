@@ -30,6 +30,8 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <script type="module">
 // 無重力の水の中に、クリスマスのグミが20種。自分で泳ぎ（前・後ろ・向き）、触る。触ったグミだけ、ばねの格子で動かす（他は軽い揺れだけ）
 import * as THREE from 'three';
+import { watchOrientation } from './orient.js';
+import { gdone } from './gdone.js';
 import { CHARS, buildType, buildTypeSteps, instantiate } from './chars.js';
 import { Lattice, smax } from './soft.js';
 import { glowTex, timeU, gel, setGummyLook } from './mat.js';
@@ -63,7 +65,7 @@ let yaw = 0, pitch = 0, tYaw = 0, tPitch = 0, vel = 0;
 const fwd = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3();
 function basis() { fwd.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)); right.set(Math.cos(yaw), 0, -Math.sin(yaw)); up.crossVectors(right, fwd); }
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w / h < 0.8 ? 62 : 52; cam.updateProjectionMatrix(); }
-addEventListener('resize', size); size(); basis();
+addEventListener('resize', size); size(); basis(); watchOrientation(size);
 // 左下のまる（指でたおす）と、キーボード（W/S・↑↓＝前後、A/D・←→＝向き）
 const pad = document.getElementById('pad'), knob = document.getElementById('knob'), joy = { x: 0, y: 0 }, keys = new Set(); let padId = null;
 const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
@@ -160,7 +162,7 @@ function makeDrop(it, src, p0, n, pw, r0, vol, delay = 0) {
   const d = { m, it, ...src, p0: p0.clone(), n: n.clone(), v: new THREE.Vector3(), r0, vol, t: -delay, held: false, s: 0, sv: 3, prev: pw.clone(), pt: performance.now(), merge: 0 };
   drops.push(d); return d;
 }
-function tear(h, pw) {
+function tear(h, pw) { gdone('water');   // みずで、ちぎれた
   const it = h.it, n = new THREE.Vector3(...h.g.d).normalize(), r = 0.2 + Math.random() * 0.12, cut = { x: h.p0.x, y: h.p0.y, z: h.p0.z, r };
   it.cuts.push(cut); h.g = null; rebuild(it, undefined, () => wobbleIn(it, h.p0, n, 0.45, 0.55));   // 伸びていた所が、行きすぎてプルンと揺れながら縮む
   const d = makeDrop(it, { cut }, h.p0, n, pw, Math.cbrt(0.5) * r * it.s, (2 / 3) * Math.PI * r ** 3); d.held = true; d.sv = 6; h.drop = d; SND.tearSound();
@@ -217,7 +219,7 @@ cvs.addEventListener('pointerdown', (e) => {
 cvs.addEventListener('pointermove', (e) => {
   const h = holds.get(e.pointerId); if (!h) return;
   if (e.pointerType === 'mouse' && e.buttons === 0) { release(e); return; }   // 画面の外でボタンを離した時（離した知らせが届かない）
-  if (h.bg) { tYaw = h.yaw - (e.clientX - h.x) * 0.005; tPitch = Math.max(-0.9, Math.min(0.9, h.pitch + (e.clientY - h.y) * 0.004)); return; }
+  if (h.bg) { tYaw = h.yaw + (e.clientX - h.x) * 0.005; tPitch = Math.max(-0.9, Math.min(0.9, h.pitch - (e.clientY - h.y) * 0.004)); return; }   // なぞった方へ、カメラが向く（本人 2026-10-17）
   if (Math.hypot(e.clientX - h.x, e.clientY - h.y) > 8) h.moved = true; if (!h.moved) return;
   setRay(e); const pw = new THREE.Vector3(); if (!ray.ray.intersectPlane(h.plane, pw)) return;
   if (h.drop) { const d = h.drop, now = performance.now(), dt = Math.max(0.008, (now - d.pt) / 1000); d.v.subVectors(pw, d.prev).divideScalar(dt); d.prev.copy(pw); d.pt = now; d.m.position.copy(pw); return; }

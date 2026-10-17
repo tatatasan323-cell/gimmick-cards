@@ -24,6 +24,8 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <script type="module">
 // 重力のあるテーブルで、グミの積み木。当たりと重さは Rapier（物理の部品・同梱）、見た目は距離の式で起こしたグミ。ぶつかるとプルンと揺れる（見た目だけ）
 import * as THREE from 'three';
+import { watchOrientation } from './orient.js';
+import { gdone } from './gdone.js';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { BLOCKS } from './blocks.js';
 import { buildType, instantiate } from './gummy.js';
@@ -59,7 +61,7 @@ const shTex = (() => { const c = document.createElement('canvas'); c.width = c.h
 
 // ---------- 物理 ----------
 const G = -18;   // おもちゃの大きさに見えるよう、重力を強めにする
-let world, bonkN = 0; const blocks = [], byCollider = new Map(), pickables = [], types = [];
+let world, bonkN = 0, towerSaid = false, frameN = 0; const blocks = [], byCollider = new Map(), pickables = [], types = [];
 function colliderDescs(b, type) {
   const c = b.col, out = [];
   const rc = (h, r) => RAPIER.ColliderDesc.roundCuboid(Math.max(0.01, h[0] - r), Math.max(0.01, h[1] - r), Math.max(0.01, h[2] - r), r);
@@ -137,7 +139,7 @@ document.getElementById('reset').addEventListener('click', () => { if (!world) r
 // ---------- カメラ（テーブルのまわりを回る） ----------
 const cam = new THREE.PerspectiveCamera(50, 1, 0.1, 700); let yaw = 0.5, pitch = 0.62, dist = 10, tYaw = yaw, tPitch = pitch, tDist = dist;
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w / h < 0.8 ? 62 : 48; cam.updateProjectionMatrix(); }
-addEventListener('resize', size); size();
+addEventListener('resize', size); size(); watchOrientation(size);
 function placeCam() { cam.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, 0.6 + Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(0, 0.6, 0); }
 
 // ---------- 指 ----------
@@ -158,7 +160,7 @@ cvs.addEventListener('pointermove', (e) => {
   const bgs = [...holds.values()].filter((v) => v.bg);
   if (h.bg) {
     if (bgs.length === 2) { const [a, b] = [...holds.entries()].filter(([, v]) => v.bg); const other = a[0] === e.pointerId ? b[1] : a[1]; h.cx = e.clientX; h.cy = e.clientY; const d = Math.hypot((h.cx ?? h.x) - (other.cx ?? other.x), (h.cy ?? h.y) - (other.cy ?? other.y)); if (h.pinch) tDist = Math.max(5, Math.min(18, h.pinchDist * (h.pinch / d))); else { h.pinch = d; h.pinchDist = tDist; } return; }
-    tYaw = h.yaw - (e.clientX - h.x) * 0.006; tPitch = Math.max(0.15, Math.min(1.35, h.pitch + (e.clientY - h.y) * 0.004)); return;
+    tYaw = h.yaw + (e.clientX - h.x) * 0.006; tPitch = Math.max(0.15, Math.min(1.35, h.pitch - (e.clientY - h.y) * 0.004)); return;   // なぞった方へ、カメラが向く（本人 2026-10-17）
   }
   if (!h.moved && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 8) { h.moved = true; h.bl.held = true; SND.grab(); h.bl.sv += 2; }
   h.sx = e.clientX; h.sy = e.clientY;
@@ -184,6 +186,7 @@ function topAt(x, z, exclude) { const hit = world.castRay(new RAPIER.Ray({ x, y:
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.05, raw);
   yaw += (tYaw - yaw) * Math.min(1, dt * 6); pitch += (tPitch - pitch) * Math.min(1, dt * 6); dist += (tDist - dist) * Math.min(1, dt * 6); placeCam();
+  if (!towerSaid && ++frameN % 30 === 0 && blocks.some((b) => !b.held && b.body && b.body.translation().y > 2.4 && b.body.linvel().y ** 2 < 0.01)) { towerSaid = true; gdone('tower'); }   // 高く積めた（台から2.4m）
   if (world) {
     const a0 = performance.now(); acc += dt;
     while (acc >= STEP) {

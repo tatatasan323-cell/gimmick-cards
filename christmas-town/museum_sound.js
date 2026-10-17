@@ -93,6 +93,13 @@ export const crystalRise = hi(() => { const t = ac.currentTime;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 2.9); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.7); o.connect(g); g.connect(out); o.start(t); o.stop(t + 3.8); go(o); }
   for (let i = 0; i < 28; i++) { const u = i / 28; partial(r(3500, 8000) * (0.85 + u * 0.4), 0.01 + u * 0.014, t + 0.3 + u * u * 2.8, r(0.15, 0.4), 0.004); } });
 // かけらが1つ戻って、はまる：チン（澄んだ高い音に、ずれた倍音）。下のかけらほど低く、上ほど高い（k＝0〜1）
+// シャンデリアがゆれる：しずくのクリスタルどうしが触れ合う、シャラララ（高い粒が、はじめは密に、だんだんまばらに）と、金の輪の小さな鈴の響き
+let lastChand = 0;
+export const chandelier = safe(() => { const t = ac.currentTime; if (t - lastChand < 0.25) return; lastChand = t;
+  for (let i = 0; i < 26; i++) { const tt = t + Math.pow(i / 26, 1.7) * 2.2 + r(0, 0.05), f = SCALE[(Math.random() * SCALE.length) | 0] * (Math.random() < 0.5 ? 2 : 4) * r(0.995, 1.005), v = 0.016 * (1 - i / 30);
+    partial(f, v, tt, r(0.25, 0.6), 0.001); partial(f * 2.32, v * 0.35, tt, 0.15, 0.001); }
+  for (const [m, v] of [[1, 0.03], [1.5, 0.018], [2.0, 0.012]]) partial(1046.5 * m, v, t + 0.02, 2.4, 0.004);
+  hiss(0.012, t, 1.2, 'highpass', 7000); });
 export const crystalChink = hi((k) => { const t = ac.currentTime, f = 1500 + k * 1700 + r(-60, 60); partial(f, 0.05, t, 0.4, 0.001); partial(f * 2.32, 0.02, t, 0.22, 0.001); partial(f * 3.9, 0.009, t, 0.12, 0.001); });
 // よみがえった瞬間：大きな水晶の器をはじいたような、長く澄んだ響き（ゆっくりうなる）と、高いきらめき
 export const crystalRing = hi(() => { const t = ac.currentTime;

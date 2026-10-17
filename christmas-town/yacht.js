@@ -44,8 +44,8 @@ function hullGeo(L, B) {
   for (let j = 0; j <= 2 * 10; j++) { const s = j <= 10 ? j / 10 : (20 - j) / 10, sd = j <= 10 ? 1 : -1, z = sd * w0 * Math.pow(1 - s, 0.75), y = y0 - (y0 + d0) * Math.pow(s, 1.4); pos.push(-L / 2, y, z); col.push(...C(y, y0)); }
   for (let j = 0; j < 20; j++) idx.push(tb, tb + 2 + j, tb + 1 + j);
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
-  // 甲板：ふちの線の内側
-  const dp = [], du = [], di = []; for (let i = 0; i <= NS; i++) { const u = -1 + (2 * i) / NS, x = (u * L) / 2, w = half(u) * 0.97, y = sheer(u) - 0.02; dp.push(x, y, w, x, y, -w); du.push(x * 0.8, w * 0.8, x * 0.8, -w * 0.8); if (i < NS) { const a = i * 2; di.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+  // 甲板：ふちの線の内側。面は上向きに巻く（下向きだと、上から見た時に甲板が消えて、船の中に海面が見え、浸水したように見えた）
+  const dp = [], du = [], di = []; for (let i = 0; i <= NS; i++) { const u = -1 + (2 * i) / NS, x = (u * L) / 2, w = half(u) * 0.97, y = sheer(u) - 0.02; dp.push(x, y, w, x, y, -w); du.push(x * 0.8, w * 0.8, x * 0.8, -w * 0.8); if (i < NS) { const a = i * 2; di.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
   const d = new THREE.BufferGeometry(); d.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3)); d.setAttribute('uv', new THREE.Float32BufferAttribute(du, 2)); d.setIndex(di); d.computeVertexNormals();
   return { hull: g, deck: d, half, sheer };
 }

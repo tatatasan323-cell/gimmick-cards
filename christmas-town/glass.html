@@ -25,6 +25,8 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 // 丸い礼拝堂に、クリスマスのステンドグラスが12枚と、天井の丸窓（月の前をサンタのそりが駆ける）。かけらをタップ、またはなぞる → そのかけらだけ外れて落ち、床でカシャーンと割れる
 // → しばらくして、窓ごとの姿（光の粒・星・ハート・雪・鈴・羽根）になって、跡を引いて窓へ戻り、穴を満たして元どおり（かけらごとに、時間差で）。抜けた穴の向こうは星空
 import * as THREE from 'three';
+import { watchOrientation } from './orient.js';
+import { gdone } from './gdone.js';
 import { DESIGNS, CEILING, ARCH, ROSE, paint, sampler, buildPieces, voronoi, centroid, archPoly } from './designs.js';
 import * as SND from './glass_sound.js';
 import { makeSpace } from './space.js';
@@ -204,7 +206,7 @@ function launchComets(w, k) {
 const cam = new THREE.PerspectiveCamera(66, 1, 0.05, 500); let yaw = 0, tYaw = 0, pitch = 0.25, tPitch = 0.25, baseFov = 68;
 const clampP = (p) => Math.max(-0.2, Math.min(1.45, p));
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; baseFov = w / h < 0.8 ? 68 : 52; const v = new THREE.Vector2(); renderer.getDrawingBufferSize(v); fxMat.uniforms.uScale.value = v.y * 0.5; }
-addEventListener('resize', size); size();
+addEventListener('resize', size); size(); watchOrientation(size);
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map();
 const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
 const hitGlass = (x, y) => { setRay(x, y); return ray.intersectObjects(panes.map((w) => w.lead), false)[0] || null; };
@@ -226,7 +228,7 @@ cvs.addEventListener('pointermove', (e) => {
     if (!s.moved && Math.hypot(x - s.x, y - s.y) > 8) { s.moved = true; if (s.glass) breakAt(s.x, s.y); }
     if (!s.moved) continue;
     if (s.glass) { const n = Math.ceil(Math.hypot(x - s.lx, y - s.ly) / 6); for (let k = 1; k <= n; k++) breakAt(s.lx + ((x - s.lx) * k) / n, s.ly + ((y - s.ly) * k) / n); }
-    else { tYaw = s.yaw - (x - s.x) * 0.006; tPitch = clampP(s.pitch + (y - s.y) * 0.004); }
+    else { tYaw = s.yaw + (x - s.x) * 0.006; tPitch = clampP(s.pitch - (y - s.y) * 0.004); }   // なぞった方へ、カメラが向く（本人 2026-10-17。前は、景色をつかんで回す向き）
     s.lx = x; s.ly = y; }
 });
 function up(e) { const s = ptrs.get(e.pointerId); if (!s) return; ptrs.delete(e.pointerId); if (s.glass && !s.moved && performance.now() - s.t < 600) breakAt(e.clientX, e.clientY); }
@@ -245,7 +247,7 @@ const ease = (t) => t * t * (3 - 2 * t), bez = (a, b, c, d, t, out) => { const u
 const WHITE = new THREE.Color('#fff4d0');
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw), now = performance.now() / 1000;
-  yaw += (tYaw - yaw) * Math.min(1, dt * 5); pitch += (tPitch - pitch) * Math.min(1, dt * 4);
+  yaw += (tYaw - yaw) * Math.min(1, dt * 5); pitch += (tPitch - pitch) * Math.min(1, dt * 4); if (pitch > 1.0) gdone('glassSanta');   // 天井の丸窓（サンタのそり）を見上げた
   // 見上げるほど、広く見る（天井の丸窓が入るように）
   const fov = baseFov + Math.max(0, (pitch - 0.7) / 0.75) * (baseFov > 60 ? 18 : 10); if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
   // 目は、見ている方へ少し寄る（向きを変えると目の位置も動き、窓の外の星が、距離に応じてずれる）

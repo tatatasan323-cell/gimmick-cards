@@ -31,6 +31,8 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 // 一人称で歩きまわり（左の丸・キー）、なぞって見まわし、2本指で拡大縮小。宝石は光の屈折と中の跳ね返りを計算して描く（虹色のファイア・きらめき）
 // やさしく触ると、その宝石の音色で歌い、回って煌く。激しく連打・長押しすると大惨事（運が悪いと宝石も砕ける）。しばらくすると、端から・根元から元の姿へ
 import * as THREE from 'three';
+import { watchOrientation } from './orient.js';
+import { gdone } from './gdone.js';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
 import { gemEnv, gemMaterial } from './gemshader.js';
@@ -193,11 +195,15 @@ const dropMat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.
 const CHANDS = [(OCULI[0] + OCULI[1]) / 2, (OCULI[1] + OCULI[2]) / 2 + 1.2], CH_L = [], CH_G = [];   // シャンデリアはろうそくの灯り：暗めで、ゆらぐ
 for (const z of CHANDS) {
   const ch = new THREE.Group(); ch.position.set(0, 5.4, z); scene.add(ch); CH_G.push(ch);
+  // さわると揺れて光るので、材質はシャンデリアごとに（ふたつが一緒に光らないように）。揺れは鎖の上の端を支点にした振り子（ax・az＝傾き、vx・vz＝その速さ）
+  const bm = bulbMat.clone(), dm = dropMat.clone(); dm.emissive = new THREE.Color('#fff0d0'); dm.emissiveIntensity = 0;
+  Object.assign(ch.userData, { top: 0.38 + (HH - 5.8), home: ch.position.clone(), ax: 0, az: 0, vx: 0, vz: 0, glow: 0, bm, dm });
   const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.035, 8, 64), gold), r2 = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 48), gold); r1.rotation.x = r2.rotation.x = Math.PI / 2; r2.position.y = 0.38; ch.add(r1, r2);
   const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, HH - 5.8), gold); chain.position.y = 0.38 + (HH - 5.8) / 2; ch.add(chain);
-  { const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 12, 8), bulbMat, 12), pos = []; for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; M4.makeTranslation(Math.cos(a), 0.09, Math.sin(a)); bulbs.setMatrixAt(i, M4); pos.push(Math.cos(a), 0.09, Math.sin(a)); } ch.add(bulbs);   // 電球と光は、まとめて描く（1つずつだと、2つのシャンデリアで48回）
-    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); ch.add(new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: new THREE.Color('#ffc880').multiplyScalar(0.25), size: 0.45, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); }
-  const drops = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), dropMat, 36);
+  { const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 12, 8), bm, 12), pos = []; for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; M4.makeTranslation(Math.cos(a), 0.09, Math.sin(a)); bulbs.setMatrixAt(i, M4); pos.push(Math.cos(a), 0.09, Math.sin(a)); } ch.add(bulbs);   // 電球と光は、まとめて描く（1つずつだと、2つのシャンデリアで48回）
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const pts = new THREE.Points(pg, new THREE.PointsMaterial({ map: glowTex, color: new THREE.Color('#ffc880').multiplyScalar(0.25), size: 0.45, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); ch.add(pts); ch.userData.pts = pts.material; }
+  const halo = sprite('#ffe2b0', 3.4, 0); halo.position.y = 0.05; ch.add(halo); ch.userData.halo = halo;
+  const drops = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), dm, 36);
   for (let i = 0; i < 36; i++) { const ring = i < 24, a = ((ring ? i : i - 24) / (ring ? 24 : 12)) * TAU + (ring ? 0.13 : 0), r = ring ? 1.0 : 0.55; M4.compose(V1.set(Math.cos(a) * r, (ring ? -0.14 : 0.24) - Math.random() * 0.06, Math.sin(a) * r), Q.identity(), V2.set(0.03, 0.08, 0.03)); drops.setMatrixAt(i, M4); } ch.add(drops);
   const L = new THREE.PointLight('#ffc890', 1.2, 12, 1.4); L.position.set(0, -0.2, 0); ch.add(L); CH_L.push(L); }
 
@@ -516,7 +522,7 @@ let cryChinkT = 0;   // かけらが戻ってはまる音は、40ミリ秒に1�
 function crystalTopple() { if (CRY.state !== 'ok') return; CRY.state = 'toppling'; CRY.vy = 0; CRY.tilt = 0; CRY.falls++; SND.groan();
   CRY.dir.set(CRY.x - cam.position.x, 0, CRY.z - cam.position.z); if (CRY.dir.lengthSq() < 0.01) CRY.dir.set(0, 0, -1); CRY.dir.normalize(); }
 function crystalImpact() {
-  CRY.state = 'fallen'; CRY.t = 0; CRY_MESH.visible = false; crySpin.updateMatrixWorld(true); const hit = cryTopW(new THREE.Vector3()).setY(0.05).lerp(V1.set(CRY.x, 0.05, CRY.z), 0.45);
+  CRY.state = 'fallen'; gdone('crystal'); CRY.t = 0; CRY_MESH.visible = false; crySpin.updateMatrixWorld(true); const hit = cryTopW(new THREE.Vector3()).setY(0.05).lerp(V1.set(CRY.x, 0.05, CRY.z), 0.45);
   // かけら：落ちた水晶の柱にそって生まれ、ぶつかった所から外へ飛ぶ。戻る時に帰る場所（浮かんでいた時の水晶の中）を覚えておく
   for (let n = 0; n < CRY_FN; n++) { const f = (n + 0.5) / CRY_FN, a = n * 2.4, y = f * CRY.h, r = cryR(y) * 0.7 * Math.sqrt((n * 0.618) % 1), l = new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r);
     const p = l.clone().applyMatrix4(crySpin.matrixWorld), v = p.clone().sub(hit).setY(0).normalize().multiplyScalar(rnd(2.5, 7.5) * (0.4 + f)).add(V2.set(rnd(-1.5, 1.5), rnd(1.5, 5.5), rnd(-1.5, 1.5)));
@@ -528,7 +534,7 @@ function crystalImpact() {
   for (const ex of exhibits) { if (ex.state !== 'ok') continue; const d = ex.grp.position.distanceTo(V1.set(hit.x, ex.grp.position.y, hit.z)), pr = d < 4 ? 0.85 : d < 7 ? 0.6 : d < 10 ? 0.35 : 0.15; if (Math.random() < pr) setTimeout(() => disaster(ex, 'quake'), 60 + d * 70); else ex.rattle = 1; }
   for (const b of BENCHES) if (Math.hypot(b.x - hit.x, b.z - hit.z) < 6 && Math.random() < 0.7) setTimeout(() => shatterBench(b, 'quake'), 200);
   if (Math.random() < 0.75) setTimeout(() => { if (tree.state === 'ok') treeFall(); }, 650);
-  for (const ch of CH_G) ch.userData.swing = 0.12; for (const c of ALL_CANDLES) c.flare = 1; }
+  for (const ch of CH_G) chandPush(ch, 0.25, Math.random() * TAU); for (const c of ALL_CANDLES) c.flare = 1; }
 function stepCrystal(dt, now) {
   if (CRY.state === 'ok') {
     if (CRY.pressing) { CRY.stress += dt * 0.16; for (const th of [0.5, 0.65, 0.8, 0.92]) if (CRY.stress >= th && CRY.creakK < th) { CRY.creakK = th; SND.creakBig(th); } if (CRY.stress >= 1) { crystalTopple(); for (const s of ptrs.values()) if (s.crystal) s.mode = 'none'; } }
@@ -560,11 +566,20 @@ function stepCrystal(dt, now) {
     M4.compose(V1.set(x, c.y, z), Q.setFromEuler(E.set(-Math.PI / 2, 0, -a + (c.ceil ? 0.6 : 0.25))), V2.set(c.len, c.wd, 1)); CAUS_IM.setMatrixAt(i, M4); CAUS_IM.setColorAt(i, HSL.setRGB(k, k, k)); });
   CAUS_IM.instanceMatrix.needsUpdate = true; if (CAUS_IM.instanceColor) CAUS_IM.instanceColor.needsUpdate = true; CRY_BEAM.material.uniforms.uK.value = 0.035 + 0.03 * MOON.I + CRY.glow * 0.02;
   if (shockT < 1.2) { shockT += dt; const u = shockT / 1.2; SHOCK.scale.setScalar(0.5 + u * 10); SHOCK.material.opacity = (1 - u) * 0.8; } else SHOCK.material.opacity = 0;
-  for (const ch of CH_G) { const s = ch.userData.swing || 0; if (s > 0.001) { ch.rotation.z = s * Math.sin(now * 2.1); ch.rotation.x = s * 0.6 * Math.sin(now * 1.7 + 1); ch.userData.swing = s * Math.exp(-dt * 0.45); } }
+  stepChands(dt);
+}
+// シャンデリア：鎖の上の端を支点にした振り子。さわった向き（見ている人から奥へ）に押されて揺れ、しずくのクリスタルが光る
+function chandPush(ch, k, dir) { const U = ch.userData; U.vx += Math.cos(dir) * k; U.vz += Math.sin(dir) * k; }
+function stepChands(dt) {
+  for (const ch of CH_G) { const U = ch.userData, w2 = 4.4;   // 揺れの速さ：鎖が長いので、ゆっくり（1往復およそ3秒）
+    U.vx += (-w2 * U.ax - 0.35 * U.vx) * dt; U.vz += (-w2 * U.az - 0.35 * U.vz) * dt; U.ax += U.vx * dt; U.az += U.vz * dt;
+    ch.rotation.set(U.az, 0, -U.ax); V1.set(0, U.top, 0).applyEuler(ch.rotation); ch.position.set(U.home.x, U.home.y + U.top, U.home.z).sub(V1);
+    U.glow = Math.max(0, U.glow - dt * 0.4); const g = U.glow, tw = g > 0 ? 0.7 + 0.3 * Math.sin(performance.now() / 70 + ch.id) : 0;
+    U.bm.emissiveIntensity = 0.45 + g * 2.2; U.dm.emissiveIntensity = g * 0.9 * tw; U.pts.size = 0.45 * (1 + g * 1.6); U.pts.color.setRGB(1, 0.78, 0.5).multiplyScalar(0.25 + g * 0.75); U.halo.material.opacity = g * 0.55; }
 }
 
 // ---------- やさしく触る：音色・回る・煌く・宝石ごとの仕掛け ----------
-let notes = 0, glassBreaks = 0, gemBreaks = 0, restores = 0, falls = 0, clinks = 0, treeTaps = 0, treeFalls = 0, treeRestores = 0, decorTaps = 0, DOOM = null, shake = 0;
+let notes = 0, glassBreaks = 0, gemBreaks = 0, restores = 0, falls = 0, clinks = 0, treeTaps = 0, treeFalls = 0, treeRestores = 0, decorTaps = 0, chandTaps = 0, DOOM = null, shake = 0;
 const holderW = (ex, out) => ex.holder.getWorldPosition(out);
 function tapGem(ex) {
   if (ex.state !== 'ok') return; const now = nowS(); ex.taps = ex.taps.filter((t) => now - t < 1.5); ex.taps.push(now);
@@ -602,7 +617,10 @@ function card(name, sub, fact, color) { const nm = document.getElementById('card
 const showCard = (ex) => card(ex.spec.name + (ex.spec.kind === 'ring' ? 'の指輪' : ex.spec.kind === 'earring' ? 'のピアス' : ''), gemLabel(ex.spec) || ex.spec.sub || '宝石', ex.spec.fact, ex.spec.color);
 // 宙の飾りに触れる：飾り玉・星はくるっと回って鳴り、ろうそくは炎がふわっと大きく
 function tapDecor(kind, i) {
-  decorTaps++; if (kind === 'candle') { const c = ALL_CANDLES[i]; c.flare = 1; SND.note('glass', 6 + (i % 4), 0.6); burst(V1.set(c.x, c.top + 0.08, c.z), FLAME_W, 10, 0.4); return; }
+  decorTaps++;
+  if (kind === 'chand') { const ch = CH_G[i], p = ch.getWorldPosition(new THREE.Vector3()), dir = Math.atan2(p.z - cam.position.z, p.x - cam.position.x); chandPush(ch, 0.32, dir); ch.userData.glow = 1; chandTaps++; SND.chandelier(); gdone('chand');
+    for (let k = 0; k < 3; k++) burst(V1.copy(p).add(V2.set(rnd(-0.8, 0.8), rnd(-0.2, 0.1), rnd(-0.8, 0.8))), k ? WHITE : GOLD, 14, 0.7); return; }
+  if (kind === 'candle') { const c = ALL_CANDLES[i]; c.flare = 1; SND.note('glass', 6 + (i % 4), 0.6); burst(V1.set(c.x, c.top + 0.08, c.z), FLAME_W, 10, 0.4); return; }
   const o = kind === 'bauble' ? BAUBLES[i] : STARS[i]; o.spin = 9; SND.note(kind === 'bauble' ? 'celesta' : 'bell', 3 + (i % 8), 0.7); burst(o.p, kind === 'bauble' ? o.col : GOLD, 16, 0.8);
 }
 
@@ -853,12 +871,12 @@ function stepCandles(dt, now) {
   const fx = cam.position.x + Math.sin(yaw) * 2.5, fz = cam.position.z + Math.cos(yaw) * 2.5, near = ALL_CANDLES.filter((c) => !c.fixed).map((c) => [Math.hypot(c.x - fx, c.z - fz), c]).sort((a, b) => a[0] - b[0]).slice(0, 6);
   CANDLE_L.forEach((s, j) => { let W = 0, fl = 0; V1.set(0, 0, 0); near.forEach(([d, c], i) => { if (i % 2 !== j) return; const w = 1 / (0.3 + d * d); W += w; V1.addScaledVector(V2.set(c.x, c.top + 0.08, c.z), w); fl += c.fl * (1 + c.flare * 2) * w; }); V1.multiplyScalar(1 / W);
     if (!s.on) { s.p.copy(V1); s.on = true; } s.p.lerp(V1, 1 - Math.exp(-dt * 2.5)); s.L.position.copy(s.p); s.L.intensity = (fl / W) * 1.5; });
-  CH_L.forEach((L, i) => { L.intensity = 1.2 * (0.86 + 0.08 * Math.sin(now * 11 + i * 3) * Math.sin(now * 6.1 + i) + 0.06 * Math.sin(now * 2.3 + i * 2)); });
+  CH_L.forEach((L, i) => { L.intensity = 1.2 * (0.86 + 0.08 * Math.sin(now * 11 + i * 3) * Math.sin(now * 6.1 + i) + 0.06 * Math.sin(now * 2.3 + i * 2)) * (1 + 2.2 * CH_G[i].userData.glow); });
 }
 // ---------- 照明（4）ときどき、宝石が自分で光り輝く（ふくらんで、ゆらいで、消える。となりの宝石へ光がうつることも） ----------
 const GLOW_L = new THREE.PointLight('#ffffff', 0, 3.6, 1.6); scene.add(GLOW_L);
 const GLOW = { next: 2.5, on: [], n: 0 };
-function startGlow(ex, hops) {
+function startGlow(ex, hops) { if (!document.hidden) gdone('gemGlow');
   if (!ex || ex.state !== 'ok' || ex.glowT != null || !ex.gem.group.visible) return; ex.glowT = 0; ex.glowHops = hops; ex.glowPassed = false; GLOW.on.push(ex); GLOW.n++;
   ex.glowC = ex.glowC || new THREE.Color(GLOWC[ex.spec.id] || ex.spec.color).lerp(WHITE, 0.2); SND.shimmer();
 }
@@ -913,7 +931,7 @@ const EYE = 1.5, me = new THREE.Vector3(0, 0, 11.2); let bob = 0;
 const cam = new THREE.PerspectiveCamera(56, 1, 0.05, 700); let yaw = Math.PI, pitch = -0.02, tYaw = yaw, tPitch = pitch, fov0 = 56, fovZ = 0.9;
 const portrait = () => innerWidth / innerHeight < 0.8;
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; fov0 = portrait() ? 64 : 48; cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); }
-addEventListener('resize', size); size();
+addEventListener('resize', size); size(); watchOrientation(size);
 // 歩ける所：壁の柱の手前まで（展示の台・ツリーの台・ベンチには入らない。ぶつかったら、まわりをすべって進む）
 function walkable(v) {
   v.x = clamp(v.x, -HW + 1.0, HW - 1.0); v.z = clamp(v.z, -HL + 0.7, HL - 0.7);
@@ -935,6 +953,7 @@ function hitAt(x, y) {
   // 宙の飾り（小さいので、少し大きめの球で当てる）
   let dec = null, dt = 1e9; const tryBall = (kind, i, p, r) => { if (ray.ray.distanceSqToPoint(p) < r * r) { const t = V2.copy(p).sub(ray.ray.origin).dot(ray.ray.direction); if (t > 0 && t < dt) { dt = t; dec = { kind, i }; } } };
   BAUBLES.forEach((b, i) => b.p && tryBall('bauble', i, b.p, b.s * 1.6)); STARS.forEach((s, i) => s.p && tryBall('star', i, s.p, s.s * 1.3)); ALL_CANDLES.forEach((c, i) => tryBall('candle', i, V3.set(c.x, (c.top || c.y) - c.h / 2, c.z).clone(), 0.16));
+  CH_G.forEach((ch, i) => tryBall('chand', i, ch.getWorldPosition(new THREE.Vector3()), 1.2));
   const h = ray.intersectObjects([...exhibits.map((e) => e.grp), tree.grp, ...BENCHES.map((b) => b.seat)], true).find((x) => !x.object.userData.bench || x.object.userData.bench.state === 'ok');
   if (cryT < (h ? h.distance : Infinity) && cryT < (dec ? dt : Infinity)) return { crystal: true };
   if (dec && (!h || dt < h.distance)) return { decor: dec };
@@ -962,7 +981,7 @@ cvs.addEventListener('pointermove', (e) => {
   if ((s.mode === 'press' || s.mode === 'tapped') && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) > 12) s.mode = 'look';   // 指が動いたら、触るのでなく見まわす
   if (s.mode !== 'look') return; const looks = [...ptrs.entries()].filter(([, v]) => v.mode === 'look');
   if (looks.length === 2) { const pts = looks.map(([id, v]) => (id === e.pointerId ? [e.clientX, e.clientY] : [v.cx ?? v.x, v.cy ?? v.y])); s.cx = e.clientX; s.cy = e.clientY; const d = Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]); if (!s.pd) { s.pd = d; s.pz = fovZ; } fovZ = clamp(s.pz * (s.pd / d), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); return; }
-  tYaw = s.yaw + (e.clientX - s.x) * 0.0055 * fovZ; tPitch = clamp(s.pitch + (e.clientY - s.y) * 0.004 * fovZ, -0.9, 1.1);
+  tYaw = s.yaw - (e.clientX - s.x) * 0.0055 * fovZ; tPitch = clamp(s.pitch - (e.clientY - s.y) * 0.004 * fovZ, -0.9, 1.1);   // なぞった方へ、カメラが向く（本人 2026-10-17）
 });
 function endPtr(e) {
   const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (!s) return; const quick = nowS() - s.t0 < 0.4;
@@ -1103,11 +1122,11 @@ if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer, freeze: (v) =>
   treeW: () => [TREE.x, 2.2, TREE.z], ornY: () => tree.orns.reduce((s, o) => s + o.p.y, 0) / tree.orns.length, ornHome: () => Math.max(...tree.orns.map((o) => o.p.distanceTo(o.home))),
   baubleW: (i) => BAUBLES[i].p.toArray(), asmOf: (i) => exhibits[i].asmU.map((u) => u.value), cellsOf: (i) => exhibits[i].gem.cells.map((c) => [c.order, c.h]), asmAttr: (i) => { let n = 0, m = 0; exhibits[i].gem.group.traverse((o) => { if (o.isMesh) { m++; if (o.geometry.attributes.aCell) n++; } }); return [n, m]; }, gemShader: (i) => exhibits[i].gmats.length,
   find: (id) => exhibits.findIndex((e) => e.spec.id === id), states: () => exhibits.map((e) => e.state), types: () => exhibits.map((e) => e.type), plan: () => exhibits.map((e) => [e.spec.id, e.type, e.timbre, e.k, e.fx]),
-  counts: () => ({ notes, glassBreaks, gemBreaks, restores, falls, clinks, treeTaps, treeFalls, treeRestores, decorTaps, benchTaps, benchBreaks, glows: GLOW.n }),
+  counts: () => ({ notes, glassBreaks, gemBreaks, restores, falls, clinks, treeTaps, treeFalls, treeRestores, decorTaps, benchTaps, benchBreaks, chandTaps, glows: GLOW.n }),
   layout: () => exhibits.filter((e) => e.type !== 'free').map((e) => [e.grp.position.x, e.grp.position.z, e.type]), standOK: () => exhibits.map((e) => e.type === 'free' || !!standFor(e, false)),
   moon: () => ({ d: MOON.d.toArray(), I: MOON.I, ready: MOON.ready, readMs: MOON.readMs, data: !!SRC[0].data, side: SRC.map((s) => s.mat.side), k: SRC.map((s) => s.mat.uniforms.uK.value) }), moonT: (t) => { MOON.t = t; MOON.hold = t != null; updateMoon(0); },
   moonLit: () => exhibits.map((e) => { const c = moonAt(e.holder.getWorldPosition(new THREE.Vector3()), new THREE.Color()); return (c.r + c.g + c.b) / 3; }), lightOf: (i) => (exhibits[i].light ? exhibits[i].light.toArray() : null),
-  candleL: () => CANDLE_L.map((s) => s.L.intensity), candleS: () => CANDLE_L.map((s) => s.p.toArray()), chandL: () => CH_L.map((L) => L.intensity), glowNow: () => GLOW.on.map((e) => [e.i, e.glowK]), glowStart: (i) => startGlow(exhibits[i], 0), glowHold: (v) => { GLOW.next = v ? 1e9 : rnd(4, 8); }, glowL: () => GLOW_L.intensity,
+  candleL: () => CANDLE_L.map((s) => s.L.intensity), candleS: () => CANDLE_L.map((s) => s.p.toArray()), chand: (i) => { const U = CH_G[i].userData; return [+Math.hypot(U.ax, U.az).toFixed(3), +U.glow.toFixed(2), +CH_G[i].position.y.toFixed(2)]; }, chandW: (i) => CH_G[i].getWorldPosition(new THREE.Vector3()).toArray(), chandL: () => CH_L.map((L) => L.intensity), glowNow: () => GLOW.on.map((e) => [e.i, e.glowK]), glowStart: (i) => startGlow(exhibits[i], 0), glowHold: (v) => { GLOW.next = v ? 1e9 : rnd(4, 8); }, glowL: () => GLOW_L.intensity,
   spotAt: (x, z) => { const { acc, MW, MH, pxm } = spotAcc, i = Math.round((x + HW) * pxm), j = Math.round((z + HL) * pxm); return i >= 0 && i < MW && j >= 0 && j < MH ? acc[j * MW + i] : -1; }, spots: () => SPOTS.map((s) => [s.ex.i, s.c.x, s.c.z, s.S.toArray(), s.D.toArray(), s.th]), benchW: (i) => [BENCHES[i].x, 0.48, BENCHES[i].z], benchState: (i) => [BENCHES[i].state, BENCHES[i].seat.visible, BENCHES[i].shards ? BENCHES[i].shards.length : 0], doom: (v) => { DOOM = v; }, shards: (i) => (exhibits[i].shards ? exhibits[i].shards.length : 0), frags: (i) => exhibits[i].frags.length,
   shardOrder: (i) => (exhibits[i].shards ? exhibits[i].shards.map((s) => [s.edge, s.delay]) : []),
   press: (i) => exhibits[i].press, glassVisible: (i) => !!(exhibits[i].glass && exhibits[i].glass.visible), timbres: () => SND.TIMBRES,
