@@ -74,6 +74,10 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #invRow{display:flex;flex-direction:column;gap:8px;margin-top:14px}#invRow button{font:inherit;font-size:15px;font-weight:900;border:0;border-radius:999px;padding:10px 14px;cursor:pointer}
 #invGo{color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);box-shadow:0 4px 0 #d2407e}#invLater{color:#7a4a6a;background:#f6e2ee}
 #inviteBtn{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(96px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:13px;font-weight:800;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);border:0;border-radius:999px;padding:7px 12px;box-shadow:0 3px 0 #d2407e;cursor:pointer}
+#shopWait{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 45%,rgba(255,220,236,.95),rgba(122,58,26,.96));color:#5a2a12;font-weight:900;font-size:20px;letter-spacing:.08em}
+#shopWait[hidden]{display:none}
+#shopWait i{width:76px;height:76px;border-radius:50%;background:conic-gradient(#ff5c9e 0 12.5%,#fff8f0 0 25%,#ff5c9e 0 37.5%,#fff8f0 0 50%,#ff5c9e 0 62.5%,#fff8f0 0 75%,#ff5c9e 0 87.5%,#fff8f0 0);box-shadow:0 0 0 6px #fff8f0,0 8px 18px rgba(0,0,0,.3);will-change:transform;animation:shopSpin 1s linear infinite}
+@keyframes shopSpin{to{transform:rotate(360deg)}}
 #shopBack{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(54px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:14px;font-weight:800;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);border:0;border-radius:999px;padding:9px 16px;box-shadow:0 3px 0 #d2407e,0 6px 14px rgba(0,0,0,.35);cursor:pointer}
 #load{position:fixed;left:50%;top:56%;transform:translateX(-50%);display:flex;gap:14px;pointer-events:none;z-index:5}
 #load[hidden]{display:none}
@@ -96,6 +100,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="invite" hidden role="dialog" aria-label="招待状のお知らせ"><div id="invCard"><div id="invEnv" aria-hidden="true"><i></i><b></b></div><div id="invHead">招待状が届いているよ！</div><div id="invFrom"></div><div id="invTitle"></div><div id="invRow"><button id="invGo" type="button">先に招待状を見る</button><button id="invLater" type="button">町を見てから</button></div></div></div>
 <button id="inviteBtn" type="button" hidden>✉ 招待状を見る</button>
 <div id="shopUI" hidden><button id="shopBack" type="button">‹ 港町へもどる</button></div>
+<div id="shopWait" hidden><i></i>いらっしゃいませ</div>
 <div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR</button><button type="button" data-t="rec">きろく</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button></div></div>
 <div id="fps" hidden></div>
 <script type="module">
@@ -118,6 +123,7 @@ import * as SW from './sweets.js';
 import { makeYacht } from './yacht.js';
 import { makeSpoon, makeFork, FORK_SHAPE } from './spoon.js';
 import { CANDIES, candyGeo, candyMat, kintaroCap, kintaroSide } from './candies.js';
+import { shopDecor } from './shop_decor.js';
 import { GLYPHS } from './title_glyphs.js';
 import * as SND from './town_sound.js';
 import { BGM } from './town_bgm.js';
@@ -1338,7 +1344,7 @@ function biteMat(C) { const U = { uBt: { value: Array.from({ length: BT_N }, () 
     if (d < rr) { vec3 nv = v / max(d, 1e-4); btOff += nv * rr - v; objectNormal = -nv; vBt = 1.0; } } }`).replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += btOff;');
     sh.fragmentShader = 'varying float vBt;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.12 + 0.05, vBt);'); } });
   m.userData.U = U; return m; }
-function buildShop() {
+function* buildShop() {   // 少しずつ作る（お皿1枚ごとに1回 yield。readyShop が別のコマで進める）
   const sc = new THREE.Scene(); sc.background = new THREE.Color('#2a1a12'); sc.environment = scene.environment; SHOP.sc = sc;
   sc.add(new THREE.HemisphereLight('#ffe8d0', '#3a2418', 0.85)); const dl = new THREE.DirectionalLight('#fff2e0', 1.1); dl.position.set(1.5, 4, 3); sc.add(dl);
   for (const [x, y, z] of [[-3.6, 2.5, 1.4], [0, 2.6, 1.3], [3.6, 2.5, 1.4], [0, 2.8, -1.6]]) { const L = new THREE.PointLight('#ffc890', 5, 8, 1.6); L.position.set(x, y, z); sc.add(L); }
@@ -1350,24 +1356,21 @@ function buildShop() {
   const porcelain = new THREE.MeshPhysicalMaterial({ color: '#fbf8f2', roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.08 });
   const add = (geo, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); sc.add(o); return o; };
   add(new THREE.PlaneGeometry(16, 8).rotateX(-Math.PI / 2), floor, 0, 0, 0); add(new THREE.PlaneGeometry(16, 4.2), wall, 0, 2.1, -2.6); add(new THREE.PlaneGeometry(8, 4.2).rotateY(Math.PI / 2), wall, -7, 2.1, 1.4); add(new THREE.PlaneGeometry(8, 4.2).rotateY(-Math.PI / 2), wall, 7, 2.1, 1.4);
-  // 奥の棚：ウエハースの板3段に、ガラスのびん（中に小さな飴がぎっしり）
-  const JARC = ['#ff4a6a', '#ffd23a', '#4ac0ff', '#5ad07a', '#b07aff', '#ff8a2a', '#ffffff', '#ff9ad0'], NJ = 3 * 9, dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.028, 8, 6), new THREE.MeshPhysicalMaterial({ roughness: 0.2, clearcoat: 1 }), NJ * 36); let di = 0;
-  for (const [y, sh] of [[1.45, 0], [2.15, 0.5], [2.85, 0]]) { add(new THREE.BoxGeometry(11.4, 0.07, 0.45), wood, 0, y, -2.35);
-    for (let k = 0; k < 9; k++) { const x = -5.0 + k * 1.25 + sh * 0.6, jy = y + 0.25; add(new THREE.CylinderGeometry(0.17, 0.17, 0.42, 20, 1, true), glass, x, jy, -2.3); add(new THREE.CylinderGeometry(0.18, 0.18, 0.06, 20), gold, x, jy + 0.24, -2.3);
-      for (let i = 0; i < 36; i++) { const a = Math.random() * TAU, r = Math.random() * 0.13; dots.setMatrixAt(di, HM2.makeTranslation(x + Math.cos(a) * r, y + 0.07 + Math.random() * 0.26, -2.3 + Math.sin(a) * r)); dots.setColorAt(di, new THREE.Color(JARC[(k * 3 + i) % JARC.length])); di++; } } }
-  sc.add(dots);
+  // 奥の陳列：壁ぎわの低い飾り棚と壁の棚・床に、形の違う世界の飴の売り物（共通 shop_decor.js）
+  SHOP.M = { glass, gold, wood };   // 陳列（shopDecor）は、別のコマで足す（readyShop）
   // 看板（奥の壁の上）
   { const c = document.createElement('canvas'); c.width = 1024; c.height = 220; const g = c.getContext('2d'); g.fillStyle = '#7a3a1a'; g.beginPath(); g.roundRect(8, 8, 1008, 204, 60); g.fill(); g.strokeStyle = '#ffd890'; g.lineWidth = 8; g.setLineDash([18, 12]); g.beginPath(); g.roundRect(26, 26, 972, 168, 46); g.stroke();
     g.fillStyle = '#fff4e0'; g.font = '900 104px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('世界の飴工房', 512, 112); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     for (const x of [-3.5, 3.5]) add(new THREE.PlaneGeometry(2.6, 0.56), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, emissive: '#ffffff', emissiveMap: t, emissiveIntensity: 0.25 }), x, 3.55, -2.55); }
   // 長いカウンター（チョコ）とフロスティングの天板
   const top = 1.03, CW = 2 * PAN_MAX + 1.6; add(new THREE.BoxGeometry(CW, 0.95, 0.9), choco, 0, 0.475, 0.35); add(new THREE.BoxGeometry(CW + 0.2, 0.08, 1.0), frost, 0, 0.99, 0.35);
-  // 店番のジンジャークッキー（カウンターの向こうで、手をふる。見ている所へついてくる）
-  { const geo = SW.flatCookie(SW.gbOutline(true), 0.09, 0.035, []), mat = gbMats('woman'), m = new THREE.Mesh(geo, mat); m.scale.setScalar(1.0); m.position.set(1.0, 0.95 + 0.43 * 1.0, -0.85); sc.add(m); SHOP.keeper = { m, U: mat.userData.U }; }
+  // 店番のジンジャークッキー（カウンターのすぐ後ろで、手をふる。見ている所のそばを、行ったり来たりしてついてくる）。大きさ1では、横画面で頭が画面の上で切れていた
+  // 足はカウンターの天板のかげ（いつもの見下ろしで隠れる高さ）。奥の0.85mに立たせた時は、足の下に何もなく宙に浮いて見えた
+  { const geo = SW.flatCookie(SW.gbOutline(true), 0.09, 0.035, []), mat = gbMats('woman'), m = new THREE.Mesh(geo, mat), s = 0.8; m.scale.setScalar(s); m.position.set(0.8, 0.6 + 0.43 * s, -0.42); sc.add(m); SHOP.keeper = { m, U: mat.userData.U, y0: m.position.y, off: 0.8, next: 0 }; }
   // お皿：白い磁器（ふちが立ち上がる）に、金の線
   const plateGeo = new THREE.LatheGeometry([[0, 0], [0.3, 0], [0.36, 0.012], [0.43, 0.05], [0.45, 0.058], [0.44, 0.064], [0.36, 0.024], [0, 0.02]].map(([x, y]) => new THREE.Vector2(x, y)), 48);
   const rimGeo = new THREE.TorusGeometry(0.445, 0.006, 6, 64).rotateX(Math.PI / 2);
-  CANDIES.forEach((C, k) => { const px = (k - 4) * PLATE_DX, pz = 0.35, P = PLATE[C.id], pr = new THREE.Group(); pr.position.set(px, top, pz); sc.add(pr);
+  yield; for (const [k, C] of CANDIES.entries()) { const px = (k - 4) * PLATE_DX, pz = 0.35, P = PLATE[C.id], pr = new THREE.Group(); pr.position.set(px, top, pz); sc.add(pr);
     pr.add(new THREE.Mesh(plateGeo, porcelain)); const rim = new THREE.Mesh(rimGeo, gold); rim.position.y = 0.06; pr.add(rim);
     const lb = shopLabel(C.name, C.where); lb.position.set(px, top + 0.02, pz + 0.52); sc.add(lb);
     const RR = mulberry(31 + k * 7);
@@ -1377,7 +1380,7 @@ function buildShop() {
       const rr = C.stick ? 0 : lay ? 0.07 : cnt === 1 ? 0 : Math.min(0.27, 0.06 + P.s * 0.55 + cnt * 0.012), x = Math.cos(a) * rr, z = Math.sin(a) * rr;
       if (C.stick) place(C, px + (i < 3 ? (i - 1) * 0.12 : 0), top + 0.085 + (i < 3 ? 0 : 0.1), pz + 0.02, 1, { stick: i });
       else place(C, px + x, top + 0.04 + P.s * (P.lie ? 0.16 : 0.42) + lay * P.s * 0.7, pz + z, P.s, { lie: P.lie, k: i, rot: RR() * TAU, tilt: (RR() - 0.5) * 0.5 });
-    } });
+    } yield; }
   // かけら・きらめき（店の中だけの粒）
   const N = 400, fp = new Float32Array(N * 3), fc = new Float32Array(N * 3), fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(fp, 3)); fg.setAttribute('color', new THREE.BufferAttribute(fc, 3));
   const pts = new THREE.Points(fg, new THREE.PointsMaterial({ map: glowTex, size: 0.05, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); pts.frustumCulled = false; sc.add(pts); SHOP.fx = { list: [], fp, fc, fg, N };
@@ -1395,9 +1398,17 @@ function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = 
 // 金太郎飴の棒：長さ len（m）、太さ0.1m。切り口（顔）は、かじった先の端
 function setStick(it) { const L = Math.max(0.02, it.len), r = 0.05; it.side.scale.set(L, r / 0.5, r / 0.5); it.cap.scale.setScalar(r / 0.5); it.cap.position.set(L, 0, 0); it.hit.scale.set(L + 0.03, 1, 1); }
 function shopFx(p, col, n, sp = 0.5, up = 0.7) { const F = SHOP.fx; for (let k = 0; k < n && F.list.length < F.N; k++) { const a = Math.random() * TAU; F.list.push({ p: p.clone(), v: new THREE.Vector3(Math.cos(a) * rnd(0.08, sp), rnd(0.15, up) + 0.25, Math.sin(a) * rnd(0.08, sp)), t: 0, L: rnd(0.4, 0.9), c: new THREE.Color(col) }); } }
-function enterShop() { if (SHOP.on) return; if (!SHOP.sc) buildShop(); SHOP.on = true; closeTrivia(true); card.hidden = true; if (tipOn) hideTip(); held.clear(); joy.x = joy.y = 0; ud.v = 0;
+// 店の中を用意する：店とお皿・陳列を、少しずつ別のコマで作る → シェーダーは裏で用意。できてから入る（入った瞬間に作ると、CPU4倍遅くで3.5秒止まった）
+// 店をタップして寄っている間に始めておく。メニューの「お店へ」などで、まだなら「いらっしゃいませ」の幕（CSS の回転なので、作っている間も止まらない）を出して待つ
+function readyShop() { if (!SHOP.ready) SHOP.ready = new Promise((res) => { let steps = buildShop(), stage = 0; SHOP.buildMs = 0;
+  const step = () => { const t0 = performance.now(), d = steps.next().done; SHOP.buildMs = Math.max(SHOP.buildMs, performance.now() - t0);
+    if (d && !stage) { stage = 1; size(); steps = shopDecor(SHOP.sc, SHOP.M); } else if (d) { renderer.compileAsync(SHOP.sc, SHOP.cam).catch(() => {}).then(res); return; }
+    setTimeout(step, 0); }; setTimeout(step, 30); }); return SHOP.ready; }
+function prepShop() { if (!SHOP.ready && !SHOP.prep) SHOP.prep = setTimeout(readyShop, 450); }
+function enterShop() { if (SHOP.on || SHOP.going) return;
+  if (!SHOP.done) { SHOP.going = true; clearTimeout(SHOP.prep); $('shopWait').hidden = false; readyShop().then(() => { SHOP.done = true; SHOP.going = false; $('shopWait').hidden = true; enterShop(); }); return; } SHOP.on = true; closeTrivia(true); card.hidden = true; if (tipOn) hideTip(); held.clear(); joy.x = joy.y = 0; ud.v = 0;
   for (const id of ['joy', 'upB', 'dnB', 'inviteBtn']) $(id).style.display = 'none'; $('hint').style.display = 'none'; $('top').firstChild.nodeValue = '世界の飴工房'; $('sub').textContent = '飴をタップ＝かじる・左右になぞる＝となりのお皿へ'; $('shopUI').hidden = false;
-  SHOP.yaw = SHOP.tyaw = 0; SHOP.px = SHOP.tpx = 0; SHOP.dist = SHOP.tdist = innerWidth / innerHeight < 0.8 ? 2.4 : 1.9; size(); SND.whoosh(); SND.suzu(); counts.shopIn = (counts.shopIn || 0) + 1; }
+  SHOP.yaw = SHOP.tyaw = 0; SHOP.px = SHOP.tpx = 0; SHOP.base = SHOP.dist = SHOP.tdist = innerWidth / innerHeight < 0.8 ? 2.4 : 1.9; SHOP.biteT = 0; size(); SND.whoosh(); SND.suzu(); counts.shopIn = (counts.shopIn || 0) + 1; }
 function exitShop() { if (!SHOP.on) return; SHOP.on = false; SHOP.ptrs.clear(); for (const id of ['joy', 'upB', 'dnB', 'inviteBtn']) $(id).style.display = ''; $('hint').style.display = ''; $('top').firstChild.nodeValue = 'おかしな港町'; $('sub').textContent = 'クリスマスの夜'; $('shopUI').hidden = true; closeTrivia(true);
   if (SHOP_AREA) { const c = SHOP_AREA.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + SHOP_AREA.view.h * 0.4); flyTo(look, look, SHOP_AREA.view.d, SHOP_AREA.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; } SND.whoosh(); }
 function shopPick(x, y) { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, SHOP.cam);
@@ -1408,6 +1419,8 @@ function shopPick(x, y) { const r = cvs.getBoundingClientRect(); ndc.set(((x - r
   const it = h.object.userData.it, m = it.C.stick ? it.cap : it.m, h2 = ray.intersectObject(m, false)[0]; return { it, p: h2 ? h2.point : m.getWorldPosition(new THREE.Vector3()), o: m }; }
 // 少しかじる：小さな歯の跡を1つ足し、飴は少し小さく（食べきる直前で元の7割）。金太郎飴は少し短く
 function shopBite(it, p, o) { const C = it.C; it.n++; counts.candyEat++; SND.eatCandy(C.hard, C.pitch, it.n === 1, C.id); SHOP.wave = 1;
+  // 食べる間は、そのお皿へ寄る（本人 2026-10-18「食べる時はもう少しよるといい」）。7秒かじらなければ元の距離へ。2本指で寄せ引きしたら、その距離のまま
+  SHOP.tdist = Math.min(SHOP.tdist, SHOP.base * 0.6); SHOP.tpx = clamp(Math.round(it.home.x / PLATE_DX) * PLATE_DX, -PAN_MAX, PAN_MAX); SHOP.biteT = nowS();
   const col = C.cols ? C.cols[1 % C.cols.length] : C.id === 'c_tanghulu' ? '#ff4060' : C.id === 'c_alegria' || C.id === 'c_turron' ? '#f2e2c0' : '#ffffff'; shopFx(p, col, 8, 0.4, 0.5); shopFx(p, '#fff2c0', 3, 0.25, 0.4);
   if (C.stick) { it.len = KIN_LEN * (1 - it.n / it.max); setStick(it); shopFx(it.cap.getWorldPosition(new THREE.Vector3()), '#f2b6c6', 6); }
   else { const L = it.m.worldToLocal(p.clone()), d = L.clone().normalize(), g = it.m.geometry; if (!g.boundingBox) g.computeBoundingBox(); const sz = g.boundingBox.getSize(V4), r = clamp(Math.min(sz.x, sz.y, sz.z) * 0.6, 0.05, 0.2);   // かじり跡は飴の太さに合わせて小さめ（細い飴に大きな跡をつけると、内側の面が黒く見えた）
@@ -1415,20 +1428,25 @@ function shopBite(it, p, o) { const C = it.C; it.n++; counts.candyEat++; SND.eat
   if (it.n >= it.max) { it.st = 'gone'; it.t = 0; counts.candyPiece++; use('candy'); mark('candyEat'); const first = !found.has(C.id); SND.chime(3); shopFx(p, col, 14, 0.5, 0.6);
     if (first) { found.add(C.id); updateFound(); saveProgress(); setTimeout(() => { if (SHOP.on) showTrivia(C, true); checkUnlock(); }, 650); } } }
 function stepShop(dt, t) { const ease = (u) => u * u * (3 - 2 * u);
-  SHOP.yaw += (SHOP.tyaw - SHOP.yaw) * Math.min(1, dt * 8); SHOP.pitch += (SHOP.tpitch - SHOP.pitch) * Math.min(1, dt * 8); SHOP.dist += (SHOP.tdist - SHOP.dist) * Math.min(1, dt * 8); SHOP.px += (SHOP.tpx - SHOP.px) * Math.min(1, dt * 6);
+  SHOP.yaw += (SHOP.tyaw - SHOP.yaw) * Math.min(1, dt * 8); SHOP.pitch += (SHOP.tpitch - SHOP.pitch) * Math.min(1, dt * 8); SHOP.dist += (SHOP.tdist - SHOP.dist) * Math.min(1, dt * 4); SHOP.px += (SHOP.tpx - SHOP.px) * Math.min(1, dt * 6);
+  if (SHOP.biteT && nowS() - SHOP.biteT > 7 && !SHOP.ptrs.size) { SHOP.tdist = SHOP.base; SHOP.biteT = 0; }
   shopCam();
   for (const it of SHOP.items) { it.t += dt;
     if (it.st === 'gone') { const u = clamp(it.t / 0.3, 0, 1); it.g.scale.setScalar(Math.max(0.001, 1 - ease(u))); if (it.t > 8) { it.st = 'grow'; it.t = 0; it.n = 0; for (const v of it.mat.userData.U.uBt.value) v.set(0, 0, 0, 0); if (it.C.stick) { it.len = KIN_LEN; setStick(it); } else it.m.scale.setScalar(it.s0); SND.candyGrow(); shopFx(it.home, '#fff2c0', 10, 0.3, 0.5); } }
     else if (it.st === 'grow') { const u = clamp(it.t / 0.9, 0, 1), e = 1 - Math.exp(-6 * u) * Math.cos(u * 12); it.g.scale.setScalar(Math.max(0.001, e)); if (u >= 1) { it.st = 'ok'; it.g.scale.setScalar(1); } } }
-  // 店番：見ている所の右へついてくる。ゆらゆら。かじると手をふる
-  if (SHOP.keeper) { const K = SHOP.keeper; K.m.position.x += (SHOP.px + 1.0 - K.m.position.x) * Math.min(1, dt * 1.5); SHOP.wave = Math.max(0, SHOP.wave - dt * 0.6); const w = SHOP.wave, sw = Math.sin(t * 2.2); K.U.uLimb.value.set(0.2 + 0.1 * sw + w * (0.9 + 0.5 * Math.sin(t * 14)), -0.2 - 0.1 * sw, 0.06 * sw, -0.06 * sw); K.U.uCurl.value = 1.2; K.m.rotation.z = Math.sin(t * 1.1) * 0.04; }
+  // 店番：見ている所のそばへついてくるが、立つ所は数秒ごとに左右へ変わる（いつも右へ1mだと、ずれて見えた 本人 2026-10-18）。真ん中のお皿の真後ろには立たない。歩く間は弾んで、進む方へ傾く。かじると手をふる
+  if (SHOP.keeper) { const K = SHOP.keeper, narrow = innerWidth / innerHeight < 0.8;
+    if (t > K.next) { K.off = (K.off > 0 ? -1 : 1) * (narrow ? rnd(0.32, 0.55) : rnd(0.55, 1.35)); K.next = t + rnd(2.5, 5.5); }   // 左右は交互（行ったり来たり）・離れ方と間はばらばら
+    const vx = (clamp(SHOP.px + K.off, -PAN_MAX - 0.8, PAN_MAX + 0.8) - K.m.position.x) * Math.min(1, dt * 1.3), walk = Math.min(1, Math.abs(vx) / Math.max(dt, 1e-3) / 0.5); K.m.position.x += vx;
+    K.m.position.y = K.y0 + Math.abs(Math.sin(t * 8)) * 0.03 * walk; SHOP.wave = Math.max(0, SHOP.wave - dt * 0.6); const w = SHOP.wave, sw = Math.sin(t * 2.2) + walk * Math.sin(t * 8) * 0.8;
+    K.U.uLimb.value.set(0.2 + 0.1 * sw + w * (0.9 + 0.5 * Math.sin(t * 14)), -0.2 - 0.1 * sw, 0.06 * sw, -0.06 * sw); K.U.uCurl.value = 1.2; K.m.rotation.z = Math.sin(t * 1.1) * 0.04 - Math.sign(vx) * walk * 0.08; }
   const F = SHOP.fx; for (let i = F.list.length - 1; i >= 0; i--) { const q = F.list[i]; q.t += dt; if (q.t > q.L) { F.list.splice(i, 1); continue; } q.v.y -= 2.2 * dt; q.p.addScaledVector(q.v, dt); }
   F.list.forEach((q, k) => { const f = 1 - q.t / q.L; F.fp.set([q.p.x, q.p.y, q.p.z], k * 3); F.fc.set([q.c.r * f, q.c.g * f, q.c.b * f], k * 3); }); F.fg.setDrawRange(0, F.list.length); F.fg.attributes.position.needsUpdate = F.fg.attributes.color.needsUpdate = true; }
 function shopCam() { const c = SHOP.center, cp = Math.cos(SHOP.pitch); SHOP.cam.position.set(SHOP.px + Math.sin(SHOP.yaw) * cp * SHOP.dist, c.y + Math.sin(SHOP.pitch) * SHOP.dist, c.z + Math.cos(SHOP.yaw) * cp * SHOP.dist); SHOP.cam.lookAt(SHOP.px, c.y, c.z); SHOP.cam.updateMatrixWorld(); }
 // 店の中のさわり方：タップ＝かじる・左右になぞる＝カウンターにそって歩く（なぞった方へ進む）・上下になぞる＝見下ろす・2本指／ホイール＝寄る
 function shopDown(e) { cvs.setPointerCapture(e.pointerId); SHOP.ptrs.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, px: SHOP.tpx, pitch: SHOP.tpitch, t0: nowS(), moved: false }); }
 function shopMove(e) { const s = SHOP.ptrs.get(e.pointerId); if (!s) return; s.x = e.clientX; s.y = e.clientY; if (Math.hypot(s.x - s.x0, s.y - s.y0) > 8) s.moved = true; if (!s.moved) return;
-  const all = [...SHOP.ptrs.values()]; if (all.length >= 2) { const [a, b] = all, d = Math.hypot(a.x - b.x, a.y - b.y); if (!SHOP.pinch) SHOP.pinch = d; SHOP.tdist = clamp(SHOP.tdist - (d - SHOP.pinch) * 0.006, 1.0, 4.2); SHOP.pinch = d; return; }
+  const all = [...SHOP.ptrs.values()]; if (all.length >= 2) { const [a, b] = all, d = Math.hypot(a.x - b.x, a.y - b.y); if (!SHOP.pinch) SHOP.pinch = d; SHOP.biteT = 0; SHOP.tdist = clamp(SHOP.tdist - (d - SHOP.pinch) * 0.006, 1.0, 4.2); SHOP.pinch = d; return; }
   SHOP.tpx = clamp(s.px + (s.x - s.x0) * 0.004 * SHOP.dist, -PAN_MAX, PAN_MAX); SHOP.tpitch = clamp(s.pitch - (s.y - s.y0) * 0.003, 0.08, 1.0); }   // ほかの仕掛けと同じ向き（なぞった方へカメラが進む）
 function shopUp(e) { const s = SHOP.ptrs.get(e.pointerId); SHOP.ptrs.delete(e.pointerId); if (SHOP.ptrs.size < 2) SHOP.pinch = null; if (!s || s.moved || nowS() - s.t0 > 0.5) return; const h = shopPick(e.clientX, e.clientY); if (h) shopBite(h.it, h.p, h.o); }
 
@@ -1468,7 +1486,7 @@ cvs.addEventListener('pointermove', (e) => { if (SHOP.on) { shopMove(e); return;
   auto = null; drone.tyaw = s.yaw - (s.x - s.x0) * 0.005; drone.tpitch = clamp(s.pitch - (s.y - s.y0) * 0.004, -1.35, 1.0); });   // なぞった方へ、カメラが向く（本人 2026-10-17。前は、景色をつかんで回す向き）
 function up(e) { if (SHOP.on) { shopUp(e); return; } const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!s) return; if (s.grab && TEDDY.userData.pull) { TEDDY.userData.pull = false; SND.boing(2.5); counts.pulls++; use('teddy'); } if (!s.moved && nowS() - s.t0 < 0.5) tapAt(e.clientX, e.clientY); }
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, up));
-cvs.addEventListener('wheel', (e) => { if (SHOP.on) { SHOP.tdist = clamp(SHOP.tdist + Math.sign(e.deltaY) * 0.25, 1.2, 4.2); e.preventDefault(); return; } drone.p.addScaledVector(V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)), -Math.sign(e.deltaY) * 2); auto = null; e.preventDefault(); }, { passive: false });
+cvs.addEventListener('wheel', (e) => { if (SHOP.on) { SHOP.biteT = 0; SHOP.tdist = clamp(SHOP.tdist + Math.sign(e.deltaY) * 0.25, 1.2, 4.2); e.preventDefault(); return; } drone.p.addScaledVector(V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)), -Math.sign(e.deltaY) * 2); auto = null; e.preventDefault(); }, { passive: false });
 const card = $('card');
 let cardAt = null;
 // 豆知識：綿あめの雲がふわっと広がって、画面の真ん中にうんちく。雲は文の枠のまわりに、ふわふわのかたまりを並べて描く（広がる間だけ描き直し、あとは止めた絵）
@@ -1575,7 +1593,7 @@ function tapAt(x, y) {
   if (o && o.kind === 'trivia') { const first = !found.has(o.id), play = ['silent', 'norad', 'tree', 'bauble', 'wreath', 'reindeer'].includes(o.id); if (first || !play) { found.add(o.id); updateFound(); o.mk.material.color.set('#9fd0ff'); showTrivia(o, first); if (first) checkUnlock(); } if (o.id === 'silent') { SND.bell(); BELL.userData.swing = 1; counts.bells++; } else if (o.id === 'norad') { SND.jingle(); counts.santa++; } else if (o.id === 'tree') treeTap(); else if (o.id === 'bauble') { BAUBLE.amp = Math.min(0.9, BAUBLE.amp + 0.5); SND.glassTink(); } else if (o.id === 'wreath') wreathTap(); else if (o.id === 'reindeer') { REST.hop = 1; SND.jingle(); } else SND.chime(o.k); counts.chime++; o.pop = 1; return o; }
   if (o && o.kind === 'gb') { gbBite(o); return o; }
   if (o && o.kind === 'puyo') { if (o.angel) return o; o.v += 7; o.hv = 4.2; SND.boing(o.r * 2); counts.boing++; const n = nowS(); o.taps = (o.taps || []).filter((x) => n - x < 5); o.taps.push(n); if (o.walk && o.taps.length >= 7) { o.taps = []; angelize(o); } return o; }
-  if (o && o.kind === 'area') { SND.whoosh(); counts.focus++; o.seen = true; if (o.id === 'teddy') { TEDDY.userData.squish = 1; TOY.g.userData.wob = 1; counts.teddy++; SND.boing(3); use('teddy'); } const c = o.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + o.view.h * 0.4); flyTo(look, look, o.view.d, o.view.h); showCard(o.name, o.sub, o.text, o.link || o.enter || o.id === 'teddy' ? '' : '準備中', o.link, o); return o; }
+  if (o && o.kind === 'area') { SND.whoosh(); counts.focus++; o.seen = true; if (o === SHOP_AREA) prepShop(); if (o.id === 'teddy') { TEDDY.userData.squish = 1; TOY.g.userData.wob = 1; counts.teddy++; SND.boing(3); use('teddy'); } const c = o.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + o.view.h * 0.4); flyTo(look, look, o.view.d, o.view.h); showCard(o.name, o.sub, o.text, o.link || o.enter || o.id === 'teddy' ? '' : '準備中', o.link, o); return o; }
   // 地面：そこへ向かって飛ぶ
   flyTo(hit.point, hit.point, 8, 5); SND.tap(); return { kind: 'ground' };
 }
@@ -1807,7 +1825,9 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   open: () => ({ ...OPEN, cakesOn: MOUNTS.filter((M) => M.cake).map((M) => M.on), shopArea: !!SHOP_AREA, shopG: !!SHOP_G }), used: () => [...USED], ach: () => [...ACH], fT: () => [$('fN').textContent, $('fT').textContent],
   rain: () => RAIN.map((R) => R.list.length).reduce((a, b) => a + b, 0), rainStates: () => RAIN.flatMap((R) => R.list.map((c) => c.st)), rainSpawn: (n) => { for (let i = 0; i < n; i++) spawnCandy(); return RAIN.map((R) => R.list.length).reduce((a, b) => a + b, 0); },
   rainFirst: (st) => { for (const R of RAIN) { const k = R.list.findIndex((c) => !st || c.st === st); if (k >= 0) return { j: R.j, k, p: R.list[k].p.toArray(), st: R.list[k].st }; } return null; }, rainFlick: (j, k) => { flickCandy(RAIN[j], k); return RAIN[j].list[k] ? RAIN[j].list[k].v.toArray() : null; }, rainAge: (t) => { for (const R of RAIN) for (const c of R.list) if (c.st === 'rest') c.t = t; },
-  shopIn: () => { enterShop(); return SHOP.on; }, shopOut: () => { exitShop(); return SHOP.on; }, shop: () => ({ on: SHOP.on, items: SHOP.items.map((it) => [it.C.id, it.n, it.st]) }),
+  shopTris: () => { let n = 0, c = 0; const L = []; SHOP.sc.traverse((o) => { if (o.isMesh && o.visible) { c++; const k = ((o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3) * (o.isInstancedMesh ? o.count : 1); n += k; L.push([Math.round(k), o.userData.key || o.material.type]); } }); L.sort((x, y) => y[0] - x[0]); return [Math.round(n), c, +(SHOP.buildMs || 0).toFixed(1), L.slice(0, 8)]; },
+  shopKeeper: () => [+SHOP.keeper.m.position.x.toFixed(2), +SHOP.px.toFixed(2), +SHOP.dist.toFixed(2), SHOP.base],
+  shopIn: async () => { enterShop(); await readyShop(); await new Promise((r) => setTimeout(r, 30)); return SHOP.on; }, shopOut: () => { exitShop(); return SHOP.on; }, shop: () => ({ on: SHOP.on, items: SHOP.items.map((it) => [it.C.id, it.n, it.st]) }),
   shopScreen: (id) => { const it = SHOP.items.find((q) => q.C.id === id && q.st === 'ok'); SHOP.px = SHOP.tpx = it.home.x; SHOP.yaw = SHOP.tyaw; SHOP.pitch = SHOP.tpitch; SHOP.dist = SHOP.tdist; shopCam(); const p = (it.C.stick ? it.cap : it.m).getWorldPosition(new THREE.Vector3()); p.project(SHOP.cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight]; },
   shopLen: () => { const it = SHOP.items.find((q) => q.C.stick && q.st === 'ok'); return it ? [+it.len.toFixed(3), KIN_LEN] : null; }, shopDents: (id) => SHOP.items.filter((q) => q.C.id === id).reduce((n, it) => n + it.mat.userData.U.uBt.value.filter((v) => v.w > 0).length, 0), shopPlates: () => CANDIES.map((C) => SHOP.items.filter((q) => q.C.id === C.id).length), cakeWS: (i) => [...MOUNTS[i].ws].map((v) => +v.toFixed(2)), landAt: (x, z) => [inWater(x, z), +landH(x, z).toFixed(2)], lhSeaDrop: () => { const L = LIGHTHOUSE; if (L.st !== 'fall') lhCollapse(); let w = null; for (let r = 4; r < 60 && !w; r += 2) for (let a = 0; a < 24 && !w; a++) { const x = L.x + Math.cos(a / 24 * TAU) * r, z = L.z + Math.sin(a / 24 * TAU) * r; if (inWater(x, z) && inWater(x + 6, z) && inWater(x, z + 6)) w = [x, z]; } if (!w) return null; L.segs.forEach((S, k) => { if (!k) return; S.p.set(w[0] + k * 1.0, 3 + k * 0.8, w[1]); S.v.set(0, -1, 0); S.rest = false; S.land = 0; S.delay = 0; }); return w; }, rainVisible: () => { for (const R of RAIN) for (const c of R.list) { if (c.st !== 'rest') continue; const v = c.p.clone().project(cam); const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight; if (v.z < 1 && x > 30 && x < innerWidth - 30 && y > 120 && y < innerHeight - 150) return [x, y]; } return null; }, lhSegs: () => LIGHTHOUSE.segs.map((S) => [+S.p.x.toFixed(1), +S.p.y.toFixed(2), +S.p.z.toFixed(1), !!S.wet]), shopPickAt: (x, y) => { const h = shopPick(x, y); return h ? [h.it.C.id, SHOP.items.indexOf(h.it)] : null; }, shopPan: (x) => { if (x != null) SHOP.tpx = x; return [SHOP.px, SHOP.tpx]; },
   lh: () => ({ st: LIGHTHOUSE.st, bites: LIGHTHOUSE.bites, t: +LIGHTHOUSE.t.toFixed(1), dents: EAT.list.filter((D) => D.i === LH_I).length, top: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].p.y.toFixed(2), home: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].home.y.toFixed(2), beam: LIGHTHOUSE.beam.visible }), lhAt: (k = 2) => LIGHTHOUSE.segs[k].home.toArray(), lhHurry: () => { LIGHTHOUSE.t = 11.95; },
