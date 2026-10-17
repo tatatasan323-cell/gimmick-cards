@@ -77,7 +77,7 @@ float biteD() { float m = 1e3; for (int i = 0; i < 32; i++) { vec4 b = uBite[i];
 // 家は中が空洞なので、穴の奥は町の側で「かじった球の内側の面（家の形の中だけ）」を描いて、中身の詰まったクッキーに見せる（biteCavity）
 export function biteable(m, inner = false) {
   m.onBeforeCompile = (sh) => { sh.uniforms.uBite = BITE_U;
-    sh.vertexShader = 'varying vec3 vBW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvBW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.vertexShader = 'varying vec3 vBW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n#ifdef USE_BATCHING\nvBW = (modelMatrix * batchingMatrix * vec4(transformed, 1.0)).xyz;\n#else\nvBW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif');   // 束ねて描く時（共通/batch.js）は、部品ごとの行列も掛ける
     sh.fragmentShader = BITE_FS + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat bd = biteD(); if (bd < ' + (inner ? '0.0' : '0.07') + ') discard;')
       .replace('#include <color_fragment>', '#include <color_fragment>\nif (bd < 0.04) diffuseColor.rgb *= vec3(1.08, 0.86, 0.66);');
   };

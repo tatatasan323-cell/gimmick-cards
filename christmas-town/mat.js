@@ -6,12 +6,12 @@ export const timeU = { value: 0 };
 export function gel(hex, o = {}) {
   const m = new THREE.MeshPhysicalMaterial({ color: hex, roughness: o.rough ?? 0.1, metalness: 0, clearcoat: o.cc ?? 1, clearcoatRoughness: o.ccr ?? 0.05, sheen: o.sheen ?? 0.6, sheenColor: new THREE.Color(o.sheenColor || '#fff0c0'), sheenRoughness: 0.3, envMapIntensity: o.env ?? 1.5, vertexColors: !!o.vc });
   const U = { uWob: { value: o.wob ?? 0 }, uGlow: { value: new THREE.Color(o.glow || hex) }, uGl: { value: o.gl ?? 0.9 } };
-  m.userData.U = U;
+  m.userData.U = U; if (o.glowVC) m.customProgramCacheKey = () => 'gel-glowvc';   // glowVC＝光る色も頂点の色（色ちがいを1つの材質にまとめる時）
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uT = timeU; sh.uniforms.uWob = U.uWob; sh.uniforms.uGlow = U.uGlow; sh.uniforms.uGl = U.uGl;
     sh.vertexShader = 'uniform float uT;uniform float uWob;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normal * sin(dot(position, vec3(5.1, 7.3, 4.7)) + uT * 15.0) * uWob * 0.06;');
     sh.fragmentShader = 'uniform vec3 uGlow;uniform float uGl;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\n { vec3 Vn = normalize(vViewPosition); float nv = clamp(dot(normalize(normal), Vn), 0.0, 1.0); float rim = pow(1.0 - nv, 2.2); float core = pow(nv, 1.6);\n float low = clamp(0.5 - vNormal.y * 0.5, 0.0, 1.0); totalEmissiveRadiance += uGlow * uGl * (0.10 * core + 0.75 * rim + 0.28 * low * (1.0 - rim)); }');
+      '#include <emissivemap_fragment>\n { vec3 Vn = normalize(vViewPosition); float nv = clamp(dot(normalize(normal), Vn), 0.0, 1.0); float rim = pow(1.0 - nv, 2.2); float core = pow(nv, 1.6);\n float low = clamp(0.5 - vNormal.y * 0.5, 0.0, 1.0); totalEmissiveRadiance += uGlow * ' + (o.glowVC ? 'vColor.rgb * ' : '') + 'uGl * (0.10 * core + 0.75 * rim + 0.28 * low * (1.0 - rim)); }');
   };
   return m;
 }
