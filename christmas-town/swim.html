@@ -23,7 +23,7 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <!-- 港町（町の全景）へもどる -->
 <a id="toTown" href="./#swim">‹ 港町へもどる</a>
 <div class="tx" id="top">ぷるぷる無重力<small id="sub">グミをつくっています…</small></div>
-<div class="tx" id="hint">グミを つまんで のばす・タップで ぷるん<br>左下のまるで およぐ（上＝まえ・下＝うしろ・左右＝向き）<br>なにもない所を なぞると、見まわせるよ ♪音あり</div>
+<div class="tx" id="hint">グミを つまんで のばす・タップで ぷるん<br>左下のまる＝およぐ（見ている向きへ。左右＝よこへ）<br>なにもない所を なぞると、見まわせるよ ♪音あり</div>
 <div id="pad"><div id="knob"></div></div>
 <div id="modes"><button data-m="loose" class="on">ゆるい</button><button data-m="looser">もっとゆるい</button><button data-m="water">みず</button></div>
 <div id="fps" hidden></div>
@@ -31,7 +31,9 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 // 無重力の水の中に、クリスマスのグミが20種。自分で泳ぎ（前・後ろ・向き）、触る。触ったグミだけ、ばねの格子で動かす（他は軽い揺れだけ）
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
-import { gdone } from './gdone.js';
+import { guardLeave } from './stay.js';
+guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
+import { gdone, gstat } from './gdone.js';
 import { CHARS, buildType, buildTypeSteps, instantiate } from './chars.js';
 import { Lattice, smax } from './soft.js';
 import { glowTex, timeU, gel, setGummyLook } from './mat.js';
@@ -61,12 +63,12 @@ document.querySelectorAll('#modes button').forEach((b) => b.addEventListener('cl
 
 // ---------- カメラ（泳ぐ人の目）：自分で、前・後ろ・向き ----------
 const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 400), pos = new THREE.Vector3(0, 0, 6);
-let yaw = 0, pitch = 0, tYaw = 0, tPitch = 0, vel = 0;
+let yaw = 0, pitch = 0, tYaw = 0, tPitch = 0; const vel = new THREE.Vector3(), acc = new THREE.Vector3();
 const fwd = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3();
 function basis() { fwd.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)); right.set(Math.cos(yaw), 0, -Math.sin(yaw)); up.crossVectors(right, fwd); }
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w / h < 0.8 ? 62 : 52; cam.updateProjectionMatrix(); }
 addEventListener('resize', size); size(); basis(); watchOrientation(size);
-// 左下のまる（指でたおす）と、キーボード（W/S・↑↓＝前後、A/D・←→＝向き）
+// 港町と同じ動かし方（本人 2026-10-17）：左下のまる＝見ている向きへ前後・左右へ（上を向いて進むと上へ）／なぞる＝見まわす。キーは W/S・↑↓＝前後、A/D＝左右へ、←→＝向き、E・スペース＝上へ、Q・Shift＝下へ
 const pad = document.getElementById('pad'), knob = document.getElementById('knob'), joy = { x: 0, y: 0 }, keys = new Set(); let padId = null;
 const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
 function movePad(e) { const r = pad.getBoundingClientRect(), R = r.width / 2; let dx = (e.clientX - r.left - R) / R, dy = (e.clientY - r.top - R) / R; const L = Math.hypot(dx, dy); if (L > 1) { dx /= L; dy /= L; } joy.x = dx; joy.y = dy; knob.style.transform = `translate(${dx * R * 0.62}px,${dy * R * 0.62}px)`; }
@@ -75,6 +77,7 @@ pad.addEventListener('pointermove', (e) => { if (e.pointerId === padId) movePad(
 const endPad = (e) => { if (e.pointerId !== padId) return; padId = null; joy.x = joy.y = 0; knob.style.transform = ''; };
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => pad.addEventListener(t, endPad));
 addEventListener('keydown', (e) => { keys.add(e.key.toLowerCase()); hideHint(); }); addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+const ud = { v: 0 };
 
 // ---------- 泡（カメラのまわりに、まわしながら） ----------
 const NB = 260, bp = new Float32Array(NB * 3), BOX = 16;
@@ -162,7 +165,7 @@ function makeDrop(it, src, p0, n, pw, r0, vol, delay = 0) {
   const d = { m, it, ...src, p0: p0.clone(), n: n.clone(), v: new THREE.Vector3(), r0, vol, t: -delay, held: false, s: 0, sv: 3, prev: pw.clone(), pt: performance.now(), merge: 0 };
   drops.push(d); return d;
 }
-function tear(h, pw) { gdone('water');   // みずで、ちぎれた
+function tear(h, pw) { gdone('water'); gstat('tear');   // みずで、ちぎれた
   const it = h.it, n = new THREE.Vector3(...h.g.d).normalize(), r = 0.2 + Math.random() * 0.12, cut = { x: h.p0.x, y: h.p0.y, z: h.p0.z, r };
   it.cuts.push(cut); h.g = null; rebuild(it, undefined, () => wobbleIn(it, h.p0, n, 0.45, 0.55));   // 伸びていた所が、行きすぎてプルンと揺れながら縮む
   const d = makeDrop(it, { cut }, h.p0, n, pw, Math.cbrt(0.5) * r * it.s, (2 / 3) * Math.PI * r ** 3); d.held = true; d.sv = 6; h.drop = d; SND.tearSound();
@@ -219,7 +222,7 @@ cvs.addEventListener('pointerdown', (e) => {
 cvs.addEventListener('pointermove', (e) => {
   const h = holds.get(e.pointerId); if (!h) return;
   if (e.pointerType === 'mouse' && e.buttons === 0) { release(e); return; }   // 画面の外でボタンを離した時（離した知らせが届かない）
-  if (h.bg) { tYaw = h.yaw + (e.clientX - h.x) * 0.005; tPitch = Math.max(-0.9, Math.min(0.9, h.pitch - (e.clientY - h.y) * 0.004)); return; }   // なぞった方へ、カメラが向く（本人 2026-10-17）
+  if (h.bg) { tYaw = h.yaw - (e.clientX - h.x) * 0.005; tPitch = Math.max(-0.9, Math.min(0.9, h.pitch - (e.clientY - h.y) * 0.004)); return; }   // なぞった方へ、カメラが向く（本人 2026-10-17）
   if (Math.hypot(e.clientX - h.x, e.clientY - h.y) > 8) h.moved = true; if (!h.moved) return;
   setRay(e); const pw = new THREE.Vector3(); if (!ray.ray.intersectPlane(h.plane, pw)) return;
   if (h.drop) { const d = h.drop, now = performance.now(), dt = Math.max(0.008, (now - d.pt) / 1000); d.v.subVectors(pw, d.prev).divideScalar(dt); d.prev.copy(pw); d.pt = now; d.m.position.copy(pw); return; }
@@ -251,10 +254,10 @@ const dz = (v) => (Math.abs(v) < 0.12 ? 0 : v), clamp1 = (v) => Math.max(-1, Mat
 function frame() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1); T += dt; timeU.value = T;   // __slow＝検査でスロー再生
   // 泳ぐ：前後（水の重さで、ゆっくり速さが変わる）と向き
-  const k = (a, b) => (keys.has(a) || keys.has(b) ? 1 : 0), fIn = clamp1(dz(-joy.y) + k('w', 'arrowup') - k('s', 'arrowdown')), tIn = clamp1(dz(-joy.x) + k('a', 'arrowleft') - k('d', 'arrowright'));
-  vel += (fIn * 2.4 - vel) * Math.min(1, dt * 2.2); tYaw += tIn * 1.3 * dt;
+  const k = (...a) => (a.some((x) => keys.has(x)) ? 1 : 0), fIn = clamp1(dz(-joy.y) + k('w', 'arrowup') - k('s', 'arrowdown')), sIn = clamp1(dz(joy.x) + k('d') - k('a')), uIn = clamp1(ud.v + k('e', ' ') - k('q', 'shift')), tIn = k('arrowleft') - k('arrowright');
+  tYaw += tIn * 1.3 * dt;
   yaw += (tYaw - yaw) * Math.min(1, dt * 4); pitch += (tPitch - pitch) * Math.min(1, dt * 4); basis();
-  pos.addScaledVector(fwd, vel * dt);
+  acc.copy(fwd).multiplyScalar(fIn * 2.4).addScaledVector(right, sIn * 2.4); acc.y += uIn * 1.8; vel.lerp(acc, Math.min(1, dt * 2.2)); pos.addScaledVector(vel, dt);   // 水の重さで、ゆっくり速さが変わる
   cam.position.copy(pos).addScaledVector(up, Math.sin(T * 0.9) * 0.05); cam.lookAt(tmpLook.copy(cam.position).add(fwd));
   // グミ：ゆらゆら・ゆっくり回る・息をするように膨らむ。視界から外れたら前に置きなおす
   for (const it of insts) {
@@ -314,6 +317,6 @@ function frame() {
 }
 const volOf = (it) => { let V = 0; for (const mm of it.g.userData.meshes) { if (mm.kind !== 'o' || mm.q.p.solid) continue; const g = mm.geo0, P = g.attributes.position.array, I = g.index.array; for (let k = 0; k < I.length; k += 3) { const a = I[k] * 3, b = I[k + 1] * 3, c = I[k + 2] * 3; V += (P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c])) / 6; } } return V; };
 const jag = (it, rend) => { if (!it.act) return 0; const L = it.act.lat, X = rend ? L.xr : L.x, lap = new Float32Array(L.N * 3), qs = []; for (let e = 0; e < L.E; e++) { const a = L.sa[e] * 3, b = L.sb[e] * 3; for (let k = 0; k < 3; k++) { lap[a + k] += X[b + k] - L.r[b + k]; lap[b + k] += X[a + k] - L.r[a + k]; } } for (let i = 0; i < L.N; i++) { let q = 0; for (let k = 0; k < 3; k++) { const d = X[i * 3 + k] - L.r[i * 3 + k] - lap[i * 3 + k] / L.deg[i]; q += d * d; } qs.push(Math.sqrt(q)); } qs.sort((a, b) => a - b); return qs[Math.floor(qs.length * 0.97)] / L.h; };   // 細かい凹凸＝となりの平均からのずれ（上位3%の値・格子の間隔で割る）
-if (fpsEl) window.__dbg = { look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, water: (o) => Object.assign(MODES.water, o), bring: (name, d) => { const it = insts.find((x) => x.type0.spec.name === name && !x.frags && !x.cuts.length); it.base.copy(pos).addScaledVector(fwd, d); it.g.position.copy(it.base); it.vel.set(0, 0, 0); it.spin = 0; it.g.rotation.set(0, 0, 0); return insts.indexOf(it); }, count: () => insts.length, frags: () => drops.filter((d) => d.cell).length, volAll: (i) => { const it = insts[i]; return volOf(it) + drops.filter((d) => d.it === it).reduce((v, d) => v + d.vol, 0); }, insts, cam, pos, actives, drops, holds, joy, jobs: () => jobs.size, vol: (i) => volOf(insts[i]), jag: (i, rend) => jag(insts[i], rend), screenOf: (i) => { const v = insts[i].g.position.clone().project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, vel: (i) => insts[i].vel.length(), dist: (i) => insts[i].g.position.distanceTo(cam.position), base: (i) => insts[i].base.toArray(), setP: (o) => { Object.assign(MODES[mode].P, o); for (const it of actives) Object.assign(it.act.lat.P, o); }, setMode: (m) => document.querySelector(`#modes [data-m=${m}]`).click(), pickAt: (x, y) => { setRay({ clientX: x, clientY: y }); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.inst.type.spec.name : null; } };
+if (fpsEl) window.__dbg = { yaw: () => yaw, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, water: (o) => Object.assign(MODES.water, o), bring: (name, d) => { const it = insts.find((x) => x.type0.spec.name === name && !x.frags && !x.cuts.length); it.base.copy(pos).addScaledVector(fwd, d); it.g.position.copy(it.base); it.vel.set(0, 0, 0); it.spin = 0; it.g.rotation.set(0, 0, 0); return insts.indexOf(it); }, count: () => insts.length, frags: () => drops.filter((d) => d.cell).length, volAll: (i) => { const it = insts[i]; return volOf(it) + drops.filter((d) => d.it === it).reduce((v, d) => v + d.vol, 0); }, insts, cam, pos, actives, drops, holds, joy, jobs: () => jobs.size, vol: (i) => volOf(insts[i]), jag: (i, rend) => jag(insts[i], rend), screenOf: (i) => { const v = insts[i].g.position.clone().project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, vel: (i) => insts[i].vel.length(), dist: (i) => insts[i].g.position.distanceTo(cam.position), base: (i) => insts[i].base.toArray(), setP: (o) => { Object.assign(MODES[mode].P, o); for (const it of actives) Object.assign(it.act.lat.P, o); }, setMode: (m) => document.querySelector(`#modes [data-m=${m}]`).click(), pickAt: (x, y) => { setRay({ clientX: x, clientY: y }); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.inst.type.spec.name : null; } };
 frame(); buildAll().then(() => { ready = true; window.__ok = true; });
 </script></body></html>

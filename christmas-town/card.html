@@ -245,6 +245,8 @@ h1 .gl.boing{animation:gb .7s ease-out}
 <script type="module">
 import { GLYPHS } from './title_glyphs.js';
 import { watchOrientation } from './orient.js';
+import { guardLeave } from './stay.js';
+guardLeave('カードを閉じますか？', '');
 import { Card, clean, KEYS } from './card_code.js';
 (() => {
   'use strict';

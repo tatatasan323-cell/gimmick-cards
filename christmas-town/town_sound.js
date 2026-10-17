@@ -2,14 +2,16 @@
 // どれも短い音を合成する。同時に鳴る部品の数を数え、多すぎる時は省く（ステンドグラスで、多すぎて途中から音が出なくなった）
 let ac = null, out = null, noise = null, act = 0;
 export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = muted ? 0 : 0.9; out.connect(ac.destination); }
+  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = muted ? 0 : 0.9 * seVol; out.connect(ac.destination); }
   if (ac.state !== 'running') ac.resume();
   return ac;
 }
 export const voices = () => act;
 // 効果音のオン・オフ（メニューの「音」）。BGM は別の部品で、ここには入らない
-let muted = false;
-export function setMute(m) { muted = !!m; if (out) out.gain.value = muted ? 0 : 0.9; }
+let muted = false, seVol = 1;
+export function setMute(m) { muted = !!m; if (out) out.gain.value = muted ? 0 : 0.9 * seVol; }
+// 効果音の大きさ（メニューの「音」）
+export function setVolume(v) { seVol = Math.max(0, Math.min(1.5, v)); if (out) out.gain.value = muted ? 0 : 0.9 * seVol; }
 const r = (a, b) => a + Math.random() * (b - a), live = () => ac && ac.state === 'running' && act < 160;
 const track = (n) => { act++; n.onended = () => { act--; }; };
 function tone(f0, f1, vol, delay, dur, type = 'sine', atk = 0.005) {
@@ -30,10 +32,123 @@ function hiss(vol, delay, dur, type, freq, q = 0.8) {
     s.connect(f); f.connect(g); g.connect(out); track(s); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   } catch (e) { /* 同上 */ }
 }
+// ---------- かじる・砕ける・踏む音の素：波形を先に数通り作っておき（はじめて鳴らす時に）、鳴らす時は playBuf 1つ ----------
+// 発振器を重ねた前の版は、低い澄んだ「ポッ」と高い澄んだ「ピッ」が出て「てってって」「ポコポコ」に聞こえ、カリカリ・コリコリにならなかった。音程のある音は、粒の中の共振だけで出す
+// 粒＝雑音を共振に通した、ごく短い音。共振が弱い（q 1〜2）と乾いた「カッ」、強い（q 8〜13）と音程のある「コッ」。手ごたえ＝低く削った雑音（音程を持たせると「ボン」になる）
+let SR = 44100;
+function biq(type, f, q) { const w = 2 * Math.PI * Math.min(f, SR * 0.45) / SR, c = Math.cos(w), al = Math.sin(w) / (2 * q), a0 = 1 + al;
+  const b = type === 'bp' ? [al, 0, -al] : type === 'lp' ? [(1 - c) / 2, 1 - c, (1 - c) / 2] : [(1 + c) / 2, -(1 + c), (1 + c) / 2];
+  return [b[0] / a0, b[1] / a0, b[2] / a0, -2 * c / a0, (1 - al) / a0]; }
+function filt(x, k) { let x1 = 0, x2 = 0, y1 = 0, y2 = 0; for (let i = 0; i < x.length; i++) { const v = x[i], y = k[0] * v + k[1] * x1 + k[2] * x2 - k[3] * y1 - k[4] * y2; x2 = x1; x1 = v; y2 = y1; y1 = y; x[i] = y; } return x; }
+function burst(sec, atk, tau) { const n = Math.max(2, Math.round(sec * SR)), x = new Float32Array(n), na = Math.max(1, atk * SR), dk = Math.exp(-1 / (tau * SR)); let e = 1; for (let i = 0; i < n; i++) x[i] = (Math.random() * 2 - 1) * (i < na ? i / na : (e *= dk)); return x; }
+function put(d, t, amp, x) { let m = 1e-9; for (let i = 0; i < x.length; i++) m = Math.max(m, Math.abs(x[i])); const i0 = Math.round(t * SR), k = amp / m; for (let i = 0; i < x.length && i0 + i < d.length; i++) d[i0 + i] += x[i] * k; }
+const crack = (d, t, amp, f, q, tau) => put(d, t, amp, filt(burst(tau * 6 + 6 * q / (Math.PI * f), 0, tau), biq('bp', f, q)));
+const thud = (d, t, amp, f, tau) => { const k = biq('lp', f, 0.7); put(d, t, amp, filt(filt(burst(tau * 7, 0.0015, tau), k), k)); };
+const air = (d, t, amp, lo, hi, atk, tau) => put(d, t, amp, filt(filt(burst(atk + tau * 7, atk, tau), biq('hp', lo, 0.7)), biq('lp', hi, 0.7)));
+// カリカリ：1〜5msの高い破片（2〜6kHz）が、不ぞろいな間（20〜60ms）で続く。ときどき破片が2つに割れ、3粒に1つ、少し低い「かみしめる」手ごたえ
+function kari(d, t0, t1, o = {}) { const p = o.p || 1, a0 = o.amp || 1, sp = o.sp || 1; let t = t0, k = 0;
+  while (t < t1) { const a = a0 * (1 - 0.6 * (t - t0) / (t1 - t0)) * r(0.35, 1); crack(d, t, a, r(2000, 6000) * p, r(1.2, 3), r(0.0003, 0.0012));
+    if (Math.random() < 0.45) crack(d, t + r(0.001, 0.004), a * r(0.3, 0.6), r(2500, 6500) * p, 2, r(0.0002, 0.0006));
+    if (k++ % 3 === 0) thud(d, t, a * (o.bite ?? 0.07), 260, 0.004); t += r(0.02, 0.06) * sp; } }
+// コリコリ：芯のある詰まった硬さ。中域（0.8〜2kHz）の「コッ」が少し音程を持ち（共振を強く）、間はやや規則的。すぐ後に小さな高い「リ」
+function kori(d, t0, n, o = {}) { const p = o.p || 1, a0 = o.amp || 1, gap = o.gap || 0.08, f0 = r(950, 1500) * p;
+  for (let i = 0; i < n; i++) { const t = t0 + gap * (i + r(-0.08, 0.08) * (i > 0)), a = a0 * (1 - i * 0.1) * r(0.75, 1), f = f0 * r(0.93, 1.07);
+    crack(d, t, a, f, r(8, 13), r(0.0004, 0.0009)); crack(d, t + r(0.007, 0.014), a * 0.3, f * r(2.3, 3.2), 2, 0.0004); thud(d, t, a * 0.06, 320, 0.004); } }
+// ガリッ：硬い塊が一度に割れる。30〜50msに破片がぎっしり（1〜5kHz）＋割れはじめの芯＋低い手ごたえ＋ざらつき
+function gari(d, t, o = {}) { const p = o.p || 1, a0 = o.amp || 1, L = r(0.03, 0.05); crack(d, t, a0, r(1500, 2300) * p, 4, 0.0012);
+  for (let i = 0; i < 24; i++) { const u = Math.pow(Math.random(), 1.8); crack(d, t + 0.002 + u * L, a0 * (1 - u * 0.6) * r(0.25, 0.9), r(1000, 5000) * p, r(0.7, 2), r(0.0004, 0.0016)); }
+  thud(d, t, a0 * 0.22, 220, 0.008); air(d, t, a0 * 0.2, 700 * p, 2600 * p, 0.002, 0.012); }
+// ポリポリ：ポ（中低域のやわらかい「ポ」）＋リ（細かい高い破片）を、かむ速さ（0.15〜0.19秒ごと）で
+function pori(d, t0, n, o = {}) { const p = o.p || 1, a0 = o.amp || 1; let t = t0;
+  for (let i = 0; i < n; i++) { const a = a0 * (1 - i * 0.15); crack(d, t, a * 0.85, r(650, 1000) * p, r(3, 5), r(0.0012, 0.002)); thud(d, t, a * 0.12, 280, 0.006);
+    for (let k = 0; k < 4; k++) crack(d, t + r(0.02, 0.055), a * r(0.25, 0.6), r(2500, 5000) * p, r(1, 2), r(0.0003, 0.0008)); t += r(0.15, 0.19); } }
+// サクッ：サ＝細かい破片がぱらぱら（2.5〜7kHz・小さく多く）と、ざらっとした粉の音。ク＝最後の小さな芯の「くっ」
+function saku(d, t, o = {}) { const p = o.p || 1, a0 = o.amp || 1, L = o.L || r(0.045, 0.07), n = o.n || 26;
+  crack(d, t, a0, r(2000, 3500) * p, 1.5, 0.0008);
+  for (let i = 0; i < n; i++) { const u = Math.pow(Math.random(), 1.3); crack(d, t + u * L, a0 * (1 - u * 0.7) * r(0.25, 0.8), r(2500, 7000) * p, r(0.7, 1.5), r(0.0002, 0.0007)); }
+  air(d, t, a0 * 0.2, 2500 * p, 7500 * p, 0.003, L * 0.35); crack(d, t + L * r(0.75, 1), a0 * 0.4, r(1300, 2000) * p, r(3, 5), r(0.0008, 0.0014)); thud(d, t, a0 * (o.bite ?? 0.08), 300, 0.006); }
+// ほろほろ：くずれたかけらが、ぱらぱら落ちる（低めのやわらかい粒が、まばらに・だんだん小さく）
+function horo(d, t0, t1, o = {}) { const p = o.p || 1, a0 = o.amp || 0.5; let t = t0;
+  while (t < t1) { crack(d, t, a0 * r(0.3, 1) * (1 - 0.8 * (t - t0) / (t1 - t0)), r(700, 2000) * p, r(0.7, 1.5), r(0.001, 0.0025)); t += r(0.02, 0.07); } }
+// パリッ：うすい殻・板が割れる。10〜15msに、ごく短い高い破片がぎっしり。ring＝澄んだ響き（ガラスのような飴）の強さ
+function pari(d, t, o = {}) { const p = o.p || 1, a0 = o.amp || 1;
+  for (let i = 0; i < 16; i++) { const u = Math.pow(Math.random(), 1.5); crack(d, t + u * 0.014, a0 * (1 - u * 0.5) * r(0.3, 1), r(3500, 9000) * p, r(1, 3), r(0.0002, 0.0006)); }
+  if (o.ring) crack(d, t + 0.001, a0 * o.ring, r(3000, 4500) * p, 40, 0.0003); }
+// しゃくっ：しゃ＝ごく細かい粒の雑音（45〜70ms・高め）、くっ＝少し低い短い芯。wet＝果汁の「じゅっ」の強さ
+function shk(d, t, o = {}) { const p = o.p || 1, a0 = o.amp || 1, L = r(0.045, 0.07);
+  for (let i = 0; i < 40; i++) { const u = Math.random(); crack(d, t + u * L, a0 * r(0.1, 0.45) * (1 - u * 0.5), r(3500, 9000) * p, 1, r(0.0002, 0.0005)); }
+  air(d, t, a0 * 0.35, 3000 * p, 9000 * p, 0.004, L * 0.4); crack(d, t + L, a0 * 0.3, r(1100, 1600) * p, 3, 0.0008);
+  if (o.wet) air(d, t + L * 0.6, a0 * o.wet * 0.4, 500, 1800, 0.004, 0.03); }
+// もふっ：やわらかいスポンジ・クリーム。ゆっくり立ち上がる低い息のような雑音（粒なし）と、うすい「しゅわ」。fizz＝スポンジの泡がつぶれる細かい粒
+function mofu(d, t, o = {}) { const a0 = o.amp || 1, b = o.bright || 1; air(d, t, a0, 150, 650 * b, 0.012, 0.05); air(d, t + 0.012, a0 * 0.3, 1000 * b, 3000 * b, 0.01, 0.04);
+  if (o.fizz) for (let i = 0; i < 10; i++) crack(d, t + r(0.01, 0.12), a0 * r(0.03, 0.08), r(3000, 7000), 1, 0.0003); }
+// 雪をふむ：踏みこみ（〜50ms・粒が多い）と、抜き（その少し後の30〜45ms・少なく小さい）の2つの粒の山。3〜8kHz の細かい粒だけ（低い音は削る）
+function snowFill(d) { const L1 = r(0.035, 0.05), s2 = L1 + r(0.01, 0.02), L2 = r(0.03, 0.045);
+  for (let i = 0; i < 36; i++) { const u = Math.random(); crack(d, 0.002 + u * L1, (u < 0.15 ? u / 0.15 : 1 - (u - 0.15) * 0.8) * r(0.25, 1), r(3000, 8000), r(0.7, 1.5), r(0.00015, 0.0005)); }
+  for (let i = 0; i < 4; i++) crack(d, L1 + r(0, s2 - L1), r(0.05, 0.15), r(3500, 8000), 1, 0.0002);
+  for (let i = 0; i < 14; i++) { const u = Math.random(); crack(d, s2 + u * L2, (1 - 0.6 * u) * r(0.1, 0.4), r(3500, 8500), 1, r(0.00015, 0.0004)); } }
+// ポキッ（街灯が折れる）：前の版のまま（澄んだ割れの「カッ」2つと、細かい破片）
+function snapFill(d) { const click = (at, amp, f, tau) => { const i0 = Math.round(at * SR), n = Math.round(tau * 8 * SR); for (let i = 0; i < n && i0 + i < d.length; i++) { const t = i / SR; d[i0 + i] += amp * Math.exp(-t / tau) * (0.55 * (Math.random() * 2 - 1) + 0.45 * Math.sin(6.2832 * f * t)); } };
+  const body = (at, amp, f, tau) => { const i0 = Math.round(at * SR), n = Math.round(tau * 6 * SR); for (let i = 0; i < n && i0 + i < d.length; i++) { const t = i / SR; d[i0 + i] += amp * Math.exp(-t / tau) * Math.sin(6.2832 * f * t); } };
+  for (const [at, a] of [[0.005, 1], [0.11 + Math.random() * 0.05, 0.8]]) { click(at, a, 1800 + Math.random() * 900, 0.004); click(at + 0.001, a * 0.8, 3800 + Math.random() * 1200, 0.002); body(at, a * 0.5, 900 + Math.random() * 300, 0.02); for (let k = 0; k < 6; k++) click(at + 0.01 + Math.random() * 0.06, a * 0.3, 3000 + Math.random() * 3000, 0.001); } }
+// 世界の飴（飴工房）：_1＝最初の一口（大きく割れる）、_2＝あとの、かみしめる音
+const CANDY_RCP = {
+  c_cane: [(d) => { crack(d, 0.003, 1, r(1900, 2500), 5, 0.001); pari(d, 0.004, { p: 0.8, amp: 0.6 }); thud(d, 0.003, 0.3, 240, 0.01); kari(d, 0.07, 0.38, { p: 1.1 }); },   // ポキッ→カリカリ
+    (d) => kari(d, 0.004, 0.28, { p: 1.1 })],
+  c_knack: [(d) => { gari(d, 0.003, { p: 0.7, amp: 0.8 }); pori(d, 0.12, 2, { p: 0.8, amp: 0.7 }); air(d, 0.33, 0.3, 250, 1200, 0.02, 0.03); },   // ガリッ（トフィーに吸われて、こもる）→ポリポリ→ねちっ
+    (d) => { pori(d, 0.004, 2, { p: 0.75, amp: 0.8 }); air(d, 0.2, 0.3, 250, 1200, 0.02, 0.03); }],
+  c_turron: [(d) => { saku(d, 0.003, { p: 1.05, L: 0.04, n: 20 }); kori(d, 0.06, 1, { p: 0.55, amp: 0.9 }); horo(d, 0.12, 0.38, { p: 0.8, amp: 0.4 }); },   // サクッ（ウエハース）→ゴリッ（アーモンド）→ほろほろ
+    (d) => { kori(d, 0.004, 1, { p: 0.55, amp: 0.9 }); horo(d, 0.04, 0.28, { p: 0.8, amp: 0.45 }); }],
+  c_tanghulu: [(d) => { pari(d, 0.003, { amp: 1, ring: 0.25 }); shk(d, 0.035, { p: 0.8, wet: 0.6, amp: 0.8 }); },   // パリッ（飴の殻）→しゃくっ（サンザシの実）
+    (d) => { pari(d, 0.003, { amp: 0.35 }); shk(d, 0.01, { p: 0.75, wet: 0.8 }); }],
+  c_konpeito: [(d) => { pari(d, 0.003, { p: 1.3, amp: 0.7 }); kari(d, 0.04, 0.3, { p: 1.35, sp: 0.6, amp: 0.7, bite: 0.08 }); },   // カリッ（小さく高い）→細かいカリカリ
+    (d) => kari(d, 0.004, 0.24, { p: 1.4, sp: 0.55, bite: 0.06 })],
+  c_berlingot: [(d) => { crack(d, 0.003, 0.8, r(2600, 3200), 6, 0.0008); pari(d, 0.004, { p: 1.1, ring: 0.35 }); kari(d, 0.06, 0.32, { p: 1.25 }); crack(d, 0.17, 0.2, r(3000, 4200), 40, 0.0003); },   // カリッ（澄んだ響き）→明るいカリカリ
+    (d) => { kari(d, 0.004, 0.25, { p: 1.25 }); crack(d, 0.06, 0.2, r(3000, 4200), 40, 0.0003); }],
+  c_akide: [(d) => { gari(d, 0.003, { p: 1.05 }); kari(d, 0.08, 0.36, { p: 1.0 }); },   // ガリッ→カリカリ
+    (d) => { gari(d, 0.003, { p: 1.1, amp: 0.7 }); kari(d, 0.06, 0.22, { p: 1.05, amp: 0.7 }); }],
+  c_alegria: [(d) => { saku(d, 0.003, { p: 0.95, L: 0.05, n: 30, amp: 0.8, bite: 0.08 }); horo(d, 0.08, 0.35, { amp: 0.35 }); },   // サクッ（軽い）→ほろほろ（はじけた粒）
+    (d) => { saku(d, 0.003, { p: 0.95, L: 0.035, n: 18, amp: 0.7, bite: 0.06 }); horo(d, 0.06, 0.25, { amp: 0.4 }); }],
+  c_kintaro: [(d) => { kori(d, 0.003, 1, { p: 0.8, amp: 1 }); thud(d, 0.003, 0.3, 260, 0.012); kori(d, 0.12, 3, { p: 0.8, amp: 0.8, gap: 0.085 }); },   // コリッ→コリコリ
+    (d) => kori(d, 0.004, 3, { p: 0.8, gap: 0.08 })],
+};
+// 音の名前 → [何通り, 秒, 作り方 (d, 何通りめ), 低い方を削る所(Hz)]
+const RCP = {
+  snow: [6, 0.13, snowFill, 2200],
+  snap: [3, 0.38, snapFill, 20],
+  cookie: [4, 0.34, (d, v) => { saku(d, 0.004, { p: v % 2 ? 0.95 : 0.78, L: r(0.06, 0.085), n: 34, bite: 0.3 }); horo(d, 0.1, r(0.22, 0.3), { amp: 0.25, p: 0.9 }); }, 100],   // ザクッ・サクッ（家の壁）
+  gb: [4, 0.24, (d, v) => { if (v === 3) pori(d, 0.004, 1, { amp: 0.9 }); else saku(d, 0.004, { p: v === 1 ? 1.15 : 1.05, L: v === 1 ? 0.035 : 0.045, n: 24, bite: 0.2 }); if (v % 2) horo(d, 0.08, 0.2, { amp: 0.25 }); }, 120],   // サクッ・ポリッ（住人）
+  wafer: [3, 0.2, (d) => { saku(d, 0.004, { p: 1.1, L: 0.035, n: 20, bite: 0.08 }); saku(d, r(0.07, 0.09), { p: 1.2, L: 0.03, n: 16, amp: 0.7, bite: 0.05 }); }, 150],   // サクサクッ
+  choco: [3, 0.2, (d) => { crack(d, 0.003, 1, r(1800, 2600), 9, 0.0006); pari(d, 0.004, { p: 0.6, amp: 0.6 }); thud(d, 0.003, 0.12, 260, 0.006); horo(d, 0.05, 0.12, { amp: 0.15, p: 1.2 }); }, 120],   // パキッ
+  candy: [3, 0.28, (d) => { gari(d, 0.003, { p: 1.15, amp: 0.9 }); kari(d, 0.07, 0.2, { p: 1.1, amp: 0.5 }); }, 150],   // ガリッ・カリ（飴の窓・ミント・しま・砂糖の真珠）
+  frost: [3, 0.12, (d) => { saku(d, 0.004, { p: 1.35, L: 0.04, n: 30, amp: 0.8, bite: 0.05 }); air(d, 0.004, 0.25, 4000, 10000, 0.002, 0.02); }, 300],   // シャリッ（砂糖のアイシング）
+  gum: [3, 0.18, (d) => { air(d, 0.003, 1, 180, 900, 0.015, 0.05); crack(d, 0.05, 0.25, r(450, 700), 6, 0.003); }, 80],   // むにっ（ガムドロップ）
+  ice: [4, 0.14, (d) => shk(d, 0.004), 300],   // しゃくっ（かき氷）
+  soft: [3, 0.2, (d) => mofu(d, 0.004, { bright: 1.3 }), 80],   // もふっ（ソフトクリーム）
+  parfait: [3, 0.2, (d) => { mofu(d, 0.004); saku(d, r(0.04, 0.07), { p: 1.1, L: 0.03, n: 12, amp: 0.5, bite: 0 }); }, 80],   // もふっ・サクッ（パフェのコーンフレーク）
+  sponge: [3, 0.2, (d) => mofu(d, 0.004, { fizz: true }), 80],   // もふっ（ショートケーキ）
+  buche: [3, 0.22, (d) => { pari(d, 0.004, { p: 0.55 }); mofu(d, 0.02, { amp: 0.7 }); }, 80],   // パリッ（チョコの樹皮）→もふっ
+  shatter: [3, 0.62, (d) => { gari(d, 0.003, { p: 1.2 }); pari(d, 0.006, { p: 0.9, amp: 0.6, ring: 0.2 }); kari(d, 0.06, 0.55, { p: 1.15, amp: 0.7, sp: 0.75, bite: 0.1 }); }, 150],   // バキッ→カリカリカリ
+  lampKari: [6, 0.16, (d, v) => { if (v % 2) kori(d, 0.003, 2, { p: r(1.1, 1.4), gap: r(0.045, 0.065) }); else kari(d, 0.003, r(0.06, 0.11), { p: 1.15, sp: 0.8 }); }, 150],   // カリッ・コリッ（はまる）
+  clack: [5, 0.07, (d) => { const f = r(2000, 3400); crack(d, 0.002, 1, f, r(14, 22), 0.0005); crack(d, 0.002, 0.4, f * r(2.2, 2.6), 15, 0.0004); crack(d, 0.0025, 0.3, r(4000, 6500), 2.5, 0.0003); }, 300],   // カツッ・コッ（かけらが当たる）
+};
+for (const [id, [a, b]] of Object.entries(CANDY_RCP)) { RCP[id + '_1'] = [3, 0.42, a, 120]; RCP[id + '_2'] = [3, 0.3, b, 120]; }
+const bufs = new Map();
+// name の波形を何通りか持ち、毎回どれか1つを選ぶ（すぐ前と同じものは避ける）。波形は、はじめて選ばれた時に1つずつ作る（全部を一度に作ると、最初の一口で画面が引っかかる）。終わり4msは、すっと消す
+function buf(name) { const R = RCP[name]; let l = bufs.get(name); if (!l) { l = new Array(R[0]); l.last = -1; bufs.set(name, l); }
+  let j = (Math.random() * l.length) | 0; if (j === l.last) j = (j + 1) % l.length; l.last = j;
+  if (!l[j]) { SR = ac.sampleRate; const d = new Float32Array(Math.round(R[1] * SR)), fo = Math.round(0.004 * SR); R[2](d, j); filt(d, biq('hp', R[3], 0.7)); let m = 1e-9;
+    for (let i = 0; i < d.length; i++) { if (i > d.length - fo) d[i] *= (d.length - i) / fo; m = Math.max(m, Math.abs(d[i])); }
+    const b = ac.createBuffer(1, d.length, SR), c = b.getChannelData(0); for (let i = 0; i < d.length; i++) c[i] = d[i] / m; l[j] = b; }
+  return l[j]; }
+// 鳴らす：毎回、高さと強さを少し揺らす
+function sweet(name, vol, rate = 1, delay = 0) { if (!live()) return; try { playBuf(buf(name), vol * r(0.85, 1.1), rate * r(0.95, 1.05), delay); } catch (e) { /* 音が出なくても遊べる */ } }
 // ゼリー：ぼよ〜ん（大きいほど低い）。高さが少し揺れて下がる
 export function boing(size = 1) { const f = 330 / Math.sqrt(Math.max(0.3, size)) * r(0.92, 1.08); tone(f * 1.5, f, 0.11, 0, 0.32); tone(f * 0.75, f * 0.55, 0.06, 0.02, 0.4, 'triangle'); }
-// クッキー：サクッ（乾いた短いノイズを3つ・最後に小さな低い音）
-export function crunch() { for (let i = 0; i < 3; i++) hiss(r(0.07, 0.11), i * r(0.025, 0.04), r(0.03, 0.05), 'bandpass', r(2400, 4200), 1.4); hiss(0.05, 0.1, 0.06, 'lowpass', 900); tone(160, 110, 0.04, 0.0, 0.06, 'triangle'); }
+// お菓子の家・住人をかじる：かじった所の材質で別の音（kind＝家の部品の材質の名前。'gb'＝ジンジャークッキーの住人。ないと、クッキーの壁）
+const HOUSE_SND = { cookie: 'cookie', decal: 'cookie', gb: 'gb', wafer: 'wafer', choco: 'choco', glass: 'candy', mint: 'candy', stripe: 'candy', pearl: 'candy', frost: 'frost', icing: 'frost', gum: 'gum' };
+const HOUSE_VOL = { cookie: 0.14, gb: 0.12, wafer: 0.12, choco: 0.13, candy: 0.14, frost: 0.1, gum: 0.07 };
+export function crunch(kind) { const k = HOUSE_SND[kind] || 'cookie'; sweet(k, HOUSE_VOL[k]); }
 // 豆知識：ちりん（五音の音階から2音）
 const PENTA = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093];
 export function chime(k = 0) { const a = PENTA[k % PENTA.length], b = PENTA[(k + 2) % PENTA.length] * (k % 2 ? 1 : 2); tone(a, a, 0.05, 0, 1.0); tone(a * 2.76, a * 2.76, 0.012, 0, 0.4); tone(b, b, 0.04, 0.12, 1.1); }
@@ -56,17 +171,8 @@ export function whoosh() { hiss(0.04, 0, 0.45, 'bandpass', 900, 0.7); tone(520, 
 export function ascend() { [523.3, 659.3, 784, 1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.045, i * 0.13, 1.5)); for (const f of [261.6, 329.6, 392]) { tone(f, f * 1.003, 0.022, 0.15, 3.4); tone(f * 2, f * 2.004, 0.01, 0.3, 3.1); } }
 // 空から落ちてくる：すべり笛（高い音から、ひゅ～と下へ）
 export function fall() { tone(1600, 240, 0.045, 0, 1.6); tone(1610, 245, 0.02, 0.02, 1.6, 'triangle'); }
-// 雪を踏む：さくっ（細かい雪の粒が、0.2秒ほどの間にたくさんつぶれる音）。短い「シャッ」を数個ならべると、粒が少なすぎて「てってって」と打つ音に聞こえた
-// 粒（2〜9ミリ秒の小さなざらつき）を70個、踏みこみの始めほど密に重ねた音を3通り先に作り、毎回ちがう高さ・強さで鳴らす（部品は1回1つ）
-let snowBufs = null;
-function makeCrunch() { const sr = ac.sampleRate, n = Math.floor(sr * 0.26), out = [];
-  for (let v = 0; v < 3; v++) { const b = ac.createBuffer(1, n, sr), d = b.getChannelData(0);
-    for (let g = 0; g < 70; g++) { const t0 = Math.pow(Math.random(), 1.7) * 0.2, i0 = Math.floor(t0 * sr), len = Math.floor(sr * (0.002 + Math.random() * 0.007)), amp = (0.3 + Math.random() * 0.7) * (1 - t0 / 0.26);
-      for (let k = 0; k < len && i0 + k < n; k++) d[i0 + k] += (Math.random() * 2 - 1) * amp * Math.exp(-k / (len * 0.35)); }
-    let lp = 0, prev = 0, peak = 1e-6; for (let k = 0; k < n; k++) { lp += (d[k] - lp) * 0.35; const hp = lp - prev; prev = lp; d[k] = hp * 2.2 + lp * 0.5; peak = Math.max(peak, Math.abs(d[k])); }   // 高すぎ（シャー）と低すぎ（ボコッ）を削る
-    for (let k = 0; k < n; k++) d[k] /= peak; out.push(b); }
-  return out; }
-export function snowStep(k = 1) { if (!live()) return; try { snowBufs = snowBufs || makeCrunch(); const sN = ac.createBufferSource(), g = ac.createGain(); sN.buffer = snowBufs[(Math.random() * 3) | 0]; sN.playbackRate.value = r(0.82, 1.12); g.gain.value = 0.32 * k; sN.connect(g); g.connect(out); track(sN); sN.start(); } catch (e) { /* 音が出なくても遊べる */ } }
+// 雪を踏む：サクッ（1歩 0.1秒ほど。踏みこみと抜きの2つの粒の山）。短い「シャッ」を数個ならべると「てってって」と打つ音に、0.26秒の長い粒の帯は重く聞こえた
+export function snowStep(k = 1) { sweet('snow', 0.2 * k, r(0.94, 1.06)); }
 export function tap() { tone(1400, 1100, 0.025, 0, 0.06); }
 // 海の光の波：ざわざわ〜っと駆け上がる、きらめきの音の列
 export function wave() { const S = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 2637]; for (let i = 0; i < 14; i++) { const f = S[i % S.length] * (i >= 8 ? 2 : 1); tone(f, f, 0.03, i * 0.07, 0.9); } hiss(0.03, 0, 1.2, 'highpass', 6000, 0.6); }
@@ -85,28 +191,16 @@ export function glassTink() { for (let i = 0; i < 4; i++) { const f = r(2200, 34
 export function candle(k = 0) { hiss(0.03, 0, 0.12, 'bandpass', 2600, 1.2); const f = PENTA[k % PENTA.length] / 2; tone(f, f, 0.035, 0.05, 0.9); }
 // 吹き消す「ふーっ」
 export function blow() { hiss(0.06, 0, 0.7, 'bandpass', 900, 0.6); hiss(0.03, 0.05, 0.5, 'lowpass', 600); }
-// キャンディの街灯の音：硬い飴の「カチッ」を、波形の上で直接つくる（発振器と雑音の短い音を重ねた前の版は、「てってって」と聞こえて、カリカリにならなかった）
-//   1粒＝数ミリ秒で消える雑音＋澄んだ共鳴（2〜5kHz）。それを不ぞろいな間隔で重ね、ときどき低い芯（かみしめる手ごたえ）を入れる
-let candyBufs = null;
-function candyBank() { if (candyBufs) return candyBufs; const sr = ac.sampleRate;
-  const mk = (sec, fill) => { const b = ac.createBuffer(1, Math.round(sr * sec), sr), d = b.getChannelData(0); fill(d); let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i])); if (m > 0) for (let i = 0; i < d.length; i++) d[i] /= m; return b; };
-  const click = (d, at, amp, f, tau) => { const i0 = Math.round(at * sr), n = Math.round(tau * 8 * sr); for (let i = 0; i < n && i0 + i < d.length; i++) { const t = i / sr; d[i0 + i] += amp * Math.exp(-t / tau) * (0.55 * (Math.random() * 2 - 1) + 0.45 * Math.sin(6.2832 * f * t)); } };
-  const body = (d, at, amp, f, tau) => { const i0 = Math.round(at * sr), n = Math.round(tau * 6 * sr); for (let i = 0; i < n && i0 + i < d.length; i++) { const t = i / sr; d[i0 + i] += amp * Math.exp(-t / tau) * Math.sin(6.2832 * f * t); } };
-  candyBufs = {
-    crunch: [0, 1, 2, 3].map(() => mk(0.72, (d) => { let t = 0.005; while (t < 0.62) { const amp = 0.4 + Math.random() * 0.6, m = 3 + ((Math.random() * 4) | 0); body(d, t, amp * 0.45, 260 + Math.random() * 320, 0.012); for (let k = 0; k < m; k++) click(d, t + k * (0.002 + Math.random() * 0.006), amp * (0.5 + Math.random() * 0.5), 2200 + Math.random() * 3000, 0.0012 + Math.random() * 0.002); t += 0.035 + Math.random() * 0.055; } })),
-    snap: [0, 1, 2].map(() => mk(0.38, (d) => { for (const [at, a] of [[0.005, 1], [0.11 + Math.random() * 0.05, 0.8]]) { click(d, at, a, 1800 + Math.random() * 900, 0.004); click(d, at + 0.001, a * 0.8, 3800 + Math.random() * 1200, 0.002); body(d, at, a * 0.5, 900 + Math.random() * 300, 0.02); for (let k = 0; k < 6; k++) click(d, at + 0.01 + Math.random() * 0.06, a * 0.3, 3000 + Math.random() * 3000, 0.001); } })),
-    shatter: [0, 1].map(() => mk(0.7, (d) => { click(d, 0.004, 1, 2000, 0.005); body(d, 0.004, 0.6, 700, 0.025); for (let k = 0; k < 46; k++) click(d, 0.01 + Math.pow(Math.random(), 1.6) * 0.6, 0.2 + Math.random() * 0.5, 2500 + Math.random() * 4500, 0.0008 + Math.random() * 0.0015); })),
-  };
-  return candyBufs; }
+// キャンディの街灯の音（波形は上の「かじる・砕ける・踏む音の素」で作る）
 function playBuf(buf, vol, rate = 1, delay = 0) { if (!live()) return; try { const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = buf; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(out); track(s); s.start(ac.currentTime + delay); } catch (e) { /* 音が出なくても遊べる */ } }
 // ポキッ、ポキッ（折れる）
-export function candySnap() { if (!live()) return; playBuf(candyBank().snap[(Math.random() * 3) | 0], 0.34, r(0.92, 1.08)); }
-// バキバキッ（細かく砕けて散る）
-export function candyShatter() { if (!live()) return; const B = candyBank(); playBuf(B.shatter[(Math.random() * 2) | 0], 0.32, r(0.95, 1.05)); playBuf(B.crunch[0], 0.12, 1.3, 0.05); }
-// カリカリ（戻ってはまる）。vol＝大きさ
-export function candyCrunch(vol = 0.3) { if (!live()) return; playBuf(candyBank().crunch[(Math.random() * 4) | 0], vol, r(0.9, 1.12)); }
-// カツン（かけらが地面に当たる。高く短く）
-export function candyClack(s = 1) { if (!live()) return; playBuf(candyBank().snap[0], 0.09 * s, r(1.4, 1.8)); }
+export function candySnap() { sweet('snap', 0.34); }
+// バキッ→カリカリカリ（細かく砕けて散る）
+export function candyShatter() { sweet('shatter', 0.3); }
+// カリッ・コリッ（戻ってはまる・灯台をかじる）。1回は短く（前の版は0.7秒のかみ続ける音で、いくつも重なって、ざわざわに聞こえた）。vol＝大きさ
+export function candyCrunch(vol = 0.3) { sweet('lampKari', vol); }
+// カツッ・コッ（かけらが地面に当たる。高く短く）
+export function candyClack(s = 1) { sweet('clack', 0.09 * s, r(0.9, 1.15)); }
 // ぐにゃ～（温まった飴がのびる）
 export function candyBend() { tone(330, 170, 0.05, 0, 1.0, 'sawtooth'); tone(240, 130, 0.04, 0.05, 1.0, 'triangle'); hiss(0.02, 0, 0.9, 'lowpass', 800); }
 // ポンッ（栓が抜けるように飛ぶ）と、回る「ひゅるる」
@@ -114,9 +208,9 @@ export function candyPop() { tone(260, 110, 0.13, 0, 0.18); hiss(0.08, 0, 0.06, 
 // ビヨヨン（ばねのように起きる）
 export function candySpring() { for (let i = 0; i < 6; i++) { const f = 540 - i * 45; tone(f * 0.6, f, 0.055 * (1 - i * 0.14), i * 0.13, 0.16); } }
 // 生えなおす：きらめきが昇りながら、カリカリと伸びる
-export function candyGrow() { if (!live()) return; [1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.025, i * 0.3, 0.5)); const B = candyBank(); for (let i = 0; i < 4; i++) playBuf(B.crunch[i], 0.13, r(1.0, 1.25), i * 0.4); }
-// かき氷をすくう「シャクッ」（細かい氷の、乾いた高い音を3つ）
-export function shaku() { for (let i = 0; i < 3; i++) hiss(r(0.05, 0.08), i * r(0.02, 0.035), r(0.04, 0.07), 'bandpass', r(3500, 7000), 1.2); hiss(0.04, 0.01, 0.12, 'highpass', 6000); tone(r(900, 1200), r(500, 700), 0.025, 0, 0.08, 'triangle'); }
+export function candyGrow() { if (!live()) return; [1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => tone(f, f, 0.025, i * 0.3, 0.5)); for (let i = 0; i < 4; i++) sweet('lampKari', 0.13, r(1.0, 1.25), i * 0.4); }
+// 山をすくう：かき氷＝しゃくっ（細かい氷の粒と、小さな芯）／パフェ＝もふっ・サクッ（クリームと、コーンフレーク）／ソフトクリーム＝もふっ。kind＝山の種類（'k'・'p'・'s'。ないと、かき氷）
+export function shaku(kind) { if (kind === 'p') sweet('parfait', 0.1); else if (kind === 's') sweet('soft', 0.09); else sweet('ice', 0.12); }
 // 大きなスプーンが降りてくる「キラキラ…」（高い音から順に下りてくる）
 export function spoonDown() { for (let i = 0; i < 10; i++) { const f = 3136 - i * 160; tone(f, f, 0.02, i * 0.12, 0.5); } hiss(0.05, 0, 1.4, 'bandpass', 1200, 0.5); }
 // ひとすくい「ザクッ」（大きなかき氷の山を、ざっくり）
@@ -126,8 +220,8 @@ export function spoonUp() { tone(400, 1600, 0.04, 0, 1.6, 'triangle'); hiss(0.05
 // 山が戻る：下から上へ、きらめきの音が昇っていく
 export function mtnRestore() { [523.3, 587.3, 659.3, 784, 880, 1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 2637].forEach((f, i) => { tone(f, f, 0.03, 0.3 + i * 0.45, 1.6); tone(f * 2, f * 2, 0.01, 0.3 + i * 0.45, 0.8); }); hiss(0.03, 0, 6.5, 'bandpass', 3000, 0.4); }
 export function jingle() { for (let i = 0; i < 6; i++) { const f = r(3800, 6200); tone(f, f, 0.018, i * 0.09, 0.5); tone(f * 1.41, f * 1.41, 0.01, i * 0.09, 0.4); } }
-// ケーキをすくう：やわらかい「もふっ」と、スポンジの「しゅわっ」
-export function cakeBite() { hiss(0.07, 0, 0.12, 'lowpass', 900, 0.8); hiss(0.035, 0.03, 0.18, 'bandpass', 2400, 0.9); tone(r(240, 300), 150, 0.05, 0, 0.16, 'triangle'); }
+// ケーキをすくう：ショートケーキ＝もふっ（スポンジの泡がしゅわっ）／ブッシュ・ド・ノエル＝パリッ（チョコの樹皮）→もふっ。kind＝山の種類（'c'・'b'。ないと、ショートケーキ）
+export function cakeBite(kind) { if (kind === 'b') sweet('buche', 0.12); else sweet('sponge', 0.1); }
 // 銀のスプーン（フォーク）：澄んだ鈴のきらめき／金：さらに高く、和音で輝く
 export function silverShine() { [2093, 2637, 3136, 4186].forEach((f, i) => { tone(f, f, 0.03, 0.4 + i * 0.09, 1.1); tone(f * 2.76, f * 2.76, 0.006, 0.4 + i * 0.09, 0.4); }); }
 export function goldShine() { [1046.5, 1318.5, 1568, 2093, 2637, 3136].forEach((f, i) => { tone(f, f, 0.035, 0.35 + i * 0.08, 1.6); tone(f * 1.5, f * 1.5, 0.012, 0.35 + i * 0.08, 1.0); }); for (let i = 0; i < 10; i++) { const f = r(4000, 7000); tone(f, f, 0.012, 0.9 + i * 0.07, 0.4); } }
@@ -137,14 +231,14 @@ export function forkStab() { tone(180, 70, 0.14, 0, 0.35, 'triangle'); hiss(0.12
 export function pickStab() { tone(220, 90, 0.11, 0, 0.22, 'triangle'); hiss(0.08, 0, 0.12, 'bandpass', 1500, 1.2); tone(2637, 2637, 0.04, 0.12, 0.9); tone(3951, 3951, 0.02, 0.15, 0.6); }
 // 家がピックごと昇っていく：ひゅるるる（上がっていく音）
 export function pickUp() { tone(300, 1400, 0.045, 0, 2.6, 'triangle'); hiss(0.04, 0, 2.4, 'bandpass', 1600, 0.6); }
-// 空にぱくっと食べられる：ぱくっ・もぐもぐ
-export function skyBite() { tone(520, 180, 0.09, 0, 0.12, 'triangle'); hiss(0.06, 0, 0.08, 'bandpass', 900, 1.0); for (let i = 0; i < 3; i++) { tone(200, 140, 0.04, 0.25 + i * 0.18, 0.1, 'triangle'); hiss(0.03, 0.25 + i * 0.18, 0.06, 'lowpass', 600); } }
-// 世界の飴をかじる：かたさ（0〜1）と音の高さ（pitch）で、カリッ・ポリポリ・ガリッ・サクサク。最初の一口は大きく、あとはかみしめる粒の音
-export function eatCandy(hard = 0.8, pitch = 1, first = true) { if (!live()) return; const B = candyBank();
-  playBuf(B.snap[(Math.random() * 3) | 0], (first ? 0.3 : 0.18) * (0.6 + hard * 0.5), pitch * r(0.92, 1.08));
-  const n = 3 + ((Math.random() * 3) | 0); for (let i = 0; i < n; i++) playBuf(B.crunch[(Math.random() * 4) | 0], 0.12 * (0.5 + hard * 0.6) * (1 - i * 0.15), pitch * r(0.85, 1.2) * (hard < 0.5 ? 0.8 : 1), 0.12 + i * r(0.11, 0.17)); }
+// 空にぱくっと食べられる：ぱくっ・ザクザク（大きな口で、家のクッキーをかむ）
+export function skyBite() { tone(520, 180, 0.09, 0, 0.12, 'triangle'); hiss(0.06, 0, 0.08, 'bandpass', 900, 1.0); for (let i = 0; i < 3; i++) sweet('cookie', 0.12 * (1 - i * 0.2), 0.8, 0.25 + i * 0.18); }
+// 世界の飴をかじる（飴工房）：飴ごとに、かたさと形で別の音（キャンディケイン＝ポキッ→カリカリ・こんぺいとう＝細かいカリカリ・タンフールー＝パリッ→しゃくっ・金太郎飴＝コリコリ など）
+//   first＝最初の一口（大きく割れる）、あとは、かみしめる音。id＝飴の種類（candies.js の id）。id がない時は、かたさで選ぶ（やわらかい＝サクッ・いちばん硬い＝ガリッ・ほか＝カリカリ。pitch で高さ）
+export function eatCandy(hard = 0.8, pitch = 1, first = true, id) { const known = CANDY_RCP[id], k = known ? id : hard < 0.5 ? 'c_alegria' : hard >= 0.95 ? 'c_akide' : 'c_cane';
+  sweet(k + (first ? '_1' : '_2'), (first ? 0.3 : 0.22) * (0.75 + hard * 0.3), known ? 1 : Math.min(1.3, Math.max(0.75, pitch))); }
 // 落ちている飴をはじく：コツン・ころころ
-export function candyFlick() { if (!live()) return; const B = candyBank(); playBuf(B.snap[0], 0.16, r(1.5, 2.0)); for (let i = 0; i < 3; i++) playBuf(B.snap[1], 0.05 * (1 - i * 0.25), r(1.8, 2.3), 0.15 + i * 0.12); }
+export function candyFlick() { if (!live()) return; playBuf(buf('snap'), 0.16, r(1.5, 2.0)); for (let i = 0; i < 3; i++) playBuf(buf('snap'), 0.05 * (1 - i * 0.25), r(1.8, 2.3), 0.15 + i * 0.12); }
 // 開店・ケーキの山が見つかる：ファンファーレ（ベルとチェレスタ）
 export function fanfare() { [[523.3, 0], [659.3, 0.14], [784, 0.28], [1046.5, 0.42], [784, 0.7], [1046.5, 0.84], [1318.5, 1.0]].forEach(([f, t]) => { tone(f, f, 0.05, t, 0.9); tone(f * 2, f * 2, 0.015, t, 0.5); tone(f * 3.01, f * 3.01, 0.006, t, 0.3); }); setTimeout(() => { try { suzu(); } catch (e) { /* 音が出なくても遊べる */ } }, 1200); }
 // 音をまとめて止める・戻す（見えていない画面・ほかの画面が鳴りはじめた時）

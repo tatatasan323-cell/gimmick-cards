@@ -25,6 +25,8 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 // 重力のあるテーブルで、グミの積み木。当たりと重さは Rapier（物理の部品・同梱）、見た目は距離の式で起こしたグミ。ぶつかるとプルンと揺れる（見た目だけ）
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
+import { guardLeave } from './stay.js';
+guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone } from './gdone.js';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { BLOCKS } from './blocks.js';

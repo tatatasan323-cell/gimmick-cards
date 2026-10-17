@@ -9,7 +9,7 @@
 // 前の版の「プチッ」の正体（書き出して測った）：音量の既定値は1。予約した音量が始まる直前の1サンプルだけ、ノイズが素通りしていた（そりの鈴・ひづめ）。
 //   どの音も、音量を0から始めて0で終える。打つ・はじく音は最初に1度だけ波形を作っておき、1音＝ノード1つで鳴らす（スマホで町と一緒でも処理が追いつくように）
 // 自作の旋律をオルゴールと深い残響で鳴らした版は、夜の古いオルゴールのようで、ハロウィンのように聞こえた（本人）。オルゴールは高い音・長調・残響ひかえめ
-let ctx = null, rig = null, live = null, timer = null, wanted = false, cur = 'jingle';
+let ctx = null, rig = null, live = null, timer = null, wanted = false, cur = 'jingle', medley = false, vol = 0.7;   // vol＝メニューの「BGM の大きさ」（効果音より少し小さく。本人 2026-10-17）
 // 3秒先まで予約し、0.25秒ごとに見回る（画面の処理で2.7秒止まっても途切れない）
 const LOOK = 3, TICK = 250, TAU = Math.PI * 2;
 const rnd = (a, b) => a + Math.random() * (b - a), mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -235,13 +235,19 @@ function player(r, id, t0) { const tr = TRACKS[id], c = r.c, bus = c.createGain(
 function pumpTo(r, p, until) { const now = r.c.currentTime;
   // 画面の処理で見回りが遅れた時：間に合わない小節は鳴らさず、次の小節の頭から入る（遅れた分を一度に鳴らすと、音が団子になって割れる）
   if (p.next < now + 0.03) { const k = Math.ceil((now + 0.03 - p.next) / p.len); p.bar += k; p.next += k * p.len; }
-  while (p.next < until) { p.tr.play(r, p.ch, p.bar % p.tr.bars, p.next, p.bar); p.next += p.len; p.bar++; } }
+  while (p.next < until && (p.limit == null || p.bar < p.limit)) { p.tr.play(r, p.ch, p.bar % p.tr.bars, p.next, p.bar); p.next += p.len; p.bar++; } }
 // 0.15秒の時定数で消して（1秒で -60dB）、消えたら線を外す（先の予約の音は、もう計算されない）
 function release(r, p) { const g = p.bus.gain, now = r.c.currentTime;
   if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else { const v = g.value; g.cancelScheduledValues(now); g.setValueAtTime(v, now); }
   g.setTargetAtTime(0, now, 0.15); setTimeout(() => p.bus.disconnect(), 1500); }
-function start() { if (!ctx || live) return; if (!rig) rig = makeRig(ctx); live = player(rig, cur, ctx.currentTime + 0.12); pumpTo(rig, live, ctx.currentTime + LOOK);
-  if (!timer) timer = setInterval(() => { if (live) pumpTo(rig, live, ctx.currentTime + LOOK); }, TICK); }
+// メドレー：1曲を最後の小節まで（短い曲は40秒ほどになるまで繰り返して）鳴らしたら、ほかの曲へ。前の曲の最後の小節の後に、少し間をあけて入る
+const loopsOf = (p) => Math.max(1, Math.round(40 / (p.tr.bars * p.len)));
+function medleyNext() { if (!live || !medley) return; if (live.limit == null) live.limit = live.tr.bars * loopsOf(live); if (live.bar < live.limit) return;
+  const ids = Object.keys(TRACKS).filter((k) => k !== cur), id = ids[Math.floor(Math.random() * ids.length)], t0 = live.next + 0.6, old = live, g = old.bus.gain;
+  g.setTargetAtTime(0, live.next + 0.2, 0.2); setTimeout(() => old.bus.disconnect(), (t0 - ctx.currentTime + 2) * 1000);
+  cur = id; live = player(rig, cur, t0); if (BGM.onChange) BGM.onChange(cur); }
+function start() { if (!ctx || live) return; if (!rig) { rig = makeRig(ctx); rig.master.gain.value = 0.55 * vol; } live = player(rig, cur, ctx.currentTime + 0.12); pumpTo(rig, live, ctx.currentTime + LOOK);
+  if (!timer) timer = setInterval(() => { if (!live) return; medleyNext(); pumpTo(rig, live, ctx.currentTime + LOOK); }, TICK); }
 function stop() { if (timer) { clearInterval(timer); timer = null; } if (live) { release(rig, live); live = null; } }
 export const BGM = {
   tracks: Object.keys(TRACKS).map((id) => ({ id, name: TRACKS[id].name, desc: TRACKS[id].desc })),
@@ -249,6 +255,9 @@ export const BGM = {
   set(ac, on) { ctx = ac || ctx; wanted = !!on; if (on && ctx) { if (ctx.state !== 'running') ctx.resume(); start(); } else stop(); },
   get on() { return wanted; }, get track() { return cur; },
   // 鳴っている時は、前の曲をすっと消しながら、次の曲を頭から始める
+  // メドレー（オンにすると、曲が終わるたびに、ほかの曲へランダムに変わる）。onChange＝曲が変わった時に呼ぶ（メニューの表示を合わせる）
+  get volume() { return vol; }, setVolume(v) { vol = Math.max(0, Math.min(1.5, v)); if (rig) rig.master.gain.setTargetAtTime(0.55 * vol, ctx.currentTime, 0.05); },
+  get medley() { return medley; }, setMedley(on) { medley = !!on; if (live) live.limit = null; },
   setTrack(id) { if (!TRACKS[id] || id === cur) return; cur = id; if (live) { release(rig, live); live = player(rig, cur, ctx.currentTime + 0.15); pumpTo(rig, live, ctx.currentTime + LOOK); } },
   // 書き出し（聞き比べ・検査用）：音の部屋 ac（OfflineAudioContext）に、曲 id を sec 秒ぶん。本番と同じく少しずつ予約する。返り値＝1周の長さ（秒）
   render(ac, id, sec) { const r = makeRig(ac), p = player(r, id, 0.1); pumpTo(r, p, LOOK);

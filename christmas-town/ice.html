@@ -34,7 +34,9 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 // 根元を削りすぎると折れて倒れ、宙に浮いた氷は落ちて砕ける。宝石を取り出しきると雪が降り、結晶が渦を巻いて吸い込まれ、氷が下から波のように組み上がる（新しい宝石が3つ中に）
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
-import { gdone } from './gdone.js';
+import { guardLeave } from './stay.js';
+guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
+import { gdone, gstat } from './gdone.js';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { IceGrid, Mesher } from './icegrid.js';
 import { STATUES } from './statues.js';
@@ -267,7 +269,7 @@ function shatterChunk(c) {
   for (let i = 0; i < n && pos.count; i++) { const j = (Math.random() * pos.count) | 0; spawnChip(V1.set(pos.getX(j), pos.getY(j), pos.getZ(j)).applyMatrix4(c.grp.matrixWorld), new THREE.Vector3(v.x * 0.4 + rnd(-2, 2) * (1 + s), rnd(0.5, 3) * (1 + s * 0.5), v.z * 0.4 + rnd(-2, 2) * (1 + s)), rnd(1.2, 2.6 + s * 2.2)); }
   burst(p, ICEW, Math.round(30 + s * 40), 2.2);
   for (const g of c.gems) { scene.attach(g.obj.group); gemBody(g, { x: v.x * 0.5 + rnd(-1.5, 1.5), y: rnd(1, 2.4), z: v.z * 0.5 + rnd(-1.5, 1.5) }, { x: rnd(-4, 4), y: rnd(-4, 4), z: rnd(-4, 4) }); g.state = 'fall'; g.st.lastFree = nowS(); }
-  SND.crash(s); shake = Math.max(shake, 0.05 + s * 0.12); ringAt(p, 1.2 + s * 2.4); shakeTrees(p, 0.6 + s); removeChunk(c); crashes++;
+  SND.crash(s); shake = Math.max(shake, 0.05 + s * 0.12); ringAt(p, 1.2 + s * 2.4); shakeTrees(p, 0.6 + s); removeChunk(c); crashes++; gstat('iceCrash');
 }
 
 // ---------- 雪：静かに降る／取り出しきった彫像は、結晶が渦を巻いて吸い込まれ、下から波のように組み上がる ----------
@@ -314,7 +316,7 @@ function gemAt(x, y) { setRay(x, y); const cand = allGems().filter((g) => g.stat
 function chunkAt(x, y) { setRay(x, y); const live = chunks.filter((c) => c.melt < 0); const hit = ray.intersectObjects(live.map((c) => c.view.mesh), false)[0]; return hit ? live.find((c) => c.view.mesh === hit.object) : null; }
 function treeAt(x, y) { setRay(x, y); const hit = ray.intersectObjects(treeHits, false)[0]; return hit ? hit.object.userData.tree : null; }
 // ノミ：平らな面で、いびつに欠ける（1〜2枚の欠け）
-function chiselAt(st, h) {
+function chiselAt(st, h) { gstat('chisel');
   const Gd = st.grid, N = new THREE.Vector3(...Gd.normal(h.x, h.y, h.z)); let removed = 0;
   for (let f = 0, nf = Math.random() < 0.6 ? 2 : 1; f < nf; f++) {
     const c = new THREE.Vector3(h.x, h.y, h.z); if (f) c.addScaledVector(new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).projectOnPlane(N).normalize(), rnd(0.07, 0.13));
@@ -369,7 +371,7 @@ cnEl.textContent = got.size;
 function pickGem(g) {
   g.state = 'picked'; g.pickT = 0; g.from = g.obj.group.position.clone(); if (g.body) { world.removeRigidBody(g.body); g.body = null; } g.st.lastPick = nowS();
   SND.pick(); burst(g.from, g.colW, 22, 1.6);
-  got.add(g.spec.id); try { localStorage.setItem(KEY, JSON.stringify([...got])); } catch (e) { /* 同上 */ } cnEl.textContent = got.size; if (got.size >= 24) gdone('ice24');
+  gstat('iceGem'); got.add(g.spec.id); try { localStorage.setItem(KEY, JSON.stringify([...got])); } catch (e) { /* 同上 */ } cnEl.textContent = got.size; if (got.size >= 24) gdone('ice24');
   const nm = document.getElementById('cardName'); nm.textContent = ''; const dot = document.createElement('i'); dot.style.background = g.spec.color; nm.append(dot, document.createTextNode(g.spec.name + (g.spec.kind === 'ring' ? 'の指輪' : g.spec.kind === 'earring' ? 'のピアス' : '')));
   document.getElementById('cardSub').textContent = gemLabel(g.spec) || '宝石'; const f = document.getElementById('cardFact'); f.textContent = g.spec.fact || ''; f.hidden = !g.spec.fact;
   cardEl.hidden = false; cardEl.style.opacity = 1; clearTimeout(cardTimer); cardTimer = setTimeout(() => { cardEl.style.opacity = 0; setTimeout(() => (cardEl.hidden = true), 400); }, g.spec.fact ? 5200 : 2600);

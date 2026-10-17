@@ -26,7 +26,9 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 // → しばらくして、窓ごとの姿（光の粒・星・ハート・雪・鈴・羽根）になって、跡を引いて窓へ戻り、穴を満たして元どおり（かけらごとに、時間差で）。抜けた穴の向こうは星空
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
-import { gdone } from './gdone.js';
+import { guardLeave } from './stay.js';
+guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
+import { gdone, gstat } from './gdone.js';
 import { DESIGNS, CEILING, ARCH, ROSE, paint, sampler, buildPieces, voronoi, centroid, archPoly } from './designs.js';
 import * as SND from './glass_sound.js';
 import { makeSpace } from './space.js';
@@ -166,7 +168,7 @@ function burst(p, c, n, spd = 1.6, tile = 0) { for (let i = 0; i < n && sparks.l
 const GRAV = 9.8 * 0.75, tmpQ = new THREE.Quaternion(), falling = [], shards = [], seen = new Set();
 let lastCha = 0;
 function breakPiece(w, k) {
-  const pt = w.parts[k]; if (!pt || pt.state) return; pt.state = 1; setPiece(w, pt, 0, 0); SND.crack();
+  const pt = w.parts[k]; if (!pt || pt.state) return; pt.state = 1; setPiece(w, pt, 0, 0); SND.crack(); gstat('glass');
   const geo = uvFix(new THREE.ShapeGeometry(shapeOf(pt.outer.map(([x, y]) => [x - pt.c[0], y - pt.c[1]]), pt.holes.map((h) => h.map(([x, y]) => [x - pt.c[0], y - pt.c[1]]))), 1), w.F, pt.c[0], pt.c[1]);
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: w.tex, toneMapped: false, side: THREE.DoubleSide, transparent: true }));
   w.g.updateMatrixWorld(); m.position.set(pt.c[0], pt.c[1], 0.02).applyMatrix4(w.g.matrixWorld); m.quaternion.copy(w.g.quaternion); m.scale.copy(w.g.scale); scene.add(m);

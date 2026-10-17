@@ -235,7 +235,7 @@ export function milkDrizzle(R, H, seed = 1) {
 // ソフトクリームの山：絞り口の筋（8本）のある太い管が、細くなりながら3回半うずを巻いて、先がくるり
 export function softServe(R, H, colA, colB = null, turns = 3.4) {
   const RS = 12, Nn = 120, pos = [], col = [], idx = [], ca = new THREE.Color(colA), cb = new THREE.Color(colB || colA);   // 遠くの山なので、細かさは控えめに
-  for (let i = 0; i <= Nn; i++) { const t = i / Nn, th = t * turns * TAU, rc = R * 0.62 * (1 - t * 0.92), y = H * (0.08 + 0.78 * Math.pow(t, 0.85)) + (t > 0.94 ? (t - 0.94) * H * 2.2 : 0), rt = R * 0.42 * (1 - t * 0.78) + 0.02 * R;
+  for (let i = 0; i <= Nn; i++) { const t = i / Nn, th = t * turns * TAU, rc = R * 0.62 * (1 - t * 0.92), y = H * (0.08 + 0.78 * Math.pow(t, 0.85)) + (t > 0.94 ? (t - 0.94) * H * 2.2 : 0), rt = (R * 0.42 * (1 - t * 0.78) + 0.02 * R) * Math.min(1, t / 0.035, (1 - t) / 0.05 + 0.02);   // 渦の管の始まりと先は、すぼめて閉じる（開いたままだと、中の空洞が見えた。本人 2026-10-17）
     const cx = Math.cos(th) * rc, cz = Math.sin(th) * rc, mix = colB ? 0.5 + 0.5 * Math.sin(th * 0.5) : 0, c = ca.clone().lerp(cb, mix);
     for (let j = 0; j <= RS; j++) { const ph = (j / RS) * TAU, rr = rt * (1 + 0.08 * Math.sin(ph * 8)), nx = Math.cos(th) * Math.cos(ph), ny = Math.sin(ph), nz = Math.sin(th) * Math.cos(ph); pos.push(cx + nx * rr, y + ny * rr * 0.85, cz + nz * rr); const sh = 0.88 + 0.12 * Math.sin(ph * 8); col.push(c.r * sh, c.g * sh, c.b * sh); }
     if (i < Nn) for (let j = 0; j < RS; j++) { const a = i * (RS + 1) + j, b = a + RS + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); } }
@@ -244,6 +244,10 @@ export function softServe(R, H, colA, colB = null, turns = 3.4) {
   return [g, core];
 }
 // 山の材質：氷（シロップのしみた所は、ぬれてつやつや）・練乳・いちご・葉・白玉・ガラス・クリーム・コーンフレーク・ソース
+// ガラス：まん中は透けて、ふちほど白く光って濃く見える（本物のグラスの縁。一様に薄いと、ほとんど見えなかった。本人 2026-10-17「透明すぎ」）
+function glassMat(E) { const m = new THREE.MeshPhysicalMaterial(E({ color: '#eaf6ff', transparent: true, opacity: 0.3, roughness: 0.03, clearcoat: 1, envMapIntensity: 2.2, depthWrite: false, side: THREE.DoubleSide, emissive: '#3a5a8a', emissiveIntensity: 0.15 }));
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n{ float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 2.2); gl_FragColor.rgb += vec3(0.55, 0.7, 0.85) * fr * 0.6; gl_FragColor.a = clamp(gl_FragColor.a + fr * 0.62, 0.0, 0.95); }'); };
+  m.customProgramCacheKey = () => 'glassRim'; return m; }
 export function mountainMats(env) {
   const S = sugarTex(), D = dough(), E = (o) => Object.assign(o, env ? { envMap: env } : {});
   const berry = ctex(128, 128, (g) => { const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#ff5a6a'); gr.addColorStop(1, '#c8102a'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); for (let y = 6; y < 128; y += 14) for (let x = (y / 14) % 2 ? 7 : 0; x < 128; x += 14) { g.fillStyle = '#ffe680'; g.beginPath(); g.ellipse(x, y, 1.6, 2.6, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(120,0,20,.35)'; g.beginPath(); g.arc(x, y + 3, 2.5, 0, TAU); g.fill(); } });
@@ -259,7 +263,7 @@ export function mountainMats(env) {
     berry: new THREE.MeshPhysicalMaterial(E({ map: berry, roughness: 0.28, clearcoat: 0.9, emissive: '#3a0008', emissiveIntensity: 0.4, envMapIntensity: 0.9 })),
     leaf: new THREE.MeshStandardMaterial({ color: '#3aa04a', roughness: 0.5, emissive: '#0a3010', emissiveIntensity: 0.3, side: THREE.DoubleSide }),
     mochi: new THREE.MeshPhysicalMaterial(E({ color: '#fbf6ee', roughness: 0.5, sheen: 0.7, sheenColor: new THREE.Color('#ffffff'), emissive: '#3a3630', emissiveIntensity: 0.3 })),
-    glass: new THREE.MeshPhysicalMaterial(E({ color: '#eaf6ff', transparent: true, opacity: 0.26, roughness: 0.03, clearcoat: 1, envMapIntensity: 1.8, depthWrite: false, side: THREE.DoubleSide, emissive: '#3a5a8a', emissiveIntensity: 0.12 })),
+    glass: glassMat(E),
     rim: new THREE.MeshPhysicalMaterial(E({ color: '#bfe4ff', transparent: true, opacity: 0.5, roughness: 0.03, clearcoat: 1, envMapIntensity: 2.2, depthWrite: false, emissive: '#6aa0e0', emissiveIntensity: 0.3 })),
     cream: new THREE.MeshPhysicalMaterial(E({ vertexColors: true, roughness: 0.42, clearcoat: 0.3, sheen: 0.6, sheenColor: new THREE.Color('#fff4e0'), emissive: '#6a5848', emissiveIntensity: 0.4, envMapIntensity: 0.8 })),
     flakes: new THREE.MeshStandardMaterial({ color: '#f0b04a', normalMap: flakesN, normalScale: new THREE.Vector2(2, 2), roughness: 0.6, emissive: '#5a3410', emissiveIntensity: 0.3 }),
@@ -297,12 +301,31 @@ export function kakiMountain(MM, R, H, syrup, seed = 1) {
   return meshesOf(acc, MM, g);
 }
 // パフェの山：大きなグラス（すそ広がり）に、コーンフレーク・ソース・クリーム・スポンジの層。上にソフトクリームのうず、いちご・さくらんぼ・ウエハース・ポッキー・チョコのソース
+// パフェの層（下から：コーンフレーク・ソース・クリーム・スポンジ・ソース・クリーム）。境目の高さは向きごとに波打ち、ソースはクリームの側へ筋になってにじむ
+function parfaitLayers(cupR, cupH, seed) { const y0 = 3.3, y1 = cupH * 0.985, NA = 48, NY = 34, pos = [], col = [], idx = [];
+  const L = [[0.0, '#e8a848', 'flake'], [0.26, '#b8102a', 'sauce'], [0.34, '#fbf6ee', 'cream'], [0.55, '#ecc27a', 'sponge'], [0.7, '#b8102a', 'sauce'], [0.76, '#fbf6ee', 'cream']].map(([t, c, k]) => [t, new THREE.Color(c), k]);
+  const edge = (i, a) => L[i][0] + (i ? 0.025 * Math.sin(a * 3 + i * 1.7 + seed) + 0.02 * (vnoise(a * 5 + i * 7, seed) - 0.5) : 0);
+  for (let j = 0; j <= NY; j++) for (let i = 0; i <= NA; i++) { const a = (i / NA) * TAU, t = j / NY, y = y0 + t * (y1 - y0), r = cupR((y - 3.2) / (cupH - 3.2)) * 0.975;
+    let li = 0; for (let k = 1; k < L.length; k++) if (t >= edge(k, a)) li = k;
+    const c = L[li][1].clone(), nx = li + 1 < L.length ? edge(li + 1, a) - t : 1, pv = t - edge(li, a);
+    if (li + 1 < L.length && nx < 0.03) c.lerp(L[li + 1][1], 0.5 * (1 - nx / 0.03));   // 境目は、少しぼかす
+    if (L[li][2] === 'cream' && li > 0 && L[li - 1][2] === 'sauce') { const streak = Math.pow(Math.max(0, Math.sin(a * 11 + seed) * 0.6 + vnoise(a * 9, seed) * 0.8 - 0.3), 1.5); c.lerp(L[li - 1][1], Math.max(0, 1 - pv / (0.02 + 0.12 * streak)) * 0.75); }   // ソースのにじみ（下から筋になって）
+    if (L[li][2] === 'flake' || L[li][2] === 'sponge') c.multiplyScalar(0.82 + 0.3 * vnoise(a * 40, t * 90));   // フレーク・スポンジの粒
+    else c.multiplyScalar(0.96 + 0.06 * vnoise(a * 20, t * 40));
+    pos.push(Math.cos(a) * r, y, Math.sin(a) * r); col.push(c.r, c.g, c.b);
+    if (i < NA && j < NY) { const p0 = j * (NA + 1) + i, p1 = p0 + NA + 1; idx.push(p0, p1, p0 + 1, p1, p1 + 1, p0 + 1); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const top = new THREE.CircleGeometry(cupR(1) * 0.975, 48).rotateX(-Math.PI / 2).translate(0, y1, 0), tc = new Float32Array(top.attributes.position.count * 3).fill(0.98); top.setAttribute('color', new THREE.BufferAttribute(tc, 3));
+  return mergeG([g, top]); }
+const mergeG = (list) => { const parts = list.map((g) => (g.index ? g.toNonIndexed() : g)), n = parts.reduce((a, g) => a + g.attributes.position.count, 0), out = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'uv', 'color']) { if (!parts.every((g) => g.attributes[name])) continue; const sz = parts[0].attributes[name].itemSize, arr = new Float32Array(n * sz); let o = 0; for (const g of parts) { arr.set(g.attributes[name].array, o); o += g.attributes[name].array.length; } out.setAttribute(name, new THREE.BufferAttribute(arr, sz)); }
+  return out; };
 export function parfaitMountain(MM, wafer, R, H, colA, colB, seed = 1) {
   const g = new THREE.Group(), acc = new Acc(), mats = { ...MM, wafer }, cupH = H * 0.6, cupR = (t) => R * (0.5 + 0.48 * Math.pow(Math.max(0, t), 0.8));
   const prof = [[R * 0.75, -1.5], [R * 0.7, 0], [R * 0.25, 1.0], [R * 0.22, 2.4], [R * 0.5, 3.2]]; for (let i = 1; i <= 10; i++) { const t = i / 10; prof.push([cupR(t) * 1.04, 3.2 + t * (cupH - 3.2)]); }
   g.add(new THREE.Mesh(new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 64), MM.glass));
   acc.add('rim', new THREE.TorusGeometry(cupR(1) * 1.04, R * 0.02, 6, 56).rotateX(Math.PI / 2).translate(0, cupH, 0));
-  for (const [key, t0, t1] of [['flakes', 0.0, 0.26], ['sauce', 0.26, 0.34], ['cream', 0.34, 0.55], ['sponge', 0.55, 0.7], ['sauce', 0.7, 0.76], ['cream', 0.76, 0.98]]) { const y0 = 3.3 + t0 * (cupH - 3.3), y1 = 3.3 + t1 * (cupH - 3.3); acc.add(key, new THREE.CylinderGeometry(cupR((y1 - 3.2) / (cupH - 3.2)) * 0.98, cupR((y0 - 3.2) / (cupH - 3.2)) * 0.98, y1 - y0, 48, 1, false).translate(0, (y0 + y1) / 2, 0), key === 'cream' ? '#fbf6ee' : null); }
+  acc.add('cream', parfaitLayers(cupR, cupH, seed));   // 層は1つの形に：境目はいびつに波打ち、ソースはクリームへにじむ（本人 2026-10-17「もう少しリアルにいびつに」）
   const [sw] = softServe(R * 0.95, H * 0.42, colA, colB, 3.0); sw.translate(0, cupH - H * 0.03, 0); g.add(new THREE.Mesh(sw, MM.cream));
   const yTop = cupH + H * 0.39;
   // チョコのソース：うずの上から垂れる
@@ -341,6 +364,8 @@ export function cakeMats(env) {
     plate: new THREE.MeshPhysicalMaterial(E({ map: plateTex(), roughness: 0.25, clearcoat: 0.8, emissive: '#2a1206', emissiveIntensity: 0.4 })),
     bark: new THREE.MeshPhysicalMaterial(E({ vertexColors: true, roughness: 0.38, clearcoat: 0.55, clearcoatRoughness: 0.2, emissive: '#1a0a04', emissiveIntensity: 0.35, envMapIntensity: 0.7 })),
     ends: new THREE.MeshStandardMaterial({ map: swirlTex(), roughness: 0.75, emissive: '#3a2210', emissiveIntensity: 0.35 }),
+    cut: new THREE.MeshStandardMaterial({ map: cutTex('cake'), roughness: 0.8, emissive: '#3a2a18', emissiveIntensity: 0.3 }),
+    gold: new THREE.MeshPhysicalMaterial(E({ color: '#ffd04a', metalness: 1, roughness: 0.2, clearcoat: 0.6, emissive: '#7a5000', emissiveIntensity: 0.5 })),
   };
 }
 // いちごのショートケーキ：白いクリームの大きな丸いケーキ。側面は絞りの縦すじ、上のふちにクリームの花と、いちご。真ん中に「Merry Christmas」のチョコの板とヒイラギ。すそにもクリームの縁どり
@@ -442,9 +467,9 @@ if (aWall.z > 0.0) { vWall = 1.0; if (uEat > 0.0) { float e = max(0.0, ckEatAt(p
     .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nfloat ckE = ckEat(); if (uEat > 0.0 && ((vWall < 0.5 && vEdge < ckE) || vWall > 1.5)) discard;')
     .replace('#include <color_fragment>', `#include <color_fragment>
 diffuseColor.rgb *= mix(vec3(0.6, 0.47, 0.38), vec3(1.0), smoothstep(0.0, 0.032, vEdge));
-if (uEat > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74, 0.48, 0.27), (1.0 - smoothstep(0.0, 0.025, vEdge - ckE)) * 0.45);
-if (!gl_FrontFacing) diffuseColor.rgb = vec3(0.68, 0.44, 0.25);
-if (vWall > 0.5) { vec2 gp = vec2(vLoc.x * 0.8 + vLoc.y * 0.6, vZ) * 2.2; float gr = ckCrk(gp), pore = step(0.86, ckCrk(gp * 1.7 + 3.1)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.7, 0.45, 0.25) * (0.92 + 0.14 * gr) * (1.0 - 0.22 * pore), smoothstep(0.0, 0.012, vCut)); }   // 削れた側面＝中の生地（表の焼き色に近い茶。ざらっと粒と小さな穴）。明るい黄土色だと、まわりから浮いた（本人 2026-10-17）`);
+if (uEat > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.15, 0.05), (1.0 - smoothstep(0.0, 0.025, vEdge - ckE)) * 0.45);
+if (!gl_FrontFacing) diffuseColor.rgb = vec3(0.3, 0.1, 0.03);
+if (vWall > 0.5) { vec2 gp = vec2(vLoc.x * 0.8 + vLoc.y * 0.6, vZ) * 2.2; float gr = ckCrk(gp), pore = step(0.86, ckCrk(gp * 1.7 + 3.1)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.36, 0.12, 0.035) * (0.9 + 0.2 * gr) * (1.0 - 0.3 * pore), smoothstep(0.0, 0.012, vCut)); }   // 削れた側面＝中の生地（表の焼き色より少し明るい茶。ざらっと粒と小さな穴）。色は直線の色空間の値（sRGB の値のまま書くと、白っぽい黄土色になって、まわりから浮いた。本人 2026-10-17 に2回）`);
 }
 // 曲げ：腕は肩（±0.13, 0.11）から、脚は股（±0.08, -0.15）から。先へ行くほど大きく曲がる（ぐにょり）
 const BEND = `
@@ -541,3 +566,89 @@ export function santaFace() { return ctex(256, 320, (g, w, h) => { const X = (x)
   g.fillStyle = '#d8283c'; g.beginPath(); g.moveTo(X(-0.17), Y(0.42)); g.quadraticCurveTo(X(0), Y(0.72), X(0.2), Y(0.56)); g.lineTo(X(0.17), Y(0.42)); g.closePath(); g.fill(); g.fillRect(X(-0.15), Y(0.19), X(0.15) - X(-0.15), Y(-0.17) - Y(0.19));
   g.fillStyle = '#fffaf2'; g.fillRect(X(-0.19), Y(0.45), X(0.19) - X(-0.19), 12); g.beginPath(); g.arc(X(0.21), Y(0.57), 9, 0, TAU); g.fill(); g.beginPath(); g.moveTo(X(-0.12), Y(0.3)); g.quadraticCurveTo(X(0), Y(0.12), X(0.12), Y(0.3)); g.quadraticCurveTo(X(0), Y(0.22), X(-0.12), Y(0.3)); g.fill();
   for (const sx of [-1, 1]) { g.beginPath(); g.arc(X(sx * 0.06), Y(0.37), 6, 0, TAU); g.fill(); } }); }
+
+// ---------- 切り分けられるケーキ（本人 2026-10-17「扇形の1/8の1切れを持っていく」）----------
+// ケーキは1切れずつ形を作り、材質ごとに並べてまとめる。aWedge＝何切れ目か・aWC＝その切れのまん中（戻る時は、ここを中心に大きくなる）
+// rng[key][k]＝材質 key の形の中で、k 切れ目の頂点の範囲（フォークは、この範囲を写して持っていく）
+// 切り口（扇形の2つの面）は、スポンジ・クリーム・いちごの層の絵。層の境目は、いびつに波打って、にじむ
+function cutTex(kind) { return ctex(128, 512, (g, w, h) => {
+  const wav = (y, s, a) => (x) => y + Math.sin(x * 0.11 + s) * a + Math.sin(x * 0.37 + s * 2) * a * 0.4 + (hash2(Math.floor(x / 6), s) - 0.5) * a * 0.6;
+  const band = (y0f, y1f, col, s) => { const f0 = wav(h * (1 - y0f), s, 5), f1 = wav(h * (1 - y1f), s + 3, 5); g.fillStyle = col; g.beginPath(); g.moveTo(0, f0(0)); for (let x = 0; x <= w; x += 4) g.lineTo(x, f0(x)); for (let x = w; x >= 0; x -= 4) g.lineTo(x, f1(x)); g.closePath(); g.fill(); };
+  if (kind === 'choco') {   // チョコのスポンジとクリームの、うずの断面（ブッシュの切り株にも）
+    g.fillStyle = '#5a2c14'; g.fillRect(0, 0, w, h); for (const [a, b] of [[0.1, 0.2], [0.34, 0.44], [0.58, 0.68], [0.82, 0.9]]) band(a, b, '#f6ead6', a * 30);
+  } else {
+    g.fillStyle = '#f2c878'; g.fillRect(0, 0, w, h);   // スポンジ
+    const cr = '#fffaf0'; band(0.27, 0.4, cr, 1); band(0.62, 0.74, cr, 2); band(0.93, 1.01, cr, 3);
+    for (const [y0, y1, s] of [[0.27, 0.4, 5], [0.62, 0.74, 9]]) for (let k = 0; k < 7; k++) { const x = 10 + k * 18 + hash2(k, s) * 8, y = h * (1 - (y0 + y1) / 2) + (hash2(s, k) - 0.5) * 10, rx = 8 + hash2(k + 3, s) * 4, ry = (y1 - y0) * h * 0.36;   // いちごの断面
+      g.fillStyle = '#d8203a'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); g.fillStyle = '#ffb0b8'; g.beginPath(); g.ellipse(x, y, rx * 0.55, ry * 0.5, 0, 0, TAU); g.fill(); }
+    g.fillStyle = 'rgba(200,120,40,.5)'; g.fillRect(0, h * 0.985, w, h * 0.015);   // 底の焼き色
+  }
+  for (let i = 0; i < 900; i++) { const x = hash2(i, 7) * w, y = hash2(7, i) * h; g.fillStyle = kind === 'choco' ? 'rgba(30,10,4,.35)' : 'rgba(170,110,40,.35)'; g.beginPath(); g.arc(x, y, 0.6 + hash2(i, 9) * 1.4, 0, TAU); g.fill(); }   // 気泡の穴
+  g.fillStyle = kind === 'choco' ? '#3a1a0a' : '#fffaf0'; g.fillRect(w * 0.94, 0, w * 0.06, h);   // 外側のクリーム（チョコ）のぬり
+}); }
+// 扇形の切り口の面：中心（半径0）から外（半径 r）まで、高さ y0〜y1。phi の向きに、out＝±1 の側を表に
+function cutFace(phi, r, y0, y1, out) { const n = 6, pos = [], uv = [], T = new THREE.Vector3(Math.cos(phi), 0, -Math.sin(phi)).multiplyScalar(out), idx = [];
+  for (let j = 0; j <= n; j++) for (let i = 0; i <= 1; i++) { const rr = i * r, y = y0 + (y1 - y0) * (j / n); pos.push(Math.sin(phi) * rr, y, Math.cos(phi) * rr); uv.push(i, j / n); }
+  for (let j = 0; j < n; j++) { const a = j * 2, b = a + 2; idx.push(a, a + 1, b + 1, a, b + 1, b); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  const nz = g.attributes.normal; if (nz.getX(0) * T.x + nz.getZ(0) * T.z < 0) { idx.length = 0; for (let j = 0; j < n; j++) { const a = j * 2, b = a + 2; idx.push(a, b + 1, a + 1, a, b, b + 1); } g.setIndex(idx); }
+  for (let i = 0; i < nz.count; i++) nz.setXYZ(i, T.x, 0, T.z); return g; }
+// クリームの花（軽い形）：しぼり口の筋が8本、ねじれながら先へすぼまる。ソフトクリームの渦（1つ3千三角）の代わりに、ケーキのふちにたくさん並べる用（1つ約3百三角）
+function rosette(r, h) { const pts = []; for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push(new THREE.Vector2(Math.max(0.001, r * Math.sin(Math.min(1, t * 1.15) * Math.PI * 0.62 + 0.55) * (1 - t * 0.85)), h * t)); }
+  const g = new THREE.LatheGeometry(pts, 20), p = g.attributes.position, col = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x) + (y / h) * 1.6, k = 1 + 0.16 * Math.cos(a * 8); p.setX(i, x * k); p.setZ(i, z * k); const v = 0.9 + 0.1 * Math.cos(a * 8); col.set([v, v * 0.985, v * 0.96], i * 3); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g; }
+// 切れごとの形をまとめる：parts[k]＝[[key, geo, color]]。k 切れ目のまん中 wc[k]
+function sliceBuild(parts, wc, mats) { const keys = new Set(); parts.forEach((L) => L.forEach(([k]) => keys.add(k))); const g = new THREE.Group(), rng = {};
+  for (const key of keys) { const acc = new Acc(), R = []; let v = 0;
+    parts.forEach((L, k) => { const s = v; for (const [kk, geo, col] of L) if (kk === key) { acc.add(key, geo, col); v += acc.parts.get(key)[acc.parts.get(key).length - 1][0].attributes.position.count; } R.push([s, v]); });
+    const [mesh] = acc.build({ [key]: mats[key] }), n = mesh.geometry.attributes.position.count, aw = new Float32Array(n), ac = new Float32Array(n * 3);
+    R.forEach(([s, e], k) => { for (let i = s; i < e; i++) { aw[i] = k; ac.set([wc[k].x, wc[k].y, wc[k].z], i * 3); } });
+    mesh.geometry.setAttribute('aWedge', new THREE.BufferAttribute(aw, 1)); mesh.geometry.setAttribute('aWC', new THREE.BufferAttribute(ac, 3)); rng[key] = R; g.add(mesh); }
+  g.userData.rng = rng; g.userData.N = parts.length; return g; }
+// 丸いケーキ（段を重ねるとタワー）：tiers＝[[半径, 高さ], …]（下から）。N＝切れの数
+export function sliceCake(MM, CM, tiers, N = 8, seed = 1, top = 'star') {
+  const mats = { ...MM, ...CM, cut: CM.cut }, parts = Array.from({ length: N }, () => []), wc = [], da = TAU / N, inW = (a) => Math.floor((((a % TAU) + TAU) % TAU) / da) % N;
+  const UPB = STRAW.clone().rotateX(Math.PI).translate(0, 1.15, 0); let y0 = 0;
+  tiers.forEach(([R, h], ti) => { const y1 = y0 + h, fil = R * 0.08, S = Math.min(R * 0.075, 0.9);
+    for (let k = 0; k < N; k++) { const a0 = k * da, prof = [[R * 1.0, y0], [R, y0 + h * 0.02], [R, y1 - fil], [R - fil * 0.3, y1 - fil * 0.3], [R - fil, y1], [R * 0.6, y1 + R * 0.01], [0.001, y1 + R * 0.012]];
+      const body = new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 18, a0, da), p = body.attributes.position, col = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(x, z), r = Math.hypot(x, z), side = r > R * 0.97 && y > y0 + h * 0.06 && y < y1 - fil, kk = side ? 1 + 0.012 * Math.abs(Math.sin(a * 40)) : 1; p.setX(i, x * kk); p.setZ(i, z * kk); const v = 0.95 + 0.05 * vnoise(a * 30, y * 2); col.set([v, v * 0.985, v * 0.96], i * 3); }
+      body.setAttribute('color', new THREE.BufferAttribute(col, 3)); body.computeVertexNormals(); parts[k].push(['cream', body]);
+      parts[k].push(['cut', cutFace(a0, R * 0.995, y0 + 0.01, y1 - 0.02, -1)], ['cut', cutFace(a0 + da, R * 0.995, y0 + 0.01, y1 - 0.02, 1)]);
+      if (ti === 0) wc[k] = new THREE.Vector3(Math.sin(a0 + da / 2) * R * 0.55, (y1 * 0.5), Math.cos(a0 + da / 2) * R * 0.55); }
+    // 上のふちのクリームの花といちご・側面の飾りひも・すその貝の絞り（どれも、その角度の切れへ）
+    const nR = Math.max(8, Math.round(16 * R / tiers[0][0]) * 2);
+    for (let i = 0; i < nR; i++) { const an = (i / nR) * TAU + 0.07, sw = rosette(R * 0.075, R * 0.13); parts[inW(an)].push(['cream', sw.applyMatrix4(place(Math.sin(an) * R * 0.87, y1 - R * 0.01, Math.cos(an) * R * 0.87, 1))]);
+      const ab = an + Math.PI / nR; parts[inW(ab)].push(['berry', UPB.clone().applyMatrix4(place(Math.sin(ab) * R * 0.8, y1 - S * 0.1, Math.cos(ab) * R * 0.8, S, 0.25, ab, 0.15))]); }
+    for (let i = 0; i < nR / 2; i++) { const an = (i / (nR / 2)) * TAU + da / 2, sw = new THREE.TorusGeometry(R * 0.18, R * 0.02, 6, 16, Math.PI).rotateZ(Math.PI);
+      parts[inW(an)].push(['cream', sw.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(Math.sin(an) * R * 1.012, y1 - h * 0.28, Math.cos(an) * R * 1.012), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), an + Math.PI / 2), new THREE.Vector3(1, 1, 1)))]); }
+    const nS = Math.round(64 * R / tiers[0][0]); for (let i = 0; i < nS; i++) { const an = ((i + 0.5) / nS) * TAU; parts[inW(an)].push(['cream', new THREE.SphereGeometry(1, 7, 5).scale(R * 0.06, R * 0.05, R * 0.085).rotateY(an).applyMatrix4(place(Math.sin(an) * R * 1.03, y0 + R * 0.04, Math.cos(an) * R * 1.03, 1))]); }
+    y0 = y1; });
+  // いちばん上：いちごの山と、星（タワー）／チョコの板（ショートケーキ）。どちらも、その角度の切れへ
+  const [Rt] = tiers[tiers.length - 1], S2 = Math.min(Rt * 0.09, 1.0);
+  for (let i = 0; i < 6; i++) { const an = i * 1.05 + seed, rr = Rt * (0.18 + 0.14 * (i % 3)); parts[inW(an)].push(['berry', UPB.clone().applyMatrix4(place(Math.sin(an) * rr, y0 - S2 * 0.1, Math.cos(an) * rr, S2 * 1.2, 0.3, an, 0.25))]); }
+  if (top === 'star') { const st = new THREE.Shape(); for (let i = 0; i <= 10; i++) { const a = Math.PI / 2 + (i / 10) * TAU, r = i % 2 ? 0.42 : 1; i ? st.lineTo(Math.cos(a) * r, Math.sin(a) * r) : st.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+    const sg = new THREE.ExtrudeGeometry(st, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.1, bevelSegments: 2 }).translate(0, 0, -0.15); parts[0].push(['gold', sg.applyMatrix4(place(Math.sin(da / 2) * Rt * 0.18, y0 + Rt * 0.55, Math.cos(da / 2) * Rt * 0.18, Rt * 0.32, 0, 0.3, 0))], ['gold', new THREE.CylinderGeometry(Rt * 0.03, Rt * 0.03, Rt * 0.5, 8).applyMatrix4(place(Math.sin(da / 2) * Rt * 0.18, y0 + Rt * 0.25, Math.cos(da / 2) * Rt * 0.18, 1))]); }
+  else parts[0].push(['plate', new THREE.BoxGeometry(Rt * 0.55, Rt * 0.28, Rt * 0.03).applyMatrix4(place(Math.sin(da / 2) * Rt * 0.3, y0 + Rt * 0.17, Math.cos(da / 2) * Rt * 0.3, 1, -0.35, da / 2, 0))]);
+  for (let i = 0; i < 3; i++) parts[1 % N].push(['leaf', new THREE.PlaneGeometry(1, 0.42).translate(0.5, 0, 0).applyMatrix4(place(Math.sin(da * 1.5) * Rt * 0.35, y0 + Rt * 0.03, Math.cos(da * 1.5) * Rt * 0.35, Rt * 0.16, -1.25, i * 2.1 + seed, 0.15))], ['cherry', new THREE.SphereGeometry(1, 12, 8).applyMatrix4(place(Math.sin(da * 1.5) * Rt * 0.35 + Math.cos(i * 2.1) * Rt * 0.03, y0 + Rt * 0.05, Math.cos(da * 1.5) * Rt * 0.35 + Math.sin(i * 2.1) * Rt * 0.03, Rt * 0.03))]);
+  const g = sliceBuild(parts, wc, { ...mats, gold: CM.gold }); g.userData.kind = 'round'; g.userData.H = y0; g.userData.R = tiers[0][0]; return g; }
+// ブッシュ・ド・ノエル（輪切りにできる）：長さ L・半径 R を N 枚に。切り口は、うずの絵
+export function sliceBuche(MM, CM, L, R, N = 8, seed = 5) {
+  const mats = { ...MM, ...CM }, parts = Array.from({ length: N }, () => []), wc = [], sl = L / N, cy = R * 0.92;
+  for (let k = 0; k < N; k++) { const x0 = -L / 2 + k * sl, xm = x0 + sl / 2;
+    const geo = new THREE.CylinderGeometry(R, R, sl, 72, 6, true), p = geo.attributes.position, col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i) + xm, z = p.getZ(i), a = Math.atan2(z, x), gro = vnoise(a * 7 + seed, y * 0.25) * 0.6 + vnoise(a * 26, y * 1.3) * 0.4, kk = 1 + 0.05 * (gro - 0.5) + 0.015 * Math.sin(a * 30 + y * 0.4);
+      p.setX(i, x * kk); p.setZ(i, z * kk); const d = 0.75 + 0.5 * gro; col.set([0.29 * d, 0.15 * d, 0.07 * d], i * 3); }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals(); geo.rotateZ(-Math.PI / 2); geo.translate(xm, cy, 0);
+    { const n = geo.attributes.normal, c = geo.attributes.color, pp = geo.attributes.position; for (let i = 0; i < pp.count; i++) { const up = n.getY(i), s = SS(up, 0.35, 0.8) * SS(vnoise(pp.getX(i) * 3, pp.getZ(i) * 3 + seed), 0.35, 0.6); c.setXYZ(i, c.getX(i) + (0.96 - c.getX(i)) * s, c.getY(i) + (0.96 - c.getY(i)) * s, c.getZ(i) + (0.98 - c.getZ(i)) * s); } }   // 粉砂糖の雪
+    parts[k].push(['bark', geo]);
+    for (const sx of [-1, 1]) parts[k].push(['ends', new THREE.CircleGeometry(R * 0.985, 48).rotateY(sx * Math.PI / 2).translate(xm + sx * sl / 2 * 0.998, cy, 0)]);
+    wc[k] = new THREE.Vector3(xm, cy, 0); }
+  const seg = (x) => Math.max(0, Math.min(N - 1, Math.floor((x + L / 2) / sl)));
+  { const sr = R * 0.36, sh = R * 0.7, sx = L * 0.1; const geo = new THREE.CylinderGeometry(sr, sr, sh, 36, 4, true), cc = new Float32Array(geo.attributes.position.count * 3).fill(0.25); geo.setAttribute('color', new THREE.BufferAttribute(cc, 3)); parts[seg(sx)].push(['bark', geo.translate(sx, cy + R * 0.75 + sh / 2 - R * 0.2, -R * 0.15)], ['ends', new THREE.CircleGeometry(sr * 0.97, 32).rotateX(-Math.PI / 2).translate(sx, cy + R * 0.75 + sh - R * 0.2, -R * 0.15)]); }
+  for (let i = 0; i < 6; i++) { const x = (-0.42 + i * 0.16) * L, a = (i % 2 ? 1 : -1) * (0.5 + 0.2 * i), y0 = cy + Math.cos(a) * R * 0.98, z0 = Math.sin(a) * R * 0.98, s = R * (0.16 + 0.04 * (i % 3));
+    parts[seg(x)].push(['mochi', new THREE.CylinderGeometry(s * 0.35, s * 0.45, s * 1.0, 14).applyMatrix4(place(x, y0 + s * 0.35, z0, 1, a * 0.4, 0, 0))], ['mochi', new THREE.SphereGeometry(s, 18, 10, 0, TAU, 0, Math.PI / 2).scale(1, 0.62, 1).applyMatrix4(place(x, y0 + s * 0.85, z0, 1, a * 0.4, 0, 0)), '#f6efe6']); }
+  const hx = -L * 0.18; for (let i = 0; i < 4; i++) parts[seg(hx)].push(['leaf', new THREE.PlaneGeometry(1, 0.42).translate(0.5, 0, 0).applyMatrix4(place(hx, cy + R * 0.98, R * 0.05, R * 0.32, -1.2, i * 1.6 + seed, 0.15))]);
+  for (let i = 0; i < 3; i++) parts[seg(hx)].push(['cherry', new THREE.SphereGeometry(1, 14, 10).applyMatrix4(place(hx + Math.cos(i * 2.1) * R * 0.06, cy + R * 1.02, R * 0.05 + Math.sin(i * 2.1) * R * 0.06, R * 0.06))]);
+  const g = sliceBuild(parts, wc, mats); g.userData.kind = 'log'; g.userData.L = L; g.userData.R = R; g.userData.H = cy + R; return g; }
