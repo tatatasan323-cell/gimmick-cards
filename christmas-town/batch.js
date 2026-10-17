@@ -39,14 +39,15 @@ function unify(geos) {
 }
 
 export class Batcher {
-  constructor(scene) { this.scene = scene; this.items = []; this.dots = []; this.meshes = []; this.hidden = []; this.twins = []; this.sprites = [];
+  // meshes＝面を BatchedMesh で束ねるか（WebGL2 の時だけ。WebGL1 では束ねたシェーダーが作れず、ヨットの船体などが消えた）
+  constructor(scene, { meshes = true } = {}) { this.scene = scene; this.useMeshes = meshes; this.items = []; this.dots = []; this.meshes = []; this.hidden = []; this.twins = []; this.sprites = [];
     const prev = scene.onBeforeRender; scene.onBeforeRender = (...a) => { prev.apply(scene, a); this.sync(); };   // 行列が更新された後・描く物を集める前
   }
   // roots の下の部品を束ねる。skip(o) が真の部品（とその下）は束ねない
   add(roots, skip = () => false) {
     const byMat = new Map(), byDot = new Map();
     const walk = (o) => { if (skip(o)) return;
-      if (canMesh(o)) (byMat.get(o.material) || byMat.set(o.material, []).get(o.material)).push(o);
+      if (this.useMeshes && canMesh(o)) (byMat.get(o.material) || byMat.set(o.material, []).get(o.material)).push(o);
       else if (canDots(o)) { const k = dotKey(o); (byDot.get(k) || byDot.set(k, []).get(k)).push(o); }
       for (const c of o.children) walk(c); };
     for (const r of roots) { r.updateMatrixWorld(true); walk(r); }

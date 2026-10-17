@@ -606,12 +606,14 @@ function sliceBuild(parts, wc, mats) { const keys = new Set(); parts.forEach((L)
     R.forEach(([s, e], k) => { for (let i = s; i < e; i++) { aw[i] = k; ac.set([wc[k].x, wc[k].y, wc[k].z], i * 3); } });
     mesh.geometry.setAttribute('aWedge', new THREE.BufferAttribute(aw, 1)); mesh.geometry.setAttribute('aWC', new THREE.BufferAttribute(ac, 3)); rng[key] = R; g.add(mesh); }
   g.userData.rng = rng; g.userData.N = parts.length; return g; }
+// 折れ線を、step ごとの点に細かくする。食べた跡は頂点を動かしてくぼませるので、側面が縦2列・上面が3つの輪のままでは、かじっても欠けなかった（2026-10-18）
+const fineLine = (pts, step) => { const out = [pts[0]]; for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / step)); for (let j = 1; j <= n; j++) out.push([x0 + ((x1 - x0) * j) / n, y0 + ((y1 - y0) * j) / n]); } return out; };
 // 丸いケーキ（段を重ねるとタワー）：tiers＝[[半径, 高さ], …]（下から）。N＝切れの数
 export function sliceCake(MM, CM, tiers, N = 8, seed = 1, top = 'star') {
   const mats = { ...MM, ...CM, cut: CM.cut }, parts = Array.from({ length: N }, () => []), wc = [], da = TAU / N, inW = (a) => Math.floor((((a % TAU) + TAU) % TAU) / da) % N;
   const UPB = STRAW.clone().rotateX(Math.PI).translate(0, 1.15, 0); let y0 = 0;
   tiers.forEach(([R, h], ti) => { const y1 = y0 + h, fil = R * 0.08, S = Math.min(R * 0.075, 0.9);
-    for (let k = 0; k < N; k++) { const a0 = k * da, prof = [[R * 1.0, y0], [R, y0 + h * 0.02], [R, y1 - fil], [R - fil * 0.3, y1 - fil * 0.3], [R - fil, y1], [R * 0.6, y1 + R * 0.01], [0.001, y1 + R * 0.012]];
+    for (let k = 0; k < N; k++) { const a0 = k * da, prof = fineLine([[R * 1.0, y0], [R, y0 + h * 0.02], [R, y1 - fil], [R - fil * 0.3, y1 - fil * 0.3], [R - fil, y1], [R * 0.6, y1 + R * 0.01], [0.001, y1 + R * 0.012]], 0.4);
       const body = new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 18, a0, da), p = body.attributes.position, col = new Float32Array(p.count * 3);
       for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(x, z), r = Math.hypot(x, z), side = r > R * 0.97 && y > y0 + h * 0.06 && y < y1 - fil, kk = side ? 1 + 0.012 * Math.abs(Math.sin(a * 40)) : 1; p.setX(i, x * kk); p.setZ(i, z * kk); const v = 0.95 + 0.05 * vnoise(a * 30, y * 2); col.set([v, v * 0.985, v * 0.96], i * 3); }
       body.setAttribute('color', new THREE.BufferAttribute(col, 3)); body.computeVertexNormals(); parts[k].push(['cream', body]);
