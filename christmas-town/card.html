@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>とろけて聖夜｜X'masグリーティングカード</title>
 <meta name="description" content="宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。時間がとろける、おかしな港町へようこそ。">
 <meta property="og:title" content="とろけて聖夜｜X'masグリーティングカード">
@@ -33,15 +33,15 @@ h1 .gl.boing{animation:gb .7s ease-out}
 @keyframes gb{0%{transform:scale(1.3,.68)}30%{transform:scale(.8,1.28) translateY(-6%)}55%{transform:scale(1.12,.9)}78%{transform:scale(.96,1.05)}100%{transform:scale(1,1)}}
 @keyframes jel{0%,82%,100%{transform:scale(1,1)}86%{transform:scale(1.06,.93)}90%{transform:scale(.97,1.04)}94%{transform:scale(1.02,.98)}}
 .sub{margin:8px 0 0;font-size:15px;font-weight:800;letter-spacing:.12em;color:var(--sub)}
-.puyos{display:flex;justify-content:center;gap:12px;margin:16px 0 12px;height:62px;align-items:flex-end}
-.puyo{position:relative;width:54px;height:46px;border:0;padding:0;cursor:pointer;border-radius:50% 50% 44% 44%/62% 62% 38% 38%;background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.9) 0 7%,transparent 8%),radial-gradient(circle at 50% 70%,var(--c2) 0%,var(--c1) 72%);box-shadow:inset 0 -6px 10px rgba(0,0,0,.18),inset 0 4px 8px rgba(255,255,255,.35),0 6px 14px rgba(0,0,0,.35);opacity:.92;animation:hop 1.8s ease-in-out infinite;transform-origin:50% 100%;-webkit-tap-highlight-color:transparent}
-.puyo::before,.puyo::after{content:"";position:absolute;top:44%;width:6px;height:9px;border-radius:50%;background:#2a1a2a}
-.puyo::before{left:33%}.puyo::after{right:33%}
-.puyo b{position:absolute;left:50%;top:62%;width:10px;height:5px;margin-left:-5px;border-radius:0 0 10px 10px;border:2px solid #2a1a2a;border-top:0}
-.puyo:nth-child(1){--c1:#ff7aa6;--c2:#ffd0e0}.puyo:nth-child(2){--c1:#3fd08a;--c2:#c8ffe0;animation-delay:.3s}.puyo:nth-child(3){--c1:#ffc83a;--c2:#fff2b8;animation-delay:.6s}.puyo:nth-child(4){--c1:#a07aff;--c2:#e2d6ff;animation-delay:.9s}
-@keyframes hop{0%,100%{transform:translateY(0) scale(1.06,.94)}12%{transform:translateY(0) scale(1.1,.88)}38%{transform:translateY(-14px) scale(.94,1.08)}62%{transform:translateY(0) scale(1.08,.92)}}
-.puyo.sq{animation:sq .55s ease-out}
-@keyframes sq{0%{transform:scale(1.35,.62)}35%{transform:scale(.82,1.25) translateY(-10px)}65%{transform:scale(1.12,.9)}100%{transform:scale(1,1)}}
+/* カードの枠の上に立つ、雪の降る港町（本人 2026-10-19「ゼリーの住人は違和感」→ 吊り下げの飾りは「普通な感じ」→ 手描きの町は「もうちょっとリッチな絵がいい」）
+   港町の3Dを撮った絵（上と左右は夜空へ溶かす）。下は、カードの枠に積もった雪。手前に雪が降り、さわると鈴の音ときらきら */
+.town2{position:relative;z-index:2;margin:8px -6px -18px;aspect-ratio:3/1;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.town2 img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.town2 .bank{position:absolute;left:0;bottom:0;width:100%;height:17%;pointer-events:none}
+.town2 .fl{position:absolute;top:-8px;left:var(--x);width:var(--s,4px);height:var(--s,4px);border-radius:50%;background:#fff;opacity:.85;box-shadow:0 0 4px #fff;pointer-events:none;animation:fall var(--d,7s) linear infinite;animation-delay:var(--dl,0s)}
+@keyframes fall{0%{transform:translate(0,0)}50%{transform:translate(8px,90px)}100%{transform:translate(-4px,180px)}}
+.town2 .spark{position:absolute;width:7px;height:7px;margin:-3.5px;border-radius:50%;background:#fff6c0;box-shadow:0 0 8px #ffd86a,0 0 2px #fff;pointer-events:none;animation:spark .8s ease-out forwards}
+@keyframes spark{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
 .card{position:relative;margin:4px 0 16px;padding:22px 20px 20px;background:var(--paper);color:var(--brown);border:10px solid var(--cookie);border-radius:26px;box-shadow:0 0 0 2px #8a5428,0 18px 40px rgba(0,0,0,.45);outline:3px dashed rgba(255,255,255,.95);outline-offset:-9px}
 .sample{position:absolute;right:16px;top:12px;margin:0;padding:2px 10px;border-radius:999px;background:#ffe2e6;color:var(--red);font-size:11px;font-weight:800;letter-spacing:.1em}
 .ttl{margin:4px 0 4px;text-align:center;font-size:26px;font-weight:900;letter-spacing:.04em;color:#b8203a;text-wrap:balance;overflow-wrap:anywhere}
@@ -134,8 +134,11 @@ h1 .gl.boing{animation:gb .7s ease-out}
     <h1 id="brand" aria-label="とろけて聖夜">とろけて聖夜</h1>
     <p class="sub">はじいて、こわして、とろける。</p>
   </header>
-  <div class="puyos" aria-label="ゼリーの住人（さわると、ぷるん）">
-    <button class="puyo" type="button" aria-label="ピンクのぷよ"><b></b></button><button class="puyo" type="button" aria-label="みどりのぷよ"><b></b></button><button class="puyo" type="button" aria-label="きいろのぷよ"><b></b></button><button class="puyo" type="button" aria-label="むらさきのぷよ"><b></b></button>
+  <!-- カードの枠の上に立つ、雪の降る港町（港町の3Dを撮った絵：town_banner.webp）。下の雪がカードの枠の上の地面。さわると鈴の音と、きらきら -->
+  <div class="town2" id="town2" role="img" aria-label="雪の降る、おかしな港町（さわると、鈴の音）">
+    <img src="town_banner.webp" alt="" width="1080" height="360" decoding="async">
+    <svg class="bank" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="snowB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe8f6"/></linearGradient></defs><path d="M0 20 V10 Q14 3 30 8 Q46 1 66 7 Q86 0 108 6 Q128 1 150 7 Q172 0 196 6 Q218 1 240 7 Q262 0 284 6 Q306 1 330 7 Q352 0 374 6 Q390 3 400 8 V20 Z" fill="url(#snowB2)"/></svg>
+    <i class="fl" style="--x:4%;--d:7.5s;--dl:-1.0s;--s:4px"></i><i class="fl" style="--x:13%;--d:9.0s;--dl:-4.2s;--s:3px"></i><i class="fl" style="--x:22%;--d:6.8s;--dl:-2.6s;--s:5px"></i><i class="fl" style="--x:31%;--d:8.4s;--dl:-6.0s;--s:3px"></i><i class="fl" style="--x:40%;--d:7.2s;--dl:-0.4s;--s:4px"></i><i class="fl" style="--x:49%;--d:9.6s;--dl:-3.3s;--s:3px"></i><i class="fl" style="--x:58%;--d:6.6s;--dl:-5.1s;--s:5px"></i><i class="fl" style="--x:67%;--d:8.8s;--dl:-1.8s;--s:3px"></i><i class="fl" style="--x:76%;--d:7.4s;--dl:-4.7s;--s:4px"></i><i class="fl" style="--x:85%;--d:9.2s;--dl:-2.2s;--s:3px"></i><i class="fl" style="--x:93%;--d:6.9s;--dl:-5.6s;--s:4px"></i>
   </div>
 
   <article class="card" id="card" aria-labelledby="ttl">
@@ -282,6 +285,7 @@ import { Card, clean, KEYS } from './card_code.js';
       unlock() { try { if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.8; out.connect(ac.destination); } if (ac.state !== 'running') ac.resume(); } catch (e) { /* 同上 */ } },
       boing(k) { const f = [392, 330, 440, 294][k % 4] * (0.95 + Math.random() * 0.1); tone(f * 1.5, f, 0.12, 0, 0.34); tone(f * 0.75, f * 0.55, 0.06, 0.02, 0.42, 'triangle'); },
       tap() { tone(1400, 1100, 0.03, 0, 0.06); },
+      jingle(k) { const f = [1568, 1760, 1976, 2093, 2349, 2637][k % 6]; tone(f, f, 0.06, 0, 0.9); tone(f * 2.76, f * 2.76, 0.018, 0, 0.45); tone(f * 1.5, f * 1.5, 0.03, 0.07, 0.6); },   // 鈴：高い音に、ずれた倍音を少し
       chime() { [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, f, 0.05, i * 0.09, 0.9)); },
     }; })();
 
@@ -404,7 +408,10 @@ import { Card, clean, KEYS } from './card_code.js';
   $('#goTown').href = PAGES ? (fromTown ? './#post' : './') : TOWN;
   if (!PAGES) { $('#goTown').target = '_blank'; $('#goTown').rel = 'noopener'; }
   $('#back').hidden = !fromTown;
-  document.querySelectorAll('.puyo').forEach((p, i) => p.addEventListener('click', () => { Snd.unlock(); Snd.boing(i); p.classList.remove('sq'); void p.offsetWidth; p.classList.add('sq'); }));
+  // 絵の町：さわった所から、きらきら。鈴の音は、さわった左右の位置で高さを変える
+  { const tw = $('#town2'); tw.addEventListener('click', (e) => { Snd.unlock(); const r = tw.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; Snd.jingle(Math.min(5, Math.floor((x / r.width) * 6)));
+      for (let i = 0; i < 9; i++) { const sp = document.createElement('i'), a = (i / 9) * 6.283 + Math.random() * 0.4, d = 16 + Math.random() * 18; sp.className = 'spark'; sp.style.left = x + 'px'; sp.style.top = y + 'px';
+        sp.style.setProperty('--dx', (Math.cos(a) * d).toFixed(1) + 'px'); sp.style.setProperty('--dy', (Math.sin(a) * d).toFixed(1) + 'px'); tw.appendChild(sp); setTimeout(() => sp.remove(), 900); } }); }
 
   // ---------- 4. カードをつくる・送る ----------
   const editor = $('#editor'), edBack = $('#edBack');

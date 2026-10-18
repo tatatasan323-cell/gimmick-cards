@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>おかしな港町</title>
 <meta name="description" content="これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。">
 <link rel="manifest" href="manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="とろけて聖夜"><link rel="apple-touch-icon" href="icon_180.png">
@@ -51,6 +51,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 @keyframes tw{0%,100%{opacity:.15;transform:scale(.55) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(25deg)}}
 @media (prefers-reduced-motion:reduce){#cotC,#cotName span,.spk{animation:none}#cotIn{transition:none}}
 #menuB{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:13px;font-weight:800;color:#fff3df;background:rgba(40,22,8,.55);border:1px solid rgba(255,230,190,.35);border-radius:999px;padding:7px 12px;cursor:pointer}
+#fsB{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));z-index:15;width:38px;height:38px;padding:0;border:0;border-radius:12px;background:rgba(30,18,8,.5);color:#ffe7c0;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)}#fsB[hidden]{display:none}
 #menu{position:fixed;inset:0;z-index:25;background:rgba(10,6,20,.45);display:flex;align-items:flex-end;justify-content:center}#menu[hidden]{display:none}
 #sheet{width:min(100%,520px);max-height:82vh;box-sizing:border-box;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:#fff8ee;color:#2a1a10;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(0,0,0,.4)}
 #tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}#tabs button{font:inherit;font-size:12.5px;line-height:1.2;font-weight:800;border:0;border-radius:999px;padding:7px 2px;background:#eadccb;color:#5a3a1a;cursor:pointer}#tabs button.on{background:#c8732e;color:#fff}
@@ -100,6 +101,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="tip"><p id="tipQ"></p><div class="row"><button id="tipYes" type="button">うん</button><button id="tipNo" type="button">まだ！ つれてって</button></div></div>
 <div id="cotton" hidden><canvas id="cotC"></canvas><div id="cotIn"><div id="cotTag"></div><div id="cotName"></div><p id="cotText"></p><div id="cotSrc"></div><button id="cotOk" type="button">なるほど！</button></div></div>
 <button id="menuB" type="button" aria-haspopup="dialog">☰ メニュー</button>
+<button id="fsB" type="button" aria-label="全画面にする" hidden><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path id="fsI" d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <div id="introSub" hidden></div>
 <div id="introLead" hidden>これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。</div>
 <button id="introTap" type="button" hidden>タッチしてね</button>
@@ -146,7 +148,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPr
 const GLDIAG = { gpu: '', err: [], simple: [] };
 // 頂点を動かす繰り返し（山・灯台・ケーキのくぼみ／海のうねり／店の飴のかじり跡）が端末で動かなかった時は、その作りを省いた簡単な形で描く（goSimple）。?simple で最初から全部
 // スマホのブラウザだけで、この3つの作りを使う物がそろって描かれなかった（LINE の中では描ける。2026-10-17〜18。原因は未確定）
-const SIMPLE = { eat: q.has('simple'), sea: q.has('simple'), bt: q.has('simple') }, BREAK = q.get('break');   // BREAK＝点検用：その作りのシェーダーにわざとエラーを入れて、省いて描き直せるかを見る（eat・sea・bt）
+const SIMPLE = { eat: q.has('simple'), sea: q.has('simple'), bt: q.has('simple') }, BREAK = q.has('fps') ? q.get('break') : null;   // BREAK＝点検用：その作りのシェーダーにわざとエラーを入れて、省いて描き直せるかを見る（eat・sea・bt）。?fps の時だけ（人に送るリンクに付けられて、誤った知らせが出ないように）
 try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); GLDIAG.gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { /* 名前が取れない端末もある */ }
 renderer.debug.onShaderError = (gl, prog, vs, fs) => { const src = gl.getShaderSource(vs) || '', tag = /uEatTex/.test(src) ? '山・灯台・ケーキ' : /waveAt/.test(src) ? '海' : /uBt0/.test(src) ? '店の飴' : /batchingTexture/.test(src) ? '束ねた部品' : 'ほか';
   const m = tag + ': ' + ([gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs), gl.getProgramInfoLog(prog)].filter(Boolean).join(' | ').replace(/\s+/g, ' ').slice(0, 400) || 'link failed'); GLDIAG.err.push(m); console.error('shader error:', m); goSimple(tag); };
@@ -353,7 +355,8 @@ for (const mm of EAT_MESHES) { const a = mm.geometry.attributes.aMtn, R = {}; if
 // 計算するのは、いま食べられている山の頂点だけ（ふだんは、どの頂点も何もしない）
 // 跡の数は、端末の力に合わせる（頂点の uniform の上限を目安に。跡1つごとに、食べている山の頂点で繰り返しが1回増える）。跡は画像で渡すので、数は uniform の上限には縛られない
 const VU = (() => { try { const g = renderer.getContext(); return g.getParameter(g.MAX_VERTEX_UNIFORM_VECTORS); } catch (e) { return 256; } })();
-const DENT_N = q.has('dent') ? Math.max(4, +q.get('dent')) : VU >= 512 ? 40 : VU >= 256 ? 24 : 10, EAT_N = 16, EAT = { dent: Array.from({ length: DENT_N }, () => new THREE.Vector4()), dir: Array.from({ length: DENT_N }, () => new THREE.Vector3(0, 1, 0)), dm: new Float32Array(DENT_N), on: new Float32Array(EAT_N), dn: Array.from({ length: DENT_N }, () => new THREE.Vector4()), on4: Array.from({ length: EAT_N / 4 }, () => new THREE.Vector4()), list: [], next: 0 };   // 食べられる物＝山12・ケーキ2（12・13）・灯台（14）
+// ?dent＝跡の枠の数を試す時だけ。4〜40に収める（上限なしだと、大きな数を付けたリンクで、開いた人の端末が固まる。数でない値は既定へ）
+const DENT_Q = Math.round(Number(q.get('dent'))), DENT_N = q.has('dent') && Number.isFinite(DENT_Q) ? clamp(DENT_Q, 4, 40) : VU >= 512 ? 40 : VU >= 256 ? 24 : 10, EAT_N = 16, EAT = { dent: Array.from({ length: DENT_N }, () => new THREE.Vector4()), dir: Array.from({ length: DENT_N }, () => new THREE.Vector3(0, 1, 0)), dm: new Float32Array(DENT_N), on: new Float32Array(EAT_N), dn: Array.from({ length: DENT_N }, () => new THREE.Vector4()), on4: Array.from({ length: EAT_N / 4 }, () => new THREE.Vector4()), list: [], next: 0 };   // 食べられる物＝山12・ケーキ2（12・13）・灯台（14）
 // 跡の中身は、1列の画像（浮動小数）に並べて頂点シェーダーで読む：[0, N) 中心と半径／[N, 2N) すくう向きと山の番号／[2N, 2N+4) 山ごとの「跡あり」を4つずつ
 // uniform の配列で渡すと、Android の Chrome で山・灯台・ケーキが丸ごと描かれなかった（LINE の中では描ける。頂点シェーダーで画像を読む、束ねたヨットは描けていた 2026-10-18）
 const EAT_TW = DENT_N * 2 + EAT_N / 4, EAT_TEX = new THREE.DataTexture(new Float32Array(EAT_TW * 4), EAT_TW, 1, THREE.RGBAFormat, THREE.FloatType); EAT_TEX.magFilter = EAT_TEX.minFilter = THREE.NearestFilter; EAT_TEX.needsUpdate = true;
@@ -1880,8 +1883,13 @@ function stepDrone(dt, now) {
   if (!card.hidden && cardAt && !auto && drone.p.distanceTo(cardAt) > 12) card.hidden = true;
   if (COT.open && !auto && drone.p.distanceTo(COT.at) > 12) closeTrivia();   // 札の所から離れたら、たたむ
 }
+// 眺めているだけの時（指・キー・スティック・上下のボタンを離して3秒・自動で飛んでいない・題字の間でない）は、1コマおきに描く（毎秒30コマ）
+// 何もしない時も毎秒60コマで描き続け、遅いスマホでは CPU を使いっぱなしだった（CPU 4倍遅くで1コマ20ms）。眺める間だけ、CPU と GPU を半分休ませる（本人 2026-10-19「無用な負荷がかからないように」）
+let idleAt = 0, idleSkip = false; for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(ev, () => { idleAt = performance.now(); }, { passive: true, capture: true });
+const resting = () => performance.now() - idleAt > 3000 && !auto && INTRO.t < 0 && joy.id == null && !ud.v && !held.size && !ptrs.size;
 function frame() {
-  const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
+  if (resting()) { idleSkip = !idleSkip; if (idleSkip) { requestAnimationFrame(frame); return; } }
+  const raw = clock.getDelta(), dt = Math.min(0.034, raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
   if (SHOP.on) { stepShop(dt, t); renderer.render(SHOP.sc, SHOP.cam); requestAnimationFrame(frame); return; }
   stepDrone(dt, now); sky.update(cam.position, t);
   waterMat.uniforms.uT.value = t; sqMat.uniforms.uT.value = t; FALL.mat.uniforms.uT.value = t;
@@ -2096,9 +2104,13 @@ function drawMenu() {
     P.append(mRow('効果音', 'さわった時の音', mBtn(PREF.se ? 'オン' : 'オフ', () => { PREF.se = !PREF.se; savePref(); SND.setMute(!PREF.se); drawMenu(); }, PREF.se ? 'on' : null))); } }
 // 画面を広く：全画面にできる端末（Android の Chrome・iPad など）はボタンで。iPhone は「ホーム画面に追加」から開くと、アドレスバーなし。LINE の下の枠は消せない
 const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent), IN_LINE = / Line\//i.test(navigator.userAgent), STANDALONE = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+// 全画面：メニューの中と、右上のボタン（本人 2026-10-19「メニューの中だけに隠さず、右上に切り替えボタンが欲しい」）。全画面にできない端末（iPhone など）と、ホーム画面のアイコンから開いた時は、ボタンを出さない
+const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), inFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFS() { try { if (inFS()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement); } catch (e) { /* できない端末 */ } }
+function fsIcon() { const on = inFS(); $('fsI').setAttribute('d', on ? 'M7 2v5H2M18 7h-5V2M13 18v-5h5M2 13h5v5' : 'M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5'); $('fsB').setAttribute('aria-label', on ? '全画面をやめる' : '全画面にする'); }
+if (fsOK && !STANDALONE) { $('fsB').hidden = false; $('fsB').addEventListener('click', () => { SND.audio(); SND.tap(); toggleFS(); }); for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { fsIcon(); if (!$('menu').hidden) drawMenu(); }); }
 function screenRows(P) { P.append(mEl('div', 'hd', '画面を広く'));
-  const fsOK = document.fullscreenEnabled || document.webkitFullscreenEnabled, inFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-  if (fsOK) P.append(mRow(inFS() ? '全画面で遊んでいます' : '全画面にする', 'アドレスバーやボタンを消して、画面いっぱいに', mBtn(inFS() ? 'もどす' : '全画面', () => { try { if (inFS()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement); } catch (e) { /* できない端末 */ } setTimeout(drawMenu, 400); }, 'go')));
+  if (fsOK) P.append(mRow(inFS() ? '全画面で遊んでいます' : '全画面にする', 'アドレスバーやボタンを消して、画面いっぱいに（右上のボタンでも）', mBtn(inFS() ? 'もどす' : '全画面', () => { toggleFS(); setTimeout(drawMenu, 400); }, 'go')));
   else if (IOS && !STANDALONE && !IN_LINE) P.append(mRow('ホーム画面に追加すると、アドレスバーなしで', 'Safari の共有ボタン（□↑）→「ホーム画面に追加」。アイコンから開くと画面いっぱいに（記録は別になります）'));
   // 画面の向き：向きを固定できる端末（Android の Chrome など）は、ボタンで縦・横を切りかえ（全画面にしてから固定）。iPhone は端末の「画面の向きのロック」を切ると、横にした時に横画面に
   const canLock = !!(screen.orientation && screen.orientation.lock) && !IOS, lockTo = (o) => { const go = () => screen.orientation.lock(o).catch(() => {}); try { if (document.fullscreenElement || document.webkitFullscreenElement) go(); else (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement).then(go, go); } catch (e) { /* できない端末 */ } setTimeout(drawMenu, 600); };
@@ -2215,7 +2227,7 @@ function stepIntro(dt) { if (INTRO.t < 0) return; INTRO.t += dt; const t = INTRO
   if (INTRO.L.length && INTRO.L.every((L) => L.popped)) introEnd(); }
 // 題字は自動でははじけない。「タッチしてね」（どこをさわっても）ではじけて、BGM が始まる（本人 2026-10-18。自動ではじけると、はじける音は音を出せる前に鳴っていた）
 // 最初のひとさわりは町へ渡さない。町の用意がまだの間・招待状のお知らせの間は、はじけない
-const skipIntro = (e) => { if (INTRO.hold || INTRO.wait || (e && e.target && e.target.closest && e.target.closest('#invite'))) return; if (INTRO.t >= 0 && INTRO.t < INTRO.out) { INTRO.out = INTRO.t; $('introTap').hidden = true; if (e && e.type === 'pointerdown') e.stopPropagation(); } };
+const skipIntro = (e) => { if (INTRO.hold || INTRO.wait || (e && e.target && e.target.closest && e.target.closest('#invite, #fsB'))) return; if (INTRO.t >= 0 && INTRO.t < INTRO.out) { INTRO.out = INTRO.t; $('introTap').hidden = true; if (e && e.type === 'pointerdown') e.stopPropagation(); } };
 addEventListener('pointerdown', skipIntro, { capture: true }); addEventListener('keydown', skipIntro, { capture: true });
 // 招待状のお知らせ：「先に招待状を見る」＝カードへ／「町を見てから」＝閉じて、題字がはじけて探索。あとからは、左上の封筒のボタンで
 // グリーティングカード（k＝'g'）は「メリークリスマスが届いているよ！」「先にカードを見る」
