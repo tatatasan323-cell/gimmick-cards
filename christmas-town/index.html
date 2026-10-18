@@ -1522,18 +1522,24 @@ function exitShop() { if (!SHOP.on) return; SHOP.on = false; SHOP.ptrs.clear(); 
 // 奥の売り物と店員もかじれる（本人 2026-10-18）。売り物は、山と同じく頂点をへこませる跡（世界の座標・1列の画像に12まで）。跡は9秒たつと、4秒かけてゆっくりふさがる
 // 頂点ごとの繰り返しは、跡のまわりの球（uDcBox）の中の頂点だけ（売り物は三角が十数万あるので、ふだんは1回の距離の計算だけ）
 const DC_N = 12, DC = { list: [], tex: new THREE.DataTexture(new Float32Array(DC_N * 4), DC_N, 1, THREE.RGBAFormat, THREE.FloatType), box: new THREE.Vector4(0, 0, 0, 0) }; DC.tex.magFilter = DC.tex.minFilter = THREE.NearestFilter; DC.tex.needsUpdate = true;
-function decorEatable(meshes) { const done = new Set(); for (const mm of meshes) { chunkRay(mm); const m = mm.material; if (done.has(m)) continue; done.add(m); const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
+// 跡のかかった頂点は、その飴のまん中（aDI）の方へ、跡の球の外に出るまで引き寄せる。まん中が跡の中なら、飴ごと縮めて消す（跡がふさがる間に、まん中から元の大きさへ）
+// 面の向きは変えない。かじれるのは aDI を持つ飴だけ（ガラス・金・木・飾り棚などは食べない）
+const DC_R = 0.07;
+function decorEatable(meshes) { const done = new Set(); for (const mm of meshes) { chunkRay(mm); if (!mm.geometry.attributes.aDI) continue; const m = mm.material; if (done.has(m)) continue; done.add(m); const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
   m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); sh.uniforms.uDcT = { value: DC.tex }; sh.uniforms.uDcBox = { value: DC.box };
-    sh.vertexShader = `uniform sampler2D uDcT; uniform vec4 uDcBox; varying float vDc;\nvec4 dcT(int i) { return texture2D(uDcT, vec2((float(i) + 0.5) / ${DC_N}.0, 0.5)); }\n` + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+    sh.vertexShader = `attribute vec3 aDI; uniform sampler2D uDcT; uniform vec4 uDcBox; varying float vDc;\nvec4 dcT(int i) { return texture2D(uDcT, vec2((float(i) + 0.5) / ${DC_N}.0, 0.5)); }\n` + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
   vec3 dcOff = vec3(0.0); vDc = 0.0;
-  { vec3 wP = (modelMatrix * vec4(position, 1.0)).xyz;
-    if (uDcBox.w > 0.0 && distance(wP, uDcBox.xyz) < uDcBox.w) { vec3 wO = vec3(0.0), wN = vec3(0.0);
-      for (int i = 0; i < ${DC_N}; i++) { vec4 d = dcT(i); if (d.w > 0.0) { vec3 v = wP + wO - d.xyz; float L = length(v); if (L < d.w) { vec3 nv = v / max(L, 1e-4); wO += nv * (d.w - L + 0.004); wN = -nv; vDc = 1.0; } } }
-      if (vDc > 0.5) { float s2 = dot(modelMatrix[0].xyz, modelMatrix[0].xyz); dcOff = (vec4(wO, 0.0) * modelMatrix).xyz / s2; objectNormal = normalize((vec4(wN, 0.0) * modelMatrix).xyz); } } }`).replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += dcOff;');
+  { vec3 wC = (modelMatrix * vec4(aDI, 1.0)).xyz;
+    if (uDcBox.w > 0.0 && distance(wC, uDcBox.xyz) < uDcBox.w + 0.4) { vec3 wP = (modelMatrix * vec4(position, 1.0)).xyz, q = wP; float s = 1.0;
+      for (int i = 0; i < ${DC_N}; i++) { vec4 d = dcT(i); if (d.w > 0.0) {
+        if (distance(wC, d.xyz) < ${DC_R}) s = min(s, 1.0 - d.w / ${DC_R});
+        else { vec3 w = q - d.xyz; float c = dot(w, w) - d.w * d.w; if (c < 0.0) { vec3 v = wC - q; float a = max(dot(v, v), 1e-8), b = 2.0 * dot(w, v); q += v * min((-b + sqrt(max(b * b - 4.0 * a * c, 0.0))) / (2.0 * a), 1.0); vDc = 1.0; } } } }
+      q = wC + (q - wC) * max(s, 0.0); if (s < 0.999) vDc = 1.0;
+      dcOff = (vec4(q - wP, 0.0) * modelMatrix).xyz / dot(modelMatrix[0].xyz, modelMatrix[0].xyz); } }`).replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += dcOff;');
     sh.fragmentShader = 'varying float vDc;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.15 + 0.06, vDc);'); };
   m.customProgramCacheKey = () => (key ? key.call(m) : '') + '|dc'; } }
 // 売り物をかじる：当たった所に、小さな球の跡。同じ所を続けてかじると、跡の中心が奥へ進む（端から削れる）
-function decorBite(p, n) { const r = 0.07, near = DC.list.filter((D) => D.c.distanceTo(p) < r * 1.3).length, c = p.clone().addScaledVector(n, r * (0.35 - 0.3 * Math.min(near, 3)));
+function decorBite(p, n) { const r = DC_R, near = DC.list.filter((D) => D.c.distanceTo(p) < r * 1.3).length, c = p.clone().addScaledVector(n, r * (0.35 - 0.3 * Math.min(near, 3)));
   if (DC.list.length >= DC_N) DC.list.shift(); DC.list.push({ c, r, t: 0 }); SND.candyCrunch(0.3); shopFx(p, '#fff2c0', 8, 0.35, 0.45); counts.decorBites = (counts.decorBites || 0) + 1; }
 function stepDecor(dt) { if (!DC.list.length && DC.box.w === 0) return; const D4 = DC.tex.image.data; D4.fill(0); let cx = 0, cy = 0, cz = 0;
   DC.list = DC.list.filter((D) => (D.t += dt) < 13);
@@ -1545,7 +1551,7 @@ function keeperBite(p) { const K = SHOP.keeper; if (!K || K.gone) return; K.eat 
   if (K.eat >= 1) { K.gone = nowS(); K.m.visible = false; shopFx(p, '#c07a3a', 26, 0.6, 0.7); } }
 // 飴に当たらなかったタップ：手前から、店員・売り物の順に当たりを見る（ray は shopPick が向けたまま）
 function shopOther() { const K = SHOP.keeper, cand = []; if (K && K.m.visible && !K.gone) { const hk = ray.intersectObject(K.m, false)[0]; if (hk) cand.push(['k', hk]); }
-  const D = SHOP.sc.userData.decor; if (D) { const hd = ray.intersectObjects(D, false)[0]; if (hd) cand.push(['d', hd]); }
+  const D = SHOP.sc.userData.decor; if (D) { const hd = ray.intersectObjects(D.filter((m) => m.geometry.attributes.aDI), false)[0]; if (hd) cand.push(['d', hd]); }   // 飴だけに当てる（びんのガラスは通り抜けて中の飴へ）
   if (!cand.length) return null; cand.sort((a, b) => a[1].distance - b[1].distance); const [kind, h] = cand[0];
   if (kind === 'k') keeperBite(h.point); else decorBite(h.point, h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 0, 1)); return kind; }
 function shopPick(x, y) { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, SHOP.cam);
@@ -1976,13 +1982,15 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   unlockTown: () => { for (const T of TRIVIA) found.add(T.id); updateFound(); checkUnlock(); return OPEN.shop; }, unlockAll: () => { for (const T of [...TRIVIA, ...CANDIES]) found.add(T.id); for (const id of USE_ALL) USED.add(id); updateFound(); checkUnlock(); return OPEN.cakes; },
   open: () => ({ ...OPEN, cakesOn: MOUNTS.filter((M) => M.cake).map((M) => M.on), shopArea: !!SHOP_AREA, shopG: !!SHOP_G }), used: () => [...USED], ach: () => [...ACH], fT: () => [$('fN').textContent, $('fT').textContent],
   rain: () => RAIN.map((R) => R.list.length).reduce((a, b) => a + b, 0), rainStates: () => RAIN.flatMap((R) => R.list.map((c) => c.st)), rainSpawn: (n) => { for (let i = 0; i < n; i++) spawnCandy(); return RAIN.map((R) => R.list.length).reduce((a, b) => a + b, 0); },
+  // 陸の (x, z) に、飴を1つ落とす（試す時に使う。降る所まかせだと、手の届く画面の中に落ちるかが運だった）。置けなければ null
+  rainPut: (x, z) => { if (inWater(x, z) || !rainFree(x, z)) return null; const R = RAIN.find((q) => q.list.length < 12); if (!R) return null; R.list.push({ p: new THREE.Vector3(x, surfaceAt(x, z) + 0.6, z), v: new THREE.Vector3(0, -1, 0), q: new THREE.Quaternion(), w: new THREE.Vector3(), st: 'fall', t: 0, life: 15, s: R.C.sz, col: R.C.cols ? R.C.cols[0] : '#ffffff', wet: false }); return [R.j, R.list.length - 1]; },
   rainFirst: (st) => { for (const R of RAIN) { const k = R.list.findIndex((c) => !st || c.st === st); if (k >= 0) return { j: R.j, k, p: R.list[k].p.toArray(), st: R.list[k].st }; } return null; }, rainFlick: (j, k) => { flickCandy(RAIN[j], k); return RAIN[j].list[k] ? RAIN[j].list[k].v.toArray() : null; }, rainAge: (t) => { for (const R of RAIN) for (const c of R.list) if (c.st === 'rest') c.t = t; },
   shopTris: () => { let n = 0, c = 0; const L = []; SHOP.sc.traverse((o) => { if (o.isMesh && o.visible) { c++; const k = ((o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3) * (o.isInstancedMesh ? o.count : 1); n += k; L.push([Math.round(k), o.userData.key || o.material.type]); } }); L.sort((x, y) => y[0] - x[0]); return [Math.round(n), c, +(SHOP.buildMs || 0).toFixed(1), L.slice(0, 8)]; },
   fxState: () => ({ simple: GLDIAG.simple.slice(), err: GLDIAG.err.length, ok: Object.fromEntries([['eat', EATS], ['sea', [waterMat, sqMat]], ['bt', SHOP.items.map((it) => it.mat)]].map(([k, L]) => [k, L.every((m) => { const P = renderer.properties.get(m).currentProgram; return !P || !P.diagnostics || P.diagnostics.runnable !== false; })])) }),
   shopKeeperXY: () => { const K = SHOP.keeper; K.m.updateMatrixWorld(); const v = new THREE.Vector3(0, 0.12, 0.05).applyMatrix4(K.m.matrixWorld).project(SHOP.cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
   spoonPos: () => (SPOON.i < 0 ? null : [...SPOON.g.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)), +SPOON.t.toFixed(2)]),
   shopState: () => ({ keeper: SHOP.keeper ? [+(SHOP.keeper.eat || 0).toFixed(2), !!SHOP.keeper.gone, SHOP.keeper.m.visible] : null, dc: DC.list.length, dcBox: +DC.box.w.toFixed(2), items: SHOP.items.map((it) => [it.C.id, it.st, +it.g.scale.x.toFixed(2), +(it.g.position.y - it.home.y).toFixed(2)]) }),
-  shopPeek: (x, y) => { if (shopPick(x, y)) return 'candy'; const K = SHOP.keeper; if (K && K.m.visible && ray.intersectObject(K.m, false).length) { const d = SHOP.sc.userData.decor, hk = ray.intersectObject(K.m, false)[0], hd = d && ray.intersectObjects(d, false)[0]; return !hd || hk.distance < hd.distance ? 'keeper' : 'decor'; } const d = SHOP.sc.userData.decor; return d && ray.intersectObjects(d, false).length ? 'decor' : null; },
+  shopPeek: (x, y) => { if (shopPick(x, y)) return 'candy'; const K = SHOP.keeper, d = (SHOP.sc.userData.decor || []).filter((m) => m.geometry.attributes.aDI); if (K && K.m.visible && ray.intersectObject(K.m, false).length) { const hk = ray.intersectObject(K.m, false)[0], hd = ray.intersectObjects(d, false)[0]; return !hd || hk.distance < hd.distance ? 'keeper' : 'decor'; } return ray.intersectObjects(d, false).length ? 'decor' : null; },
   shopKeeper: () => [+SHOP.keeper.m.position.x.toFixed(2), +SHOP.px.toFixed(2), +SHOP.dist.toFixed(2), SHOP.base],
   shopIn: async () => { enterShop(); await readyShop(); await new Promise((r) => setTimeout(r, 30)); return SHOP.on; }, shopOut: () => { exitShop(); return SHOP.on; }, shop: () => ({ on: SHOP.on, items: SHOP.items.map((it) => [it.C.id, it.n, it.st]) }),
   shopScreen: (id) => { const it = SHOP.items.find((q) => q.C.id === id && q.st === 'ok'); SHOP.px = SHOP.tpx = it.home.x; SHOP.yaw = SHOP.tyaw; SHOP.pitch = SHOP.tpitch; SHOP.dist = SHOP.tdist; shopCam(); const p = (it.C.stick ? it.cap : it.m).getWorldPosition(new THREE.Vector3()); p.project(SHOP.cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight]; },
