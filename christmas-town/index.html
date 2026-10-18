@@ -2,8 +2,8 @@
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>おかしな港町</title>
 <meta name="description" content="宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。時間がとろける、おかしな港町へようこそ。">
-<link rel="manifest" href="manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ぷるとろ聖夜"><link rel="apple-touch-icon" href="icon_180.png">
-<meta property="og:title" content="ぷるとろ聖夜｜X'masグリーティングカード">
+<link rel="manifest" href="manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="とろけて聖夜"><link rel="apple-touch-icon" href="icon_180.png">
+<meta property="og:title" content="とろけて聖夜｜X'masグリーティングカード">
 <meta property="og:description" content="はじいて、こわして、とろける。おかしな港町へようこそ。">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://tatatasan323-cell.github.io/gimmick-cards/christmas-town/og_card.jpg">
@@ -402,11 +402,17 @@ function addDent(i, c, r, dir, grow = 0.15, pin = false) { const used = new Set(
   for (let k = 0; k < DENT_N && slot < 0; k++) if (!used.has(k)) slot = k;
   // 枠がない時：同じ物の、いちばん重なり合う2つの跡を1つの少し大きな跡にまとめて枠を空ける。まとめられる組がなければ、ほかの物の古い跡を譲ってもらう
   // （古い跡を消して空けると、その所がふいに元へ戻った。新しくかじった跡にまとめると、かじっても欠けなかった＝どちらも枠の少ないスマホで 2026-10-17）
-  if (slot < 0) { let best = null, bs = 1e9; const Ls = EAT.list;
-    for (let a = 0; a < Ls.length; a++) for (let b = a + 1; b < Ls.length; b++) { const A = Ls[a], B = Ls[b]; if (A.i !== B.i || !A.ball || !B.ball || A.pin || B.pin || A.i === RESTORING) continue; const sc = A.c.distanceTo(B.c) / (A.r + B.r); if (sc < bs) { bs = sc; best = [A, B]; } }
-    if (best && bs < 1.2) { const [A, B] = best, d = A.c.distanceTo(B.c), m = Math.max(A.r, B.r); A.c.lerp(B.c, B.r / (A.r + B.r)); A.r = Math.min(m + d * 0.5, m * 2.2); A.seq = Math.max(A.seq, B.seq); slot = B.slot; dropDent(B); } }
+  // まとめた跡は、2つをちょうど包む球にし、元の1口（r0）の2倍まで。前は「大きい方＋中心の間の半分（2.2倍まで）」で、まとめた跡がまたまとまるたびに膨らみ、続けてかじると1口で山より大きく削れた（本人 2026-10-18）
+  // 包む球が1口の2.6倍を超える組（離れた2つ）はまとめない。2倍を超える分は、外の端が少し戻る
+  if (slot < 0) { let best = null, bg = 1e9; const Ls = EAT.list;
+    for (let a = 0; a < Ls.length; a++) for (let b = a + 1; b < Ls.length; b++) { const A = Ls[a], B = Ls[b]; if (A.i !== B.i || !A.ball || !B.ball || A.pin || B.pin || A.i === RESTORING) continue;
+      const d = A.c.distanceTo(B.c), big = Math.max(A.r, B.r), rn = Math.max(big, (d + A.r + B.r) / 2), g = rn - big; if (rn <= 2.6 * Math.max(A.r0, B.r0) && g < bg) { bg = g; best = [A, B, d, rn]; } }
+    if (best) { const [A, B, d, rn] = best;
+      if (B.r >= d + A.r) A.c.copy(B.c);   // B が A を包む
+      else if (A.r < d + B.r) { const u = V1.subVectors(B.c, A.c).divideScalar(Math.max(d, 1e-6)); A.c.addScaledVector(u, (rn - A.r)); }   // 包む球の中心＝2つの外の端どうしのまん中
+      A.r0 = Math.max(A.r0, B.r0); A.r = Math.min(rn, 2 * A.r0); A.seq = Math.max(A.seq, B.seq); slot = B.slot; dropDent(B); } }
   if (slot < 0) { const other = EAT.list.filter((D) => !D.pin && D.i !== i), pool = other.length ? other : EAT.list.filter((D) => !D.pin), old = (pool.length ? pool : EAT.list).reduce((a, b) => (a.seq < b.seq ? a : b)); slot = old.slot; dropDent(old); EAT.evict = (EAT.evict || 0) + 1; }
-  const D = { slot, i, c: c.clone(), r, t: 0, grow, k: 1, pin, ball, seq: DENT_SEQ++ }; EAT.list.push(D); EAT.dir[slot].copy(dir).normalize(); EAT.dm[slot] = i + 1; EAT.on[i] = 1; return D; }
+  const D = { slot, i, c: c.clone(), r, r0: r, t: 0, grow, k: 1, pin, ball, seq: DENT_SEQ++ }; EAT.list.push(D); EAT.dir[slot].copy(dir).normalize(); EAT.dm[slot] = i + 1; EAT.on[i] = 1; return D; }
 // 山の状態：すくった回数・最後にすくった時・スプーン（ケーキはフォーク）・戻り
 const MTN_ST = MOUNTS.map(() => ({ taps: 0, last: -99, spoon: null, rest: null, eaten: false }));
 function mtnBite(i, p) { const M = MOUNTS[i], S = MTN_ST[i]; if (S.spoon || S.rest || M.on === false) return;
@@ -499,7 +505,13 @@ function takeSlice(i, k, inv) { const M = MOUNTS[i], out = new THREE.Group(), rn
     for (const name of ['position', 'normal', 'uv', 'color']) { const src = A[name]; if (!src) continue; g.setAttribute(name, new THREE.BufferAttribute(src.array.slice(R[0] * src.itemSize, R[1] * src.itemSize), src.itemSize)); }
     const ys = g.attributes.position.array.filter((_, j) => j % 3 === 1);   // 跡の中の色は、形の座標の高さで決める
     g.applyMatrix4(o.matrixWorld); out.userData.baked = (out.userData.baked || 0) + bakeDents(g, i, o.material.userData.deep || 0, INNER_OF.get(o.material.userData.base || o.material), ys); g.applyMatrix4(inv); g.computeBoundingSphere(); const m = new THREE.Mesh(g, o.material.userData.base || o.material); m.frustumCulled = false; out.add(m); });
-  M.ws[k] = M.wsT[k] = 0;   // ケーキの方の跡は消さない（持っていかれた切れは見えなくなるだけ。となりの切れにかかった跡は残る。戻りの雪の結晶で、ほかの跡と一緒にふさがる）
+  M.ws[k] = M.wsT[k] = 0;
+  // 持っていった切れの中に収まる跡は消す（写したので）。となりの切れにかかる跡は残す（全部残すと、見えない跡が枠を使い続けて、まとめる回数が増えた 2026-10-18）
+  const ud = M.g.userData, N = ud.N, da = TAU / N;
+  for (const D of EAT.list.filter((D) => D.i === i && !D.pin)) { const l = M.g.worldToLocal(V1.copy(D.c)), r = D.r; let inside;
+    if (ud.kind === 'log') { const sl = ud.L / N, x0 = -ud.L / 2 + k * sl; inside = l.x - r >= x0 && l.x + r <= x0 + sl; }
+    else { const a0 = k * da, a1 = a0 + da; inside = l.x * Math.cos(a0) - l.z * Math.sin(a0) >= r && -(l.x * Math.cos(a1) - l.z * Math.sin(a1)) >= r; }   // 扇の2つの切り口の面から、半径より内側
+    if (inside) dropDent(D); }
   return out; }
 // 持っていく切れに、かじった跡を写す：世界の座標の頂点を、シェーダーと同じ式（球・たての筒）で動かし、跡の中はケーキの中の色に
 // 写さなかった時は、手前の端をかじっていると、刺した瞬間に切れが新品に戻って見えた（本人 2026-10-18）
@@ -1309,13 +1321,19 @@ const RAIN = CANDIES.map((C, j) => { const geo = candyGeo(C), m = new THREE.Inst
   geo.computeBoundingBox(); const sz = geo.boundingBox.getSize(new THREE.Vector3()), thin = sz.x <= sz.y && sz.x <= sz.z ? new THREE.Vector3(1, 0, 0) : sz.y <= sz.z ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
   const R = { C, j, m, list: [], thin, half: Math.min(sz.x, sz.y, sz.z) / 2 }; addPick(m, { kind: 'candy', R }); return R; });
 let rainT = 0; const RCOL = new THREE.Color(), RM = new THREE.Matrix4(), RWM = new THREE.Matrix4(), RT = new THREE.Matrix4(), RS = new THREE.Vector3();
-function rainFree(x, z) { for (const H of HOUSES) if (Math.hypot(x - H.x, z - H.z) < H.r + 0.4) return false; for (const C of COLL) { const cx = C.kind === 'cyl' ? C.x : C.c ? C.c.x : 0, cz = C.kind === 'cyl' ? C.z : C.c ? C.c.z : 0, r = C.kind === 'cyl' ? C.r + 0.3 : C.r * 0.8; if (Math.hypot(x - cx, z - cz) < r) return false; }
-  for (const M of MOUNTS) if (M.on !== false && Math.hypot(x - M.x, z - M.z) < M.rMax) return false; return true; }
+// その場所をふさいでいる物（家・名所の筒・山とケーキ）の中心。なければ null
+function blockerAt(x, z) { for (const H of HOUSES) if (Math.hypot(x - H.x, z - H.z) < H.r + 0.4) return [H.x, H.z]; for (const C of COLL) { const cx = C.kind === 'cyl' ? C.x : C.c ? C.c.x : 0, cz = C.kind === 'cyl' ? C.z : C.c ? C.c.z : 0, r = C.kind === 'cyl' ? C.r + 0.3 : C.r * 0.8; if (Math.hypot(x - cx, z - cz) < r) return [cx, cz]; }
+  for (const M of MOUNTS) if (M.on !== false && Math.hypot(x - M.x, z - M.z) < M.rMax) return [M.x, M.z]; return null; }
+const rainFree = (x, z) => !blockerAt(x, z);
+// 雨の飴をはじける距離（m）。遠くの小さな飴まで当たりにすると、その奥の物にさわれなかった（本人 2026-10-18）
+const CANDY_REACH = 14;
 function spawnCandy() { const R = RAIN[(Math.random() * RAIN.length) | 0]; if (R.list.length >= 12) return; const fy = -Math.sin(drone.yaw), fz = -Math.cos(drone.yaw);
   for (let k = 0; k < 10; k++) { const a = rnd(-1.1, 1.1), d = rnd(4, 26), x = cam.position.x + (fy * Math.cos(a) - fz * Math.sin(a)) * d, z = cam.position.z + (fz * Math.cos(a) + fy * Math.sin(a)) * d; if (!rainFree(x, z)) continue;
     const wet = inWater(x, z), g = wet ? WATER_Y : surfaceAt(x, z); R.list.push({ p: new THREE.Vector3(x, Math.max(cam.position.y + rnd(8, 14), g + 10), z), v: new THREE.Vector3(rnd(-0.4, 0.4), -rnd(1.5, 3), rnd(-0.4, 0.4)), q: new THREE.Quaternion().random(), w: new THREE.Vector3(rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)), st: 'fall', t: 0, life: rnd(25, 40), s: R.C.sz * rnd(0.85, 1.15), col: R.C.cols ? R.C.cols[(Math.random() * R.C.cols.length) | 0] : '#ffffff', wet }); return; } }
-function flickCandy(R, k) { const c = R.list[k]; if (!c || c.st === 'melt') return; const away = V1.set(c.p.x - cam.position.x, 0, c.p.z - cam.position.z).normalize();
-  c.v.set(away.x * rnd(2.5, 4), rnd(3, 4.5), away.z * rnd(2.5, 4)); c.w.set(rnd(-14, 14), rnd(-14, 14), rnd(-14, 14)); c.st = 'fall'; c.t = 0; c.life = Math.max(c.life, 12); SND.candyFlick(); counts.flicks++; mark('flick'); }
+// はじく：見ている人から遠ざかる向きへ。山・ケーキ・家などに乗っている飴は、その物から離れる向きへ大きく飛ばす（乗ったままだと、山やケーキがかじれなかった 2026-10-18）
+function flickCandy(R, k) { const c = R.list[k]; if (!c || c.st === 'melt') return; const B = blockerAt(c.p.x, c.p.z), away = B ? V1.set(c.p.x - B[0], 0, c.p.z - B[1]) : V1.set(c.p.x - cam.position.x, 0, c.p.z - cam.position.z);
+  if (away.lengthSq() < 1e-6) away.set(1, 0, 0); away.normalize(); const sp = B ? rnd(7, 9.5) : rnd(2.5, 4); c.fl = nowS();
+  c.v.set(away.x * sp, B ? rnd(6, 7.5) : rnd(3, 4.5), away.z * sp); c.w.set(rnd(-14, 14), rnd(-14, 14), rnd(-14, 14)); c.st = 'fall'; c.t = 0; c.life = Math.max(c.life, 12); SND.candyFlick(); counts.flicks++; mark('flick'); }
 function stepRain(dt, t) {
   if (OPEN.shop && !SHOP.on && !RAIN.paused) { rainT -= dt; if (rainT <= 0) { rainT = rnd(0.45, 0.9); spawnCandy(); } }
   for (const R of RAIN) { if (!R.list.length && !R.m.visible) continue;
@@ -1605,7 +1623,8 @@ function pickAt(x, y) {
   // ケーキは、輪郭の筒に当たったら本物の形で当たり直す（持っていかれた切れは除く）。横長のブッシュ・ド・ノエルは筒が太く、筒の点では跡が空中にできて欠けなかった（2026-10-18）
   const onCake = (x) => { const k = x.object.userData.pick; if (!k || k.kind !== 'mtn' || !MOUNTS[k.i].cake) return true; const M = MOUNTS[k.i];
     const r = ray.intersectObject(M.g, true).find((q) => { const w = q.object.geometry.attributes.aWedge; return !w || !q.face || M.ws[Math.round(w.getX(q.face.a))] > 0.5; }); if (!r) return false; x.point = r.point; x.distance = r.distance; return true; };
-  const hs = ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false).filter((x) => !(x.object === LAMP.hit && LAMP.st[x.instanceId]) && !hidden(x) && onCake(x)).sort((a, b) => a.distance - b.distance); let h = hs[0];   // 折れている街灯の筒は、当たりにしない
+  const candyOk = (x) => { const k = x.object.userData.pick; if (!k || k.kind !== 'candy') return true; const c = k.R.list[x.instanceId]; return x.distance <= CANDY_REACH && !(c && nowS() - (c.fl || -9) < 1.2); };   // 遠い飴・はじいたばかりの飴は、すり抜けて奥の物へ
+  const hs = ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false).filter((x) => !(x.object === LAMP.hit && LAMP.st[x.instanceId]) && !hidden(x) && candyOk(x) && onCake(x)).sort((a, b) => a.distance - b.distance); let h = hs[0];   // 折れている街灯の筒は、当たりにしない
   // 街灯の当たりの筒は柱より太いので、すぐ後ろに住人・豆知識などがいたら、そちらを優先（住人をかじるつもりが、街灯が折れていた）
   if (h && h.object === LAMP.hit) { const alt = hs.find((x) => x.object !== LAMP.hit && x.object.userData.pick && x.distance - h.distance < 0.9); if (alt) h = alt; }
   // 山の当たりは輪郭をなぞった大きな筒なので、すぐ奥（8m以内）に名所・住人・豆知識があれば、そちらを優先（崖のそばの美術館を押すと、山をかじっていた）
@@ -1617,11 +1636,13 @@ function pickAt(x, y) {
   return { kind: 'ground', point: h.point };
 }
 // 落ちている飴は小さいので、指の近く（画面で34px以内）にあれば、地面より先に飴をはじく
-function nearCandy(x, y) { const r = cvs.getBoundingClientRect(); let best = null, bd = 34;
-  for (const R of RAIN) R.list.forEach((c, k) => { if (c.st === 'melt') return; V1.copy(c.p).project(cam); if (V1.z > 1) return; const d = Math.hypot(r.left + (V1.x * 0.5 + 0.5) * r.width - x, r.top + (-V1.y * 0.5 + 0.5) * r.height - y); if (d < bd) { bd = d; best = { R, k }; } }); return best; }
+// 指の近くの飴：はじける距離（CANDY_REACH）の中で、見た目の大きさ＋12画素（36まで）の中。指の先の物（maxD）より奥の飴・はじいて1.2秒の間の飴は、当たりにしない
+function nearCandy(x, y, maxD = Infinity) { const r = cvs.getBoundingClientRect(), now = nowS(), f = r.height / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)); let best = null, bd = 1e9;
+  for (const R of RAIN) R.list.forEach((c, k) => { if (c.st === 'melt' || now - (c.fl || -9) < 1.2) return; const dist = cam.position.distanceTo(c.p); if (dist > CANDY_REACH || dist > maxD + 0.6) return; V1.copy(c.p).project(cam); if (V1.z > 1) return;
+    const d = Math.hypot(r.left + (V1.x * 0.5 + 0.5) * r.width - x, r.top + (-V1.y * 0.5 + 0.5) * r.height - y), lim = Math.min(36, 12 + (c.s * 0.5 * f) / dist); if (d < lim && d < bd) { bd = d; best = { R, k }; } }); return best; }
 function tapAt(x, y) {
-  const nc = nearCandy(x, y); if (nc) { flickCandy(nc.R, nc.k); return { kind: 'candy' }; }
-  const hit = pickAt(x, y); if (!hit) return null;
+  const hit = pickAt(x, y), nc = nearCandy(x, y, hit && hit.kind !== 'candy' && hit.point ? cam.position.distanceTo(hit.point) : Infinity); if (nc) { flickCandy(nc.R, nc.k); return { kind: 'candy' }; }
+  if (!hit) return null;
   if (hit.kind === 'sea') { seaWave(hit.point.x, hit.point.z); return { kind: 'sea' }; }
   if (hit.kind === 'house') { bite(hit.point, hit.normal, hit.key); return { kind: 'house' }; }
   if (hit.kind === 'lamp') { lampBreak(hit.id); return { kind: 'lamp' }; }
@@ -1849,7 +1870,7 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   // 行列の先頭のすぐ前に、すみかの近いぷよを置く（行列が止まって待ち、ぷよがよけるか）。2匹のぷよを重ねて置く
   lucBlock: () => { const A = crowdAgents(), lead = A.find((q) => q.k === 'luc'), a = LUC.a; LUC_DIR.set(-Math.sin(a) * 3.6, Math.cos(a) * 3.0).normalize(); const fx = lead.x + LUC_DIR.x * 0.75, fz = lead.z + LUC_DIR.y * 0.75;
     const b = PUYOS.filter((p) => p.walk && !p.angel).sort((p, q) => Math.hypot(p.home[0] - fx, p.home[1] - fz) - Math.hypot(q.home[0] - fx, q.home[1] - fz))[0]; b.grp.position.set(fx, surfaceAt(fx, fz), fz); b.hop = 0; b.hv = 0; b.vx = b.vz = 0; b.hops = 0; b.next = 5; return PUYOS.indexOf(b); },
-  puyoStack: () => { const L = PUYOS.filter((p) => p.walk && !p.angel), a = L[0], b = L[1]; b.grp.position.set(a.grp.position.x + 0.1, a.grp.position.y, a.grp.position.z); for (const p of [a, b]) { p.hop = 0; p.hv = 0; p.vx = p.vz = 0; p.next = 5; } return [PUYOS.indexOf(a), PUYOS.indexOf(b)]; }, batch: () => BATCH.stats(), dentEvict: () => EAT.evict || 0, eatVol: (i) => { const L = EAT.list.filter((D) => D.i === i && D.ball), h = 0.12; if (!L.length) return 0; const b = new THREE.Box3(); for (const D of L) b.union(new THREE.Box3().setFromCenterAndSize(D.c, V1.setScalar(2 * D.r * D.k))); let n = 0; for (let x = b.min.x; x < b.max.x; x += h) for (let y = b.min.y; y < b.max.y; y += h) for (let z = b.min.z; z < b.max.z; z += h) if (L.some((D) => (D.c.x - x) ** 2 + (D.c.y - y) ** 2 + (D.c.z - z) ** 2 < (D.r * D.k) ** 2)) n++; return +(n * h ** 3).toFixed(2); }, gbAll: () => GBS.map((G) => G.m.getWorldPosition(new THREE.Vector3()).toArray()), programs: () => renderer.info.programs.map((p) => [p.name, p.cacheKey, p.usedTimes]),
+  puyoStack: () => { const L = PUYOS.filter((p) => p.walk && !p.angel), a = L[0], b = L[1]; b.grp.position.set(a.grp.position.x + 0.1, a.grp.position.y, a.grp.position.z); for (const p of [a, b]) { p.hop = 0; p.hv = 0; p.vx = p.vz = 0; p.next = 5; } return [PUYOS.indexOf(a), PUYOS.indexOf(b)]; }, batch: () => BATCH.stats(), dentEvict: () => EAT.evict || 0, dentMax: (i) => +EAT.list.filter((D) => D.i === i).reduce((m, D) => Math.max(m, D.r / D.r0), 0).toFixed(3), eatVol: (i) => { const L = EAT.list.filter((D) => D.i === i && D.ball), h = 0.12; if (!L.length) return 0; const b = new THREE.Box3(); for (const D of L) b.union(new THREE.Box3().setFromCenterAndSize(D.c, V1.setScalar(2 * D.r * D.k))); let n = 0; for (let x = b.min.x; x < b.max.x; x += h) for (let y = b.min.y; y < b.max.y; y += h) for (let z = b.min.z; z < b.max.z; z += h) if (L.some((D) => (D.c.x - x) ** 2 + (D.c.y - y) ** 2 + (D.c.z - z) ** 2 < (D.r * D.k) ** 2)) n++; return +(n * h ** 3).toFixed(2); }, gbAll: () => GBS.map((G) => G.m.getWorldPosition(new THREE.Vector3()).toArray()), programs: () => renderer.info.programs.map((p) => [p.name, p.cacheKey, p.usedTimes]),
   // すくった跡の飛び出しの検査：スプーンの跡（球の外へ押し出す式 'ball'／真上から押し下げる式 'up'）を頂点に当てた時、山の輪郭の外へ出る頂点の数 [外へ出た, 動いた]
   spillOf: (i, mode) => { const M = MOUNTS[i], r = M.rMax * 1.5, C = new THREE.Vector3(M.x, M.y + M.yMax - M.yMax * 0.48 + r, M.z), P = new THREE.Vector3(), d = new THREE.Vector3(); let n = 0, all = 0;
     for (const mm of EAT_MESHES) { const R = mm.userData.rng[i + 1]; if (!R || mm.material === MM.glass) continue; const deep = mm.material.userData.deep ?? 0, pa = mm.geometry.attributes.position;
@@ -1870,12 +1891,12 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   shopKeeper: () => [+SHOP.keeper.m.position.x.toFixed(2), +SHOP.px.toFixed(2), +SHOP.dist.toFixed(2), SHOP.base],
   shopIn: async () => { enterShop(); await readyShop(); await new Promise((r) => setTimeout(r, 30)); return SHOP.on; }, shopOut: () => { exitShop(); return SHOP.on; }, shop: () => ({ on: SHOP.on, items: SHOP.items.map((it) => [it.C.id, it.n, it.st]) }),
   shopScreen: (id) => { const it = SHOP.items.find((q) => q.C.id === id && q.st === 'ok'); SHOP.px = SHOP.tpx = it.home.x; SHOP.yaw = SHOP.tyaw; SHOP.pitch = SHOP.tpitch; SHOP.dist = SHOP.tdist; shopCam(); const p = (it.C.stick ? it.cap : it.m).getWorldPosition(new THREE.Vector3()); p.project(SHOP.cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight]; },
-  shopLen: () => { const it = SHOP.items.find((q) => q.C.stick && q.st === 'ok'); return it ? [+it.len.toFixed(3), KIN_LEN] : null; }, shopDents: (id) => SHOP.items.filter((q) => q.C.id === id).reduce((n, it) => n + it.mat.userData.U.uBt.value.filter((v) => v.w > 0).length, 0), shopPlates: () => CANDIES.map((C) => SHOP.items.filter((q) => q.C.id === C.id).length), cakeWS: (i) => [...MOUNTS[i].ws].map((v) => +v.toFixed(2)), landAt: (x, z) => [inWater(x, z), +landH(x, z).toFixed(2)], lhSeaDrop: () => { const L = LIGHTHOUSE; if (L.st !== 'fall') lhCollapse(); let w = null; for (let r = 4; r < 60 && !w; r += 2) for (let a = 0; a < 24 && !w; a++) { const x = L.x + Math.cos(a / 24 * TAU) * r, z = L.z + Math.sin(a / 24 * TAU) * r; if (inWater(x, z) && inWater(x + 6, z) && inWater(x, z + 6)) w = [x, z]; } if (!w) return null; L.segs.forEach((S, k) => { if (!k) return; S.p.set(w[0] + k * 1.0, 3 + k * 0.8, w[1]); S.v.set(0, -1, 0); S.rest = false; S.land = 0; S.delay = 0; }); return w; }, rainVisible: () => { for (const R of RAIN) for (const c of R.list) { if (c.st !== 'rest') continue; const v = c.p.clone().project(cam); const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight; if (v.z < 1 && x > 30 && x < innerWidth - 30 && y > 120 && y < innerHeight - 150) return [x, y]; } return null; }, lhSegs: () => LIGHTHOUSE.segs.map((S) => [+S.p.x.toFixed(1), +S.p.y.toFixed(2), +S.p.z.toFixed(1), !!S.wet]), shopPickAt: (x, y) => { const h = shopPick(x, y); return h ? [h.it.C.id, SHOP.items.indexOf(h.it)] : null; }, shopPan: (x) => { if (x != null) SHOP.tpx = x; return [SHOP.px, SHOP.tpx]; },
+  shopLen: () => { const it = SHOP.items.find((q) => q.C.stick && q.st === 'ok'); return it ? [+it.len.toFixed(3), KIN_LEN] : null; }, shopDents: (id) => SHOP.items.filter((q) => q.C.id === id).reduce((n, it) => n + it.mat.userData.U.uBt.value.filter((v) => v.w > 0).length, 0), shopPlates: () => CANDIES.map((C) => SHOP.items.filter((q) => q.C.id === C.id).length), cakeWS: (i) => [...MOUNTS[i].ws].map((v) => +v.toFixed(2)), landAt: (x, z) => [inWater(x, z), +landH(x, z).toFixed(2)], lhSeaDrop: () => { const L = LIGHTHOUSE; if (L.st !== 'fall') lhCollapse(); let w = null; for (let r = 4; r < 60 && !w; r += 2) for (let a = 0; a < 24 && !w; a++) { const x = L.x + Math.cos(a / 24 * TAU) * r, z = L.z + Math.sin(a / 24 * TAU) * r; if (inWater(x, z) && inWater(x + 6, z) && inWater(x, z + 6)) w = [x, z]; } if (!w) return null; L.segs.forEach((S, k) => { if (!k) return; S.p.set(w[0] + k * 1.0, 3 + k * 0.8, w[1]); S.v.set(0, -1, 0); S.rest = false; S.land = 0; S.delay = 0; }); return w; }, rainVisible: () => { for (const R of RAIN) for (const c of R.list) { if (c.st !== 'rest' || cam.position.distanceTo(c.p) > CANDY_REACH - 1) continue; const v = c.p.clone().project(cam); const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight; if (v.z < 1 && x > 30 && x < innerWidth - 30 && y > 120 && y < innerHeight - 150) return [x, y]; } return null; }, lhSegs: () => LIGHTHOUSE.segs.map((S) => [+S.p.x.toFixed(1), +S.p.y.toFixed(2), +S.p.z.toFixed(1), !!S.wet]), shopPickAt: (x, y) => { const h = shopPick(x, y); return h ? [h.it.C.id, SHOP.items.indexOf(h.it)] : null; }, shopPan: (x) => { if (x != null) SHOP.tpx = x; return [SHOP.px, SHOP.tpx]; },
   lh: () => ({ st: LIGHTHOUSE.st, bites: LIGHTHOUSE.bites, t: +LIGHTHOUSE.t.toFixed(1), dents: EAT.list.filter((D) => D.i === LH_I).length, top: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].p.y.toFixed(2), home: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].home.y.toFixed(2), beam: LIGHTHOUSE.beam.visible }), lhAt: (k = 2) => LIGHTHOUSE.segs[k].home.toArray(), lhHurry: () => { LIGHTHOUSE.t = 11.95; },
   pick: () => PICKS.map((P) => [P.st, P.kind, +P.t.toFixed(1), P.H.away]), pickHouse: (i) => { const H = HOUSES.filter((h) => h.c0 && !h.shop)[i]; startPick(H); return [H.x, H.o.y, H.z]; }, pickHurry: () => { for (const P of PICKS) if (P.st === 'gone') P.t = 23.95; }, pickParts: () => PICKS.map((P) => (P.g ? P.g.children.length : 0)),
   houseHidden: (i) => { const H = HOUSES.filter((h) => h.c0 && !h.shop)[i]; const mm = HOUSE_MESHES[0], off = HOUSE_OFF[mm.userData.key], a = off[H.c0[mm.userData.key] ?? 0]; return mm.geometry.attributes.position.getY(a); },
   metal: (k) => { FORCE_METAL = k; }, spoonScreen: () => { if (!SPOON.chunk) return null; const b = new THREE.Box3(); SPOON.chunk.updateMatrixWorld(true); SPOON.chunk.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } }); const sc = (v) => { const p = v.clone().project(cam); return [Math.round((p.x * 0.5 + 0.5) * innerWidth), Math.round((-p.y * 0.5 + 0.5) * innerHeight)]; }; const mw = SPOON.mound.getWorldPosition(new THREE.Vector3()); return { chunkCenter: sc(b.getCenter(new THREE.Vector3())), chunkTop: sc(new THREE.Vector3((b.min.x + b.max.x) / 2, b.max.y, (b.min.z + b.max.z) / 2)), mound: sc(mw), mats: [...new Set((() => { const a = []; SPOON.chunk.traverse((o) => { if (o.isMesh) a.push(o.material.type + (o.material.defaultAttributeValues ? '+def' : '') + ':' + Object.keys(o.geometry.attributes).join('/')); }); return a; })())] }; }, spoonChunkVis: (v) => { if (SPOON.chunk) SPOON.chunk.visible = v; }, spoonParts: () => { if (!SPOON.chunk) return null; const out = []; const names = new Map(Object.entries(MM).map(([k, v]) => [v, k])); SPOON.chunk.traverse((o) => { if (!o.isMesh) return; const p = o.geometry.attributes.position; let lo = 1e9, hi = -1e9, rmax = 0; for (let k = 0; k < p.count; k++) { lo = Math.min(lo, p.getY(k)); hi = Math.max(hi, p.getY(k)); rmax = Math.max(rmax, Math.hypot(p.getX(k), p.getZ(k))); } out.push([names.get(o.material) || o.material.type, p.count, +lo.toFixed(2), +hi.toFixed(2), +rmax.toFixed(2)]); }); return out; }, spoonBox: () => { if (!SPOON.chunk) return null; const b = new THREE.Box3(), m = new THREE.Box3(); SPOON.chunk.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox); } }); SPOON.mound.geometry.computeBoundingBox(); m.copy(SPOON.mound.geometry.boundingBox).applyMatrix4(SPOON.mound.matrix); const r = (v) => v.toArray().map((x) => +x.toFixed(2)); return { chunk: [r(b.min), r(b.max)], chunkPos: r(SPOON.chunk.position), chunkScale: r(SPOON.chunk.scale), mound: [r(m.min), r(m.max)], parent: SPOON.chunk.parent === SPOON.tilt }; }, spoonKind: () => (SPOON.i >= 0 ? SPOON.kind : null), spoonChunk: () => { let n = 0; if (SPOON.chunk) SPOON.chunk.traverse((o) => { if (o.isMesh) n += o.geometry.attributes.position.count; }); return n; },
-  fork: () => (FORK.i >= 0 ? { i: FORK.i, t: +FORK.t.toFixed(1), kind: FORK.kind, stabbed: FORK.stabbed, chunk: FORK.chunk ? FORK.chunk.children.length : 0, baked: FORK.chunk ? FORK.chunk.userData.baked || 0 : 0 } : null), mtnTap: (i, n) => { const M = MOUNTS[i]; for (let k = 0; k < n; k++) mtnBite(i, new THREE.Vector3(M.x + rnd(-1, 1), M.y + M.yMax * 0.7, M.z + M.R * 0.5)); return MTN_ST[i].taps; },
+  fork: () => (FORK.i >= 0 ? { i: FORK.i, t: +FORK.t.toFixed(1), kind: FORK.kind, stabbed: FORK.stabbed, chunk: FORK.chunk ? FORK.chunk.children.length : 0, baked: FORK.chunk ? FORK.chunk.userData.baked || 0 : 0 } : null), mtnTap: (i, n) => { const M = MOUNTS[i]; for (let k = 0; k < n; k++) mtnBite(i, new THREE.Vector3(M.x + rnd(-1, 1), M.y + M.yMax * 0.7, M.z + M.R * 0.5)); return MTN_ST[i].taps; }, mtnRound: (i, n) => { const M = MOUNTS[i]; for (let k = 0; k < n; k++) { const a = k * 2.39996, y = (0.25 + 0.55 * ((k * 0.618) % 1)) * M.yMax; mtnBite(i, new THREE.Vector3(M.x + Math.cos(a) * mtnR(M, y), M.y + y, M.z + Math.sin(a) * mtnR(M, y))); } return MTN_ST[i].taps; },
   collide: () => counts.collide, collN: () => COLL.length, rainPause: (on) => { RAIN.paused = on; }, acState: () => SND.state(), canvasWH: () => [cvs.width, cvs.height, innerWidth, innerHeight], tipNow: () => (tipOn ? tipOn.id : null), tipsLive: () => TIPS.filter((t) => (!t.when || t.when()) && !t.done()).map((t) => t.id),
   cotton: () => { const r = COT.inn.getBoundingClientRect(); return { open: COT.open, vis: !COT.el.hidden, t: (performance.now() - COT.t0) / 1000, box: [r.left, r.top, r.width, r.height], name: $('cotName').textContent, op: +getComputedStyle(COT.inn).opacity }; },
   cotCover: (pts) => { const c = document.createElement('canvas'); c.width = COT.cv.width; c.height = COT.cv.height; const g = c.getContext('2d', { willReadFrequently: true }), d = COT.B.dpr; g.drawImage(COT.cv, 0, 0);   // 写しから読む（雲の絵そのものから読むと、読み出しの警告が出る）
@@ -1907,6 +1928,10 @@ BGM.setTrack(PREF.track); BGM.setMedley(!!PREF.medley); BGM.setVolume(PREF.bgmVo
 // 音は、最初に画面にさわった時から（スマホは、さわる前に音を出せない）。港町の中だけ鳴る（仕掛けのページには BGM がない）
 let soundStarted = false; const startSound = () => { if (soundStarted) return; soundStarted = true; BGM.set(SND.audio(), PREF.bgm); };
 addEventListener('pointerdown', startSound, { capture: true }); addEventListener('keydown', startSound, { capture: true });
+// スマホのブラウザは、指が触れた瞬間（押し下げ）では音を出させず、離した瞬間（押し上げ・タップ）に許す。押し下げで予約した BGM・はじける音は、離した時に音の時計を動かして鳴らす
+// （押し下げだけで始めていた時は、「タッチしてね」で風船がはじけても音楽が始まらず、もう1回さわる必要があった 本人 2026-10-18）
+const kickSound = () => { if (soundStarted) SND.audio(); };
+for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, kickSound, { capture: true });
 // LINE の中の画面などで開きなおすと、前の画面が裏で鳴りつづけて、BGM が2重になったことがある（本人 2026-10-17）
 // ①見えていない間は音を止める ②この画面にさわったら「いま鳴っているのはここ」と、同じ端末のほかの港町の画面へ知らせ、知らせを受けた画面は止まる
 const SOUND_ID = Math.random().toString(36).slice(2); let SOUND_BC = null, soundSaid = 0;
@@ -1996,8 +2021,8 @@ if (OPEN.shop) shopExterior(); if (OPEN.cakes) openCakes(false); checkUnlock(tru
 { const A = AREAS.find((a) => '#' + a.id === location.hash); if (A) { A.seen = true; use(A.id); const c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; counts.flights--; } }
 queueClear();
 // 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
-// ---------- オープニング：空中に、立体のグミ文字「ぷるとろ聖夜」（カードの題字と同じ骨組みを、管にしてなぞる）。上から1字ずつ降ってきて弾み、ぷるぷる揺れて、キラキラになってはじけ、探索が始まる ----------
-// 町の中から始まる時だけ（建物の前へ戻る時・検査の時は出さない）。縦長の画面では2段（ぷるとろ／聖夜）。さわれば、すぐはじける。はじけたら、字の形は片付ける
+// ---------- オープニング：空中に、立体のグミ文字「とろけて聖夜」（カードの題字と同じ骨組みを、管にしてなぞる）。上から1字ずつ降ってきて弾み、ぷるぷる揺れて、キラキラになってはじけ、探索が始まる ----------
+// 町の中から始まる時だけ（建物の前へ戻る時・検査の時は出さない）。縦長の画面では2段（とろけて／聖夜）。さわれば、すぐはじける。はじけたら、字の形は片付ける
 const INTRO = (() => { const g = new THREE.Group(), L = [];
   // パステルの風船（本人 2026-10-17：透かすと2重に薄くなって読めない → 透かさない風船に）。つやは風船のように強く、ふちはほんのり光る。字の骨組みはカードの題字と同じ
   const COLS = ['#ffb3d3', '#9eeac6', '#ffe08f', '#cbb8ff', '#ffaebb', '#a6dcff'];

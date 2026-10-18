@@ -359,12 +359,13 @@ function swirlTex() { return ctex(256, 256, (g, w, h) => { g.fillStyle = '#3a1a0
   g.strokeStyle = '#fff6ea'; g.lineWidth = 13; g.lineCap = 'round'; g.beginPath(); for (let i = 0; i <= 200; i++) { const t = i / 200, a = t * TAU * 3.4, r = 6 + t * 104; g.lineTo(128 + Math.cos(a) * r, 128 + Math.sin(a) * r); } g.stroke();
   g.strokeStyle = 'rgba(200,40,60,.55)'; g.lineWidth = 4; g.beginPath(); for (let i = 0; i <= 200; i++) { const t = i / 200, a = t * TAU * 3.4 + 0.5, r = 12 + t * 104; g.lineTo(128 + Math.cos(a) * r, 128 + Math.sin(a) * r); } g.stroke(); }); }
 export function cakeMats(env) {
-  const E = (o) => Object.assign(o, env ? { envMap: env } : {});
+  const E = (o) => Object.assign(o, env ? { envMap: env } : {}), endT = swirlTex(), cutT = cutTex('cake');
+  // 切り口とうずの面：周りの景色の光は4割に、絵の色が少し自分で光る（町の景色の光にはオーロラの緑があり、そちらを向いた切り口が緑に見えた 2026-10-18。影の付き方は残す）
   return {
     plate: new THREE.MeshPhysicalMaterial(E({ map: plateTex(), roughness: 0.25, clearcoat: 0.8, emissive: '#2a1206', emissiveIntensity: 0.4 })),
     bark: new THREE.MeshPhysicalMaterial(E({ vertexColors: true, roughness: 0.38, clearcoat: 0.55, clearcoatRoughness: 0.2, emissive: '#1a0a04', emissiveIntensity: 0.35, envMapIntensity: 0.7 })),
-    ends: new THREE.MeshStandardMaterial({ map: swirlTex(), roughness: 0.75, emissive: '#3a2210', emissiveIntensity: 0.35 }),
-    cut: new THREE.MeshStandardMaterial({ map: cutTex('cake'), roughness: 0.8, emissive: '#3a2a18', emissiveIntensity: 0.3 }),
+    ends: new THREE.MeshStandardMaterial({ map: endT, roughness: 0.75, emissive: '#ffffff', emissiveMap: endT, emissiveIntensity: 0.22, envMapIntensity: 0.4 }),
+    cut: new THREE.MeshStandardMaterial({ map: cutT, roughness: 0.8, emissive: '#ffffff', emissiveMap: cutT, emissiveIntensity: 0.22, envMapIntensity: 0.4 }),
     gold: new THREE.MeshPhysicalMaterial(E({ color: '#ffd04a', metalness: 1, roughness: 0.2, clearcoat: 0.6, emissive: '#7a5000', emissiveIntensity: 0.5 })),
   };
 }

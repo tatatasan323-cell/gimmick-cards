@@ -16,7 +16,12 @@ const rnd = (a, b) => a + Math.random() * (b - a), mtof = (m) => 440 * Math.pow(
 
 // ---------- 土台：出口・残響 ----------
 function makeRig(c) {
-  const master = c.createGain(), comp = c.createDynamicsCompressor(); master.gain.value = 0.55; comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 3; master.connect(comp); comp.connect(c.destination);
+  const master = c.createGain(), comp = c.createDynamicsCompressor(); master.gain.value = 0.55; comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 3;
+  // スマホのスピーカー向けに整える：出ない低さ（120Hz 未満）を削り、こもる低い中音（220Hz あたり）を少し下げ、旋律の通る所（2.8kHz あたり）を少し上げる
+  // （スマホを離して聞くと、伴奏の低い音ばかりで、旋律が聞き取りにくかった 本人 2026-10-18）
+  const hp = c.createBiquadFilter(), lo = c.createBiquadFilter(), pr = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 120; hp.Q.value = 0.7;
+  lo.type = 'lowshelf'; lo.frequency.value = 220; lo.gain.value = -3; pr.type = 'peaking'; pr.frequency.value = 2800; pr.Q.value = 0.9; pr.gain.value = 4;
+  master.connect(hp); hp.connect(lo); lo.connect(pr); pr.connect(comp); comp.connect(c.destination);
   // 残響は0.6秒のモノラル（前の1.7秒ステレオより軽い）。右だけ13ms遅らせて、左右に少し広げる
   const sr = c.sampleRate, n = Math.floor(sr * 0.6), ir = c.createBuffer(1, n, sr), d = ir.getChannelData(0); let lp = 0;
   for (let i = 0; i < n; i++) { lp += 0.3 * (Math.random() * 2 - 1 - lp); d[i] = lp * Math.pow(1 - i / n, 2.6); }
@@ -113,7 +118,7 @@ const JB_VERSE = [L4(D4, B4, A4, G4), [[0, D4, 3], [3, D4, 0.5], [3.5, D4, 0.5]]
 const JB_BELLS = [[0, B4, 1], [1, B4, 1], [2, B4, 2]], JB_WAY = [[0, B4, 1], [1, D5, 1], [2, G4, 1.5], [3.5, A4, 0.5]], JB_FUN = [[0, C5, 1], [1, C5, 1], [2, C5, 1.5], [3.5, C5, 0.5]], JB_RIDE = [[0, C5, 1], [1, B4, 1], [2, B4, 1], [3, B4, 0.5], [3.5, B4, 0.5]];
 const JB_CHORUS = [JB_BELLS, JB_BELLS, JB_WAY, [[0, B4, 4]], JB_FUN, JB_RIDE, L4(B4, A4, A4, B4), [[0, A4, 2], [2, D5, 2]], JB_BELLS, JB_BELLS, JB_WAY, [[0, B4, 4]], JB_FUN, JB_RIDE, L4(D5, D5, C5, A4), [[0, G4, 4]]];
 const JB_HARM = ['G', 'G', 'G', 'C', 'Am', 'D', 'D7', 'G', 'G', 'G', 'G', 'C', 'Am', 'D', 'D7', 'G', 'G', 'G', 'G', 'G', 'C', 'G', 'A7', 'D7', 'G', 'G', 'G', 'G', 'C', 'G', 'D7', 'G'];
-const jingleSetup = (r, bus) => ({ glk: chan(r, bus, 0.1), cel: chan(r, bus, 0.08), lead: chan(r, bus, 1, 2000), bass: chan(r, bus, 0.2), stab: chan(r, bus, 0.04, 2600),
+const jingleSetup = (r, bus) => ({ glk: chan(r, bus, 0.1), cel: chan(r, bus, 0.08), lead: chan(r, bus, 1.4, 3800), bass: chan(r, bus, 0.14), stab: chan(r, bus, 0.04, 2600),
   bellA: chan(r, bus, 0.06, 0, 0.15), bellB: chan(r, bus, 0.026, 0, 0.15), hoof: chan(r, bus, 0.05, 0, -0.1), fx: chan(r, bus, 1) });
 function jingleBar(r, ch, k, t, n) { const chorus = k >= 16, mel = chorus ? JB_CHORUS[k - 16] : JB_VERSE[k], [root, tones] = CH[JB_HARM[k]];
   for (const [off, m, len] of mel) { const tt = t + off * JB_B + rnd(0, 0.004);
@@ -133,7 +138,7 @@ const WW_MEL = [[[2, D4, 1]],
   [[0, G4, 1], [1, G4, 0.5], [1.5, A4, 0.5], [2, G4, 0.5], [2.5, F4s, 0.5]], [[0, E4, 1], [1, 60, 1], [2, E4, 1]], [[0, A4, 1], [1, A4, 0.5], [1.5, B4, 0.5], [2, A4, 0.5], [2.5, G4, 0.5]], [[0, F4s, 1], [1, D4, 1], [2, D4, 1]],
   [[0, B4, 1], [1, B4, 0.5], [1.5, C5, 0.5], [2, B4, 0.5], [2.5, A4, 0.5]], [[0, G4, 1], [1, E4, 1], [2, D4, 0.5], [2.5, D4, 0.5]], [[0, E4, 1], [1, A4, 1], [2, F4s, 1]], [[0, G4, 2], [2, D4, 1]]];
 const WW_HARM = ['D', 'G', 'C', 'A7', 'D', 'B7', 'Em', 'C', 'G'];
-const wishSetup = (r, bus) => ({ mel: chan(r, bus, 0.15, 0, -0.08), hi: chan(r, bus, 0.055, 0, 0.12), acc: chan(r, bus, 0.07, 0, 0.1), bass: chan(r, bus, 0.085) });
+const wishSetup = (r, bus) => ({ mel: chan(r, bus, 0.2, 0, -0.08), hi: chan(r, bus, 0.055, 0, 0.12), acc: chan(r, bus, 0.07, 0, 0.1), bass: chan(r, bus, 0.06) });
 function wishBar(r, ch, k, t, n) { const B = WW_B, round = Math.floor(n / 17) % 2, idx = k === 0 ? 0 : k === 16 ? 8 : ((k - 1) % 8) + 1, mel = k === 16 ? [[0, G4, 3]] : WW_MEL[idx], [root, tones] = CH[k === 16 ? 'G' : WW_HARM[idx]];
   for (const [off, m] of mel) { const tt = t + off * B + rnd(0, 0.006); hit(r, ch.mel, tt, 'box', m + 12); if (round) hit(r, ch.hi, tt + 0.012, 'box', m + 24); }
   hit(r, ch.bass, t, 'box', root + 12);
@@ -152,7 +157,7 @@ const SN_MEL = [SL, SE, SL, SE, [[0, 74, 4], [4, 74, 2]], [[0, 71, 6]], [[0, 72,
   [[0, 74, 4], [4, 74, 2]], [[0, 77, 3], [3, 74, 1], [4, 71, 2]], [[0, 72, 6]], [[0, 76, 6]], [[0, 72, 3], [3, 67, 1], [4, 64, 2]], [[0, 67, 3], [3, 65, 1], [4, 62, 2]], [[0, 60, 6]], []];
 const SN_HARM = ['C', 'C', 'C', 'C', 'G7', 'G7', 'C', 'C', 'F', 'F', 'C', 'C', 'F', 'F', 'C', 'C', 'G7', 'G7', 'C', 'C', 'C', 'G7', 'C', 'C'];
 const ARP = { C: [48, 55, 60, 64, 60, 55], G7: [43, 50, 55, 59, 65, 59], F: [41, 48, 53, 57, 53, 48] };
-const silentSetup = (r, bus) => ({ g1: chan(r, bus, 0.13), g2: chan(r, bus, 0.075), fl: chan(r, bus, 1, 1400), cel1: chan(r, bus, 0.03, 0, 0.15), cel2: chan(r, bus, 0.05, 0, 0.15), str: chan(r, bus, 1, 1500), fx: chan(r, bus, 1) });
+const silentSetup = (r, bus) => ({ g1: chan(r, bus, 0.11), g2: chan(r, bus, 0.075), fl: chan(r, bus, 1.4, 3000), cel1: chan(r, bus, 0.03, 0, 0.15), cel2: chan(r, bus, 0.05, 0, 0.15), str: chan(r, bus, 1, 1500), fx: chan(r, bus, 1) });
 function silentBar(r, ch, k, t, n) { const h = SN_HARM[k], second = Math.floor(n / 24) % 2;
   ARP[h].forEach((m, e) => hit(r, e === 0 ? ch.g1 : ch.g2, t + e * SN_E + rnd(0, 0.01), 'nylon', m));
   for (const [off, m, len] of SN_MEL[k]) { const tt = t + off * SN_E; voice(r, ch.fl, tt, m, len * SN_E * 0.95, 0.05, { w: 'flute', a: 0.07, rel: 0.18, vib: 9, sus: 0.85 }); hit(r, second ? ch.cel2 : ch.cel1, tt, 'cel', m + 12); }
@@ -171,7 +176,7 @@ const JW_MEL = [[[0, 74, 1], [1, 73, 0.75], [1.75, 71, 0.25]], [[0, 69, 1.5], [1
   [[0, 66, 0.5], [0.5, 74, 1], [1.5, 71, 0.5]], [[0, 69, 0.75], [0.75, 67, 0.25], [1, 66, 0.5], [1.5, 67, 0.5]], [[0, 66, 1], [1, 64, 1]], [[0, 62, 2]]];
 const JW_HARM = [['D', 'A'], ['D', 'D'], ['D', 'A'], ['D', 'D'], ['G', 'G'], ['A', 'A'], ['D', 'D'], ['D', 'D'], ['D', 'G'], ['A', 'D'], ['D', 'G'], ['A', 'D'],
   ['D', 'D'], ['D', 'D'], ['A7', 'A7'], ['A7', 'A7'], ['D', 'G'], ['D', 'D'], ['D', 'A7'], ['D', 'D']];
-const joySetup = (r, bus) => ({ tpt: chan(r, bus, 1, 3200, -0.1), horn: chan(r, bus, 1, 1600, 0.12), tuba: chan(r, bus, 1, 700), bell: chan(r, bus, 0.08, 0, 0.18), bellM: chan(r, bus, 0.12, 0, -0.05), timp: chan(r, bus, 0.14) });
+const joySetup = (r, bus) => ({ tpt: chan(r, bus, 1.4, 4500, -0.1), horn: chan(r, bus, 1, 1600, 0.12), tuba: chan(r, bus, 0.7, 700), bell: chan(r, bus, 0.08, 0, 0.18), bellM: chan(r, bus, 0.12, 0, -0.05), timp: chan(r, bus, 0.14) });
 function joyBar(r, ch, k, t, n) { const B = JW_B, round = Math.floor(n / 20) % 2, [c1, c2] = JW_HARM[k];
   for (const [off, m, len] of JW_MEL[k]) { const tt = t + off * B + rnd(0, 0.004);
     if (!round || k >= 16) voice(r, ch.tpt, tt, m, len * B * 0.9, 0.055, { w: 'brass', a: 0.03, rel: 0.1, scoop: 18, sus: 0.85 });
@@ -192,7 +197,7 @@ const DK_MEL = [...DK_A, ...DK_A,
   DK_A[0], DK_A[1], [[0, 74, 0.5], [0.5, 74, 0.5], [1, 74, 0.5], [1.5, 74, 0.5], [2, 72, 1.5], [3.5, 70, 0.5]], [[0, 69, 1], [1, 67, 1], [2, 65, 2]]];
 const DK_HA = [['F', 'F', 'F', 'C7'], ['F', 'C7', 'F', 'F'], ['C7', 'C7', 'F', 'F'], ['Bb', 'C7', 'F', 'F']];
 const DK_HARM = [...DK_HA, ...DK_HA, ['C', 'C', 'C7', 'C7'], ['F', 'F', 'C', 'C'], ['Am', 'Am', 'G7', 'G7'], ['C', 'G7', 'C', 'C'], DK_HA[0], DK_HA[1], ['Bb', 'Bb', 'F', 'C7'], DK_HA[3]];
-const deckSetup = (r, bus) => ({ cel: chan(r, bus, 0.12, 0, -0.1), glk: chan(r, bus, 0.045, 0, 0.15), pzm: chan(r, bus, 0.07, 0, -0.15), pz: chan(r, bus, 0.06, 0, 0.12), bass: chan(r, bus, 0.15) });
+const deckSetup = (r, bus) => ({ cel: chan(r, bus, 0.17, 0, -0.1), glk: chan(r, bus, 0.045, 0, 0.15), pzm: chan(r, bus, 0.07, 0, -0.15), pz: chan(r, bus, 0.06, 0, 0.12), bass: chan(r, bus, 0.1) });
 function deckBar(r, ch, k, t, n) { const B = DK_B, round = Math.floor(n / 16) % 2, H = DK_HARM[k];
   for (const [off, m] of DK_MEL[k]) { const tt = t + off * B + rnd(0, 0.004); hit(r, ch.cel, tt, 'cel', m + 12); if (round) { hit(r, ch.glk, tt + 0.01, 'glk', m + 12); hit(r, ch.pzm, tt, 'pizz', m); } }
   // 低音は1・3拍目（3拍目も同じ和音なら5度上）、2・4拍目に和音をはじく
@@ -207,7 +212,7 @@ const TB_MEL = [[[2, 57, 1]], ...TB_A, [[0, 64, 1], [1, 62, 1], [2, 57, 1]], ...
   ...TB_A, [[0, 64, 1], [1, 62, 2]]];
 const TB_HA = [['D', 'D', 'A7'], ['D', 'Bm', 'Bm'], ['Em', 'Em', 'A7'], ['A7', 'D', 'D']];
 const TB_HARM = [['D', 'D', 'D'], ...TB_HA, ...TB_HA, ['D', 'G', 'G'], ['A7', 'A7', 'A7'], ['A7', 'A7', 'A7'], ['D', 'D', 'A7'], ...TB_HA];
-const tannSetup = (r, bus) => ({ acc: chan(r, bus, 1, 3600, -0.08), oom: chan(r, bus, 0.09), pah: chan(r, bus, 0.035, 0, 0.12), glk: chan(r, bus, 0.045, 0, 0.15) });
+const tannSetup = (r, bus) => ({ acc: chan(r, bus, 1.3, 5000, -0.08), oom: chan(r, bus, 0.065), pah: chan(r, bus, 0.035, 0, 0.12), glk: chan(r, bus, 0.045, 0, 0.15) });
 function tannBar(r, ch, k, t, n) { const B = TB_B, round = Math.floor(n / 17) % 2, H = TB_HARM[k];
   for (const [off, m, len] of TB_MEL[k]) { const tt = t + off * B + rnd(0, 0.004); voice(r, ch.acc, tt, m + 12, len * B * 0.92, 0.05, { w: 'reed', a: 0.03, rel: 0.08, det: 6, sus: 0.92 }); if (round) hit(r, ch.glk, tt, 'glk', m + 24); }
   hit(r, ch.oom, t, 'reedB', CH[H[0]][0] + 12); for (const b of [1, 2]) for (const m of CH[H[b]][1]) hit(r, ch.pah, t + b * B, 'reed', m);

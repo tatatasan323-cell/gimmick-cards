@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ぷるとろ聖夜｜X'masグリーティングカード</title>
+<title>とろけて聖夜｜X'masグリーティングカード</title>
 <meta name="description" content="宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。時間がとろける、おかしな港町へようこそ。">
-<meta property="og:title" content="ぷるとろ聖夜｜X'masグリーティングカード">
+<meta property="og:title" content="とろけて聖夜｜X'masグリーティングカード">
 <meta property="og:description" content="はじいて、こわして、とろける。おかしな港町へようこそ。">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://tatatasan323-cell.github.io/gimmick-cards/christmas-town/og_card.jpg">
@@ -120,7 +120,7 @@ h1 .gl.boing{animation:gb .7s ease-out}
   <div class="garland" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header class="hero">
     <p class="kicker">X'mas Greeting Card</p>
-    <h1 id="brand" aria-label="ぷるとろ聖夜">ぷるとろ聖夜</h1>
+    <h1 id="brand" aria-label="とろけて聖夜">とろけて聖夜</h1>
     <p class="sub">はじいて、こわして、とろける。</p>
   </header>
   <div class="puyos" aria-label="ゼリーの住人（さわると、ぷるん）">
@@ -325,7 +325,7 @@ import { Card, clean, KEYS } from './card_code.js';
     state.card = c; state.sample = sample;
     const title = c.t || TTL0, len = Array.from(title).length;
     $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : '');
-    document.title = sample ? "ぷるとろ聖夜｜X'masグリーティングカード" : title + ' ─ ぷるとろ聖夜';
+    document.title = sample ? "とろけて聖夜｜X'masグリーティングカード" : title + ' ─ とろけて聖夜';
     $('#sampleTag').hidden = !sample;
     const rows = $('#rows'); rows.textContent = '';
     if (c.to) rows.appendChild(row('TO', c.to + ' へ'));
