@@ -20,6 +20,8 @@ function spoonW(z) {
 // 面の真ん中の高さ：皿はくぼみ（ふちで0）、柄はゆるく上がる
 function spoonY(x, z) { const r2 = (x / A) ** 2 + (z / B) ** 2; return (r2 < 1 ? -0.42 * (1 - r2) : 0) + 0.95 * Math.pow(sstep(B * 0.7, END, z), 1.3); }
 const thick = (z) => 0.05 + 0.045 * sstep(B, B + 1.2, z);
+// 皿の内側（上の面）の高さ。すくった中身を、皿より下へ出さないために使う（形の座標＝スプーンの tilt の中）
+export const bowlTop = (x, z) => spoonY(x, z) + thick(z) / 2;
 // 1つにつながった面（上・下・左右のふち）。halfW(z)・midY(x, z) の形を、z0〜z1 で。uv＝（左右 0〜1, 前後 0〜1）
 function sheet(halfW, midY, z0, z1, NZ = 140, NU = 30) {
   const pos = [], uv = [], idx = [], at = (z, u) => { const w = halfW(z), x = u * w; return [x, midY(x, z), z]; }, zOf = (j) => z0 + (z1 - z0) * (j / NZ);
@@ -132,7 +134,8 @@ export function makeSpoon(renderer) {
   const S = { g, tilt, mound, env, load: 0 };
   // base＝中身の色・mat＝山と同じ材質（色は形の色で）。山盛りの上は、町の側ですくった山の形そのものをのせる
   S.setLoad = ({ base, mat }) => { mound.material = mat || moundMat; const c = mound.geometry.attributes.color, B0 = new THREE.Color(base); for (let i = 0; i < c.count; i++) c.setXYZ(i, B0.r, B0.g, B0.b); c.needsUpdate = true; };
-  S.setFill = (k) => { const s = Math.max(0.001, k); mound.scale.set(A * 0.98 * Math.min(1, 0.4 + k * 0.6), 0.95 * s, B * 0.95 * Math.min(1, 0.4 + k * 0.6)); S.load = k; };
+  // 山盛りの土台は、皿が十分に深い所（半径の0.78まで）に収める。皿いっぱいに広げると、平らな底の縁が浅い縁の近くで皿の下へ出て、下から白い三日月に見えた（2026-10-18）
+  S.setFill = (k) => { const s = Math.max(0.001, k); mound.scale.set(A * 0.78 * Math.min(1, 0.4 + k * 0.6), 0.95 * s, B * 0.78 * Math.min(1, 0.4 + k * 0.6)); S.load = k; };
   S.setFill(0); addMetal(S, body, M, O);
   return S;
 }

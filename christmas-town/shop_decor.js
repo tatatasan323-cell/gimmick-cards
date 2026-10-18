@@ -111,4 +111,4 @@ export function* shopDecor(sc, M, seed = 7) { const R = rng(seed), acc = new Acc
   tangPost(acc, R, -4.1, -1.55, 1.12); tangPost(acc, R, 3.7, -1.58, 1.18); yield;
   for (const [x, s, rz] of [[-6.55, 1.5, 0.1], [-6.25, 1.25, -0.06], [6.4, 1.45, -0.1], [-1.2, 1.05, 0.13]]) acc.add('gloss', CANE.clone(), null, at(x, s * 0.5, -1.78, s, 0.2, -0.12, rz));
   const out = acc.build({ gloss: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.08 }), matte: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }), glass: M.glass, gold: M.gold, wood: M.wood });
-  for (const m of out) sc.add(m); }
+  for (const m of out) sc.add(m); sc.userData.decor = out; }   // 店の側で、かじれるようにする（跡の作りと当たり）
