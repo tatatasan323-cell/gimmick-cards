@@ -107,6 +107,17 @@ h1 .gl.boing{animation:gb .7s ease-out}
 .tabs button{flex:1;padding:8px;border-radius:999px;border:2px solid #ecd8c0;background:#fff;color:#7a4a28;font-weight:900;cursor:pointer}
 .tabs button[aria-selected=true]{background:#b8203a;border-color:#b8203a;color:#fff}
 .reset{margin-top:18px;padding-top:12px;border-top:2px dashed #ecd8c0}
+/* グリーティングカード：題と、ひとことを大きく、まん中に。項目の名前（TO・FROM）は出さず、「〜へ」「〜より」で */
+.card.greet .ttl{font-size:32px;letter-spacing:.06em;color:#1f8a52}.card.greet .ttl.l2{font-size:26px}.card.greet .ttl.l3{font-size:21px}
+.card.greet .row{grid-template-columns:1fr;text-align:center;border-bottom:0;padding-bottom:2px}.card.greet .row dt{display:none}
+.card.greet .row.msg dd{font-size:17px;line-height:1.95;padding:8px 4px;border-top:1px dashed rgba(120,70,30,.25);border-bottom:1px dashed rgba(120,70,30,.25)}
+.card.greet .row.to dd{font-size:15px;color:#7a4a28}.card.greet .row.from dd{text-align:right;font-size:15px}
+.pump.g{background:linear-gradient(180deg,#5ad89a,#1f9a5a);box-shadow:inset 0 -4px 0 rgba(0,0,0,.16),inset 0 3px 0 rgba(255,255,255,.4),0 8px 20px rgba(40,200,120,.3)}
+.kinds{display:flex;gap:8px;margin:4px 0 2px}.kinds button{flex:1;padding:9px 6px;border-radius:999px;border:2px solid #ecd8c0;background:#fff;color:#7a4a28;font-size:13.5px;font-weight:900;cursor:pointer}
+.kinds button[aria-pressed=true]{background:#b8203a;border-color:#b8203a;color:#fff}.kinds button.g[aria-pressed=true]{background:#1f9a5a;border-color:#1f9a5a}
+#editor.g .inv{display:none!important}
+.inline{margin:14px auto 0;max-width:30em;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.08);font-size:12.5px;line-height:1.75;color:var(--sub);text-align:left}
+.inline button{display:block;margin:8px auto 0;padding:9px 18px;border:0;border-radius:999px;background:#06c755;color:#fff;font-size:14px;font-weight:900;cursor:pointer}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;transform:translate(-50%,20px);opacity:0;max-width:86vw;padding:10px 16px;border-radius:14px;background:rgba(20,16,40,.92);color:#fff;font-size:13.5px;font-weight:800;white-space:pre-line;text-align:center;pointer-events:none;transition:.25s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -141,10 +152,14 @@ h1 .gl.boing{animation:gb .7s ease-out}
   </section>
 
   <div class="make">
-    <button id="btnMake" class="pump" type="button">カードをつくる</button>
+    <button id="btnMake" class="pump" type="button">招待状をつくる</button>
+    <button id="btnMakeG" class="pump g" type="button">グリーティングカードをつくる</button>
     <button id="btnEdit" class="linkbtn" type="button" hidden>このカードを書きかえる</button>
     <button id="btnBlank" class="linkbtn" type="button" hidden>白紙から、つくる</button>
   </div>
+
+  <!-- LINE の中で開いている時だけ：いつものブラウザで開きなおす（ホーム画面に追加・カレンダーの保存ができる） -->
+  <div class="inline" id="lineBox" hidden>LINEの中で開いています。いつものブラウザで開きなおすと、カレンダーに入れたり、ホーム画面に追加したりできます（港町で遊んだ記録は、LINEの中とは別になります）。<button type="button" id="btnReopen">ブラウザで開きなおす</button></div>
 
   <footer class="foot">
     <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
@@ -164,20 +179,22 @@ h1 .gl.boing{animation:gb .7s ease-out}
 <div id="edBack" class="back2" hidden></div>
 <form id="editor" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="edH" autocomplete="off">
   <div class="shead"><h3 id="edH">カードをつくる</h3><button type="button" id="edX" class="chip">とじる</button></div>
+  <div class="kinds" role="group" aria-label="カードの種類"><button type="button" id="kindI" aria-pressed="true">招待状</button><button type="button" id="kindG" class="g" aria-pressed="false">グリーティングカード</button></div>
+  <p class="tiny" id="kindNote">日にち・場所・お返事つき。クリスマス会のお誘いに。</p>
   <p class="note copy" id="edCopyNote" hidden>もらったカードの内容を、<b>コピー</b>しました。<b>もらったカードは、そのまま残ります</b>（リンクも変わりません）。差出人とあて名は空にしたので、あなたの名前で書いてね。</p>
   <p class="note">空欄の項目は、カードに出ません。入力した内容は、リンクの中に入ります（サーバーには保存されません）。LINEなどで送った相手には見えるので、見せたくない情報は入れないでください。</p>
   <label>タイトル<input name="t" maxlength="28" placeholder="Christmas Party"></label>
   <label>あて名<input name="to" maxlength="24" placeholder="例：みんな／ゆうこさん"></label>
-  <label>日にち<input name="d" type="date"></label>
-  <div class="two"><label>はじまり<input name="s" type="time"></label><label>おわり<input name="e" type="time"></label></div>
-  <label>会場の名前<input name="vn" maxlength="40" placeholder="例：わが家／〇〇公民館"></label>
-  <label>住所・行き方<input name="va" maxlength="60" placeholder="例：〇〇市△△1-2-3　駅から徒歩5分"></label>
-  <label>連絡先<input name="c" maxlength="60" placeholder="例：LINEで連絡してね"></label>
+  <label class="inv">日にち<input name="d" type="date"></label>
+  <div class="two inv"><label>はじまり<input name="s" type="time"></label><label>おわり<input name="e" type="time"></label></div>
+  <label class="inv">会場の名前<input name="vn" maxlength="40" placeholder="例：わが家／〇〇公民館"></label>
+  <label class="inv">住所・行き方<input name="va" maxlength="60" placeholder="例：〇〇市△△1-2-3　駅から徒歩5分"></label>
+  <label class="inv">連絡先<input name="c" maxlength="60" placeholder="例：LINEで連絡してね"></label>
   <label>ひとこと<textarea name="m" maxlength="200" rows="4" placeholder="例：ケーキを用意して待ってるよ。プレゼント交換もしようね！"></textarea></label>
   <div class="two">
     <label>差出人<input name="f" maxlength="24" placeholder="例：ゆうこ"></label>
-    <label>持ち物<input name="dc" maxlength="40" placeholder="例：500円くらいのプレゼント"></label>
-    <label class="chk"><input type="checkbox" name="rp"><span>参加のお返事を、LINEでもらう</span></label>
+    <label class="inv">持ち物<input name="dc" maxlength="40" placeholder="例：500円くらいのプレゼント"></label>
+    <label class="chk inv"><input type="checkbox" name="rp"><span>参加のお返事を、LINEでもらう</span></label>
   </div>
   <div class="edbtns"><button type="button" id="edSample" class="chip">例を入れる</button><button type="submit" class="pump">リンクをつくる</button></div>
   <div id="edResult" hidden>
@@ -213,7 +230,7 @@ h1 .gl.boing{animation:gb .7s ease-out}
   <div id="hpMake" role="tabpanel" hidden>
     <h4>おくりかた</h4>
     <ol>
-      <li><b>「カードをつくる」</b>を押します（港町の郵便局からも来られます）</li>
+      <li><b>「招待状をつくる」</b>か<b>「グリーティングカードをつくる」</b>を押します（港町のメニュー「カードをつくる」と、郵便局からも来られます）。招待状は日にち・場所・お返事つき、グリーティングカードは「メリークリスマス」のひとことを送るカードです</li>
       <li>タイトル・日にち・ひとこと などを書きます。<b>空欄は、カードに出ません</b></li>
       <li><b>「リンクをつくる」</b>→<b>「LINEで送る」</b>で、送る相手をえらんで送信。「リンクをコピー」なら、メールやSNSにも貼れます</li>
     </ol>
@@ -285,11 +302,13 @@ import { Card, clean, KEYS } from './card_code.js';
   }
 
   // ---------- 1. カードの中身（入力 → 検査 → リンクの中へ）は 共通/card_code.js。画面には textContent でしか出さない ----------
-  function sampleCard() {
+  function sampleCard(kind) {
+    if (kind === 'g') return { k: 'g', t: 'Merry Christmas', to: 'みんな', m: '今年も、ありがとう。\nあたたかくて、すてきなクリスマスを！', f: 'ゆうこ' };
     const now = new Date(); let y = now.getFullYear();
     if (now > new Date(y, 11, 24, 23, 59)) y += 1;
     return { t: 'Christmas Party', to: 'みんな', d: y + '-12-24', s: '17:00', e: '20:00', vn: 'わが家', va: '〇〇市△△町1-2-3　駅から歩いて5分', c: 'LINEで連絡してね', m: 'ケーキを用意して待ってるよ。\nプレゼント交換もしようね！', f: 'ゆうこ', dc: '500円くらいのプレゼント', rp: '1' };
   }
+  const isG = (c) => !!c && c.k === 'g';
 
   // ---------- 2. カードの表示 ----------
   const WD = ['日', '月', '火', '水', '木', '金', '土'];
@@ -303,7 +322,7 @@ import { Card, clean, KEYS } from './card_code.js';
   }
   function daysUntil(ds) { const [y, m, d] = ds.split('-').map(Number), now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()), t1 = new Date(y, m - 1, d); return Math.round((t1 - t0) / 86400000); }
   function row(dt, dd, cls) { const r = el('div', 'row' + (cls ? ' ' + cls : '')); r.appendChild(el('dt', null, dt)); const d = el('dd'); if (typeof dd === 'string') d.textContent = dd; else d.appendChild(dd); r.appendChild(d); return r; }
-  const TTL0 = 'Christmas Party';
+  const TTL0 = 'Christmas Party', TTL_G = 'Merry Christmas';
   function icsText(c) {
     const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'), p2 = (n) => String(n).padStart(2, '0');
     const d = c.d.replace(/-/g, ''), now = new Date(), stamp = now.getUTCFullYear() + p2(now.getUTCMonth() + 1) + p2(now.getUTCDate()) + 'T' + p2(now.getUTCHours()) + p2(now.getUTCMinutes()) + p2(now.getUTCSeconds()) + 'Z';
@@ -323,11 +342,18 @@ import { Card, clean, KEYS } from './card_code.js';
   const ext = (a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; };
   function renderCard(c, sample) {
     state.card = c; state.sample = sample;
-    const title = c.t || TTL0, len = Array.from(title).length;
+    const g = isG(c), title = c.t || (g ? TTL_G : TTL0), len = Array.from(title).length;
     $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : '');
+    $('#card').classList.toggle('greet', g);
     document.title = sample ? "とろけて聖夜｜X'masグリーティングカード" : title + ' ─ とろけて聖夜';
     $('#sampleTag').hidden = !sample;
     const rows = $('#rows'); rows.textContent = '';
+    if (g) {   // グリーティングカード：あて名・ひとこと・差出人だけ（日にち・場所・お返事は出さない）
+      if (c.to) rows.appendChild(row('TO', c.to + ' へ', 'to'));
+      rows.appendChild(row('ひとこと', c.m || 'メリークリスマス！', 'msg'));
+      if (c.f) rows.appendChild(row('FROM', c.f + ' より', 'from'));
+      $('#count').hidden = true; $('#acts').textContent = ''; makeButtons(sample); return;
+    }
     if (c.to) rows.appendChild(row('TO', c.to + ' へ'));
     if (c.d) rows.appendChild(row('日時', dateText(c)));
     if (c.vn || c.va) { const dd = el('div'); if (c.vn) dd.appendChild(document.createTextNode(c.vn)); if (c.va) dd.appendChild(el('small', null, c.va)); rows.appendChild(row('会場', dd)); }
@@ -360,11 +386,17 @@ import { Card, clean, KEYS } from './card_code.js';
       rep.appendChild(ra); rep.appendChild(el('p', 'hint2', 'LINEの画面で、返事を送る相手（このカードをくれたトーク）を選んで送ってね。'));
       acts.appendChild(rep);
     }
-    // 見本＝「つくる」だけ。もらったカード＝「自分もつくる（コピー）」と「白紙から」。つくった直後＝「書きかえる」
-    $('#btnMake').hidden = state.mine; $('#btnEdit').hidden = sample || !state.mine; $('#btnBlank').hidden = sample;
-    $('#btnMake').textContent = sample ? 'カードをつくる' : '自分もカードをつくる（この内容をコピー）';
+    makeButtons(sample);
   }
-  function loadFromHash() { const c = PAGES ? Card.fromHash(location.hash) : null; if (c) renderCard(c, false); else renderCard(sampleCard(), true); }
+  // 見本＝「招待状をつくる」「グリーティングカードをつくる」。もらったカード＝「自分もつくる（コピー）」と「白紙から」。つくった直後＝「書きかえる」
+  function makeButtons(sample) {
+    $('#btnMake').hidden = state.mine; $('#btnMakeG').hidden = !sample || state.mine; $('#btnEdit').hidden = sample || !state.mine; $('#btnBlank').hidden = sample;
+    $('#btnMake').textContent = sample ? '招待状をつくる' : '自分もカードをつくる（この内容をコピー）';
+  }
+  // #make-invite・#make-greet＝港町のメニュー「カードをつくる」から：その種類の見本を出して、作る画面を開く
+  function loadFromHash() { const mk = /^#make-(invite|greet)$/.exec(location.hash || ''), c = PAGES ? Card.fromHash(location.hash) : null;
+    if (mk) { const k = mk[1] === 'greet' ? 'g' : ''; state.mine = false; renderCard(sampleCard(k), true); if (PAGES) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* 別の枠の中 */ } } setTimeout(() => openEditor('new', k), 350); return; }
+    if (c) renderCard(c, false); else renderCard(sampleCard(), true); }
 
   // ---------- 3. 港町への入口。港町の郵便局から来た時は、左上に「港町へもどる」 ----------
   let fromTown = false;
@@ -376,35 +408,48 @@ import { Card, clean, KEYS } from './card_code.js';
 
   // ---------- 4. カードをつくる・送る ----------
   const editor = $('#editor'), edBack = $('#edBack');
-  function fillForm(c) { KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || ''; }); }
-  function readForm() { const o = {}; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = k === 'rp' ? (f.checked ? '1' : '') : f.value; }); return clean(o); }
+  // 作る画面のカードの種類（''＝招待状・'g'＝グリーティングカード）。グリーティングカードでは、日にち・場所・お返事の欄を隠す（入っていても、リンクには入れない）
+  let edKind = '';
+  function setKind(k) { edKind = k === 'g' ? 'g' : ''; const g = edKind === 'g'; editor.classList.toggle('g', g); $('#kindI').setAttribute('aria-pressed', String(!g)); $('#kindG').setAttribute('aria-pressed', String(g));
+    $('#edH').textContent = g ? 'グリーティングカードをつくる' : '招待状をつくる'; $('#kindNote').textContent = g ? '「メリークリスマス」のひとことを送るカード。あて名・ひとこと・差出人だけ。' : '日にち・場所・お返事つき。クリスマス会のお誘いに。';
+    editor.elements.t.placeholder = g ? TTL_G : TTL0; editor.elements.m.placeholder = g ? '例：今年もありがとう。すてきなクリスマスを！' : '例：ケーキを用意して待ってるよ。プレゼント交換もしようね！'; }
+  function fillForm(c) { setKind(c.k); KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || ''; }); }
+  function readForm() { const o = { k: edKind }; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = k === 'rp' ? (f.checked ? '1' : '') : f.value; }); return clean(o); }
   let edKeep = false, lastCard = null;
   function openSheet(sh, back) { back.hidden = false; sh.hidden = false; void sh.offsetWidth; sh.classList.add('open'); }
   function closeSheet(sh, back) { sh.classList.remove('open'); back.hidden = true; setTimeout(() => { sh.hidden = true; }, 380); }
-  function openEditor(src) {
+  // src：'copy'＝もらったカードを写す／'blank'＝白紙から（もらったカードは残す）／'new'＝見本から、その種類で（kind）／なし＝いまのカードを書きかえる
+  function openEditor(src, kind) {
     Snd.unlock(); Snd.tap();
     edKeep = src === 'copy' || src === 'blank';
-    if (src === 'copy') { const o = Object.assign({}, state.card || {}); delete o.f; delete o.to; fillForm(o); } else if (src === 'blank') fillForm({ rp: '1' }); else fillForm(state.sample ? { rp: '1' } : state.card || {});
+    if (src === 'copy') { const o = Object.assign({}, state.card || {}); delete o.f; delete o.to; fillForm(o); } else if (src === 'blank') fillForm({ k: isG(state.card) ? 'g' : '', rp: '1' }); else if (src === 'new') fillForm(kind === 'g' ? { k: 'g' } : { rp: '1' }); else fillForm(state.sample ? { rp: '1' } : state.card || {});
+    if (src === 'new' && state.sample) renderCard(sampleCard(kind), true);
     $('#edCopyNote').hidden = src !== 'copy'; $('#edResult').hidden = true; $('#edMsg').textContent = '';
     openSheet(editor, edBack); editor.elements.t.focus({ preventScroll: true });
   }
   const closeEditor = () => closeSheet(editor, edBack);
-  $('#btnMake').addEventListener('click', () => openEditor(state.sample || state.mine ? undefined : 'copy'));
+  $('#btnMake').addEventListener('click', () => (state.sample ? openEditor('new', '') : openEditor(state.mine ? undefined : 'copy')));
+  $('#btnMakeG').addEventListener('click', () => openEditor('new', 'g'));
   $('#btnBlank').addEventListener('click', () => openEditor('blank'));
   $('#btnEdit').addEventListener('click', () => openEditor());
+  // 種類の切りかえ：書いた中身は残す（グリーティングカードでは、隠した欄はリンクに入らない）
+  for (const [id, k] of [['kindI', ''], ['kindG', 'g']]) $('#' + id).addEventListener('click', () => { Snd.tap(); setKind(k); if (edKeep) return; const c = readForm();
+    if (Object.keys(c).some((q) => q !== 'k')) renderCard(c, false); else renderCard(sampleCard(edKind), true); });   // まだ何も書いていなければ、その種類の見本を見せる
   $('#edX').addEventListener('click', closeEditor); edBack.addEventListener('click', closeEditor);
-  $('#edSample').addEventListener('click', () => { fillForm(sampleCard()); if (!edKeep) renderCard(readForm(), false); });
+  $('#edSample').addEventListener('click', () => { fillForm(sampleCard(edKind)); if (!edKeep) renderCard(readForm(), false); });
   editor.addEventListener('input', () => { if (!edKeep) renderCard(readForm(), false); });   // もらったカードを残す時は、画面のカードを書きかえない
   const shareUrl = (c) => (PAGES ? new URL('./', location.href).href : PUBLIC_TOWN) + '#c=' + Card.encode(c);
+  // LINE に添える文：招待状＝「おかしな港町で、まってるね」／グリーティングカード＝「クリスマスカードを送ったよ」
+  const shareText = (c) => (isG(c) ? (c.t || TTL_G) + '\nクリスマスカードを送ったよ。ひらいてね' : (c.t || TTL0) + '\nおかしな港町で、まってるね');
   editor.addEventListener('submit', (e) => {
     e.preventDefault(); Snd.unlock(); Snd.chime();
     const c = readForm();
-    if (!Object.keys(c).length) { $('#edMsg').textContent = 'どれか1つは、書いてね。'; $('#edResult').hidden = false; return; }
+    if (!Object.keys(c).some((k) => k !== 'k')) { $('#edMsg').textContent = 'どれか1つは、書いてね。'; $('#edResult').hidden = false; return; }
     lastCard = c;
     if (!edKeep) { if (PAGES) { try { history.replaceState(null, '', '#c=' + Card.encode(c)); } catch (er) { /* 別の枠の中では使えない */ } } state.mine = true; renderCard(c, false); }
     const url = shareUrl(c);
     $('#edUrl').value = url;
-    $('#shLine').href = 'https://line.me/R/share?text=' + encodeURIComponent((c.t || TTL0) + '\nおかしな港町で、まってるね\n' + url);
+    $('#shLine').href = 'https://line.me/R/share?text=' + encodeURIComponent(shareText(c) + '\n' + url);
     $('#edMsg').textContent = 'リンクの長さ：' + url.length + '文字' + (PAGES ? '' : '（試作版なので、送るリンクは公開版のアドレスです）');
     $('#shNative').hidden = !navigator.share;
     $('#edResult').hidden = false; $('#edResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -414,7 +459,10 @@ import { Card, clean, KEYS } from './card_code.js';
     try { await navigator.clipboard.writeText(u); toast('リンクをコピーしました'); }
     catch (e) { const f = $('#edUrl'); f.focus(); f.select(); try { document.execCommand('copy'); toast('リンクをコピーしました'); } catch (e2) { toast('リンクを長押ししてコピーしてね'); } }
   });
-  $('#shNative').addEventListener('click', () => { const c = lastCard || state.card || {}; if (navigator.share) navigator.share({ title: c.t || TTL0, text: 'おかしな港町で、まってるね', url: $('#edUrl').value }).catch(() => {}); });
+  $('#shNative').addEventListener('click', () => { const c = lastCard || state.card || {}; if (navigator.share) navigator.share({ title: c.t || (isG(c) ? TTL_G : TTL0), text: shareText(c).split('\n').slice(1).join('\n'), url: $('#edUrl').value }).catch(() => {}); });
+  // LINE の中で開いている時：いつものブラウザで開きなおす（LINE は、アドレスに openExternalBrowser=1 が付いたページを、外のブラウザで開く）
+  if (/Line\//i.test(navigator.userAgent) && PAGES) { $('#lineBox').hidden = false; $('#btnReopen').addEventListener('click', () => { Snd.unlock(); Snd.tap(); const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.href = u.href; }); }
+  if (PAGES && /[?&]openExternalBrowser=1/.test(location.search)) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // 開きなおした後は、アドレスを元に
 
   // ---------- 5. つかいかた・ルール・リセット ----------
   const help = $('#help'), helpBack = $('#helpBack');

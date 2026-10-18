@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>おかしな港町</title>
-<meta name="description" content="宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。時間がとろける、おかしな港町へようこそ。">
+<meta name="description" content="これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。宝石をはじいて、ステンドグラスを割って、氷をけずって。こわしても、ちゃんと戻るから、罪悪感ゼロ。">
 <link rel="manifest" href="manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="とろけて聖夜"><link rel="apple-touch-icon" href="icon_180.png">
 <meta property="og:title" content="とろけて聖夜｜X'masグリーティングカード">
-<meta property="og:description" content="はじいて、こわして、とろける。おかしな港町へようこそ。">
+<meta property="og:description" content="これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://tatatasan323-cell.github.io/gimmick-cards/christmas-town/og_card.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -53,12 +53,12 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #menuB{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:13px;font-weight:800;color:#fff3df;background:rgba(40,22,8,.55);border:1px solid rgba(255,230,190,.35);border-radius:999px;padding:7px 12px;cursor:pointer}
 #menu{position:fixed;inset:0;z-index:25;background:rgba(10,6,20,.45);display:flex;align-items:flex-end;justify-content:center}#menu[hidden]{display:none}
 #sheet{width:min(100%,520px);max-height:82vh;box-sizing:border-box;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:#fff8ee;color:#2a1a10;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(0,0,0,.4)}
-#tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#tabs button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 2px;background:#eadccb;color:#5a3a1a;cursor:pointer}#tabs button.on{background:#c8732e;color:#fff}
+#tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}#tabs button{font:inherit;font-size:12.5px;line-height:1.2;font-weight:800;border:0;border-radius:999px;padding:7px 2px;background:#eadccb;color:#5a3a1a;cursor:pointer}#tabs button.on{background:#c8732e;color:#fff}
 #pane{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
 .it{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #ecdcc8}.it .mtx{flex:1;min-width:0;text-align:left}.it b{display:block;font-size:14.5px}.it small{display:block;font-size:12px;color:#8a5a2a;margin-top:2px;line-height:1.5}
 .it button,.it a{font:inherit;font-size:12.5px;font-weight:800;border:0;border-radius:999px;padding:7px 11px;background:#eadccb;color:#5a3a1a;text-decoration:none;white-space:nowrap;cursor:pointer}.it .go{background:#c8732e;color:#fff}.it .on{background:#3a8a4a;color:#fff}
 .hd{font-size:12.5px;font-weight:800;color:#8a5a2a;margin:8px 2px 4px}.note{font-size:12px;line-height:1.7;color:#8a6a4a;background:#f6ecdf;border-radius:12px;padding:10px 12px;margin:12px 2px 4px}.vol{width:min(42vw,170px);accent-color:#c8732e}.num{font-size:14px;font-weight:800;color:#c8732e;white-space:nowrap;font-variant-numeric:tabular-nums}.ok{color:#3a8a4a;font-weight:800}
-.qr{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 2px 10px}.qr .code{width:min(62vw,240px);aspect-ratio:1;border-radius:14px;overflow:hidden;box-shadow:0 0 0 4px #ffb4d7}.qr .code svg{display:block;width:100%;height:100%}.qr small{font-size:11.5px;color:#8a5a2a;word-break:break-all;text-align:center}.qr button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 14px;background:#c8732e;color:#fff;cursor:pointer}
+.qr{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 2px 10px}.qrb{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.qrb button,.qrb a{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 16px;background:#eadccb;color:#5a3a1a;text-decoration:none;cursor:pointer}.qrb .line{background:#06c755;color:#fff}.qr .code{width:min(62vw,240px);aspect-ratio:1;border-radius:14px;overflow:hidden;box-shadow:0 0 0 4px #ffb4d7}.qr .code svg{display:block;width:100%;height:100%}.qr small{font-size:11.5px;color:#8a5a2a;word-break:break-all;text-align:center}.qr button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 14px;background:#c8732e;color:#fff;cursor:pointer}
 #menuX{font:inherit;font-weight:800;border:0;border-radius:999px;padding:9px;background:#eadccb;color:#5a3a1a;cursor:pointer}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
 #introSub{position:fixed;left:0;right:0;z-index:9;text-align:center;font-size:clamp(15px,4.2vw,21px);font-weight:900;letter-spacing:.12em;color:#fff6fb;text-shadow:0 0 6px #ff9ccb,0 0 14px #b9a6ff,0 2px 0 #d86aa0;pointer-events:none;transition:opacity .5s}
@@ -66,6 +66,8 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #introTap[hidden]{display:none}
 @keyframes tapIn{from{opacity:0;transform:translateX(-50%) scale(.6)}}@keyframes tapPulse{50%{transform:translateX(-50%) scale(1.07)}}
 #introSub span{display:inline-block;animation:hop .6s cubic-bezier(.3,1.8,.5,1) both}#introSub.bye{opacity:0}
+#introLead{position:fixed;left:50%;z-index:9;transform:translateX(-50%);width:min(88vw,430px);box-sizing:border-box;padding:6px 12px;border-radius:14px;background:rgba(24,12,44,.38);text-align:center;font-size:clamp(12.5px,3.4vw,15px);font-weight:800;line-height:1.7;letter-spacing:.03em;color:#fff;text-shadow:0 1px 6px rgba(60,20,90,.9);pointer-events:none;opacity:0;animation:leadIn .8s ease 2s forwards}
+#introLead[hidden]{display:none}#introLead.bye{opacity:0!important;transition:opacity .5s}@keyframes leadIn{to{opacity:1}}
 #invite{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(30,12,40,.35);opacity:0;transition:opacity .3s}#invite.on{opacity:1}#invite[hidden]{display:none}
 #invCard{width:min(84vw,330px);box-sizing:border-box;padding:18px 18px 16px;border-radius:24px;background:linear-gradient(#fff7fb,#ffeef7);box-shadow:0 0 0 4px #ffc2de,0 14px 36px rgba(120,30,90,.4);text-align:center;color:#5b3550;transform:translateY(16px) scale(.9);transition:transform .45s cubic-bezier(.2,1.6,.4,1)}
 #invite.on #invCard{transform:none}
@@ -99,13 +101,14 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="cotton" hidden><canvas id="cotC"></canvas><div id="cotIn"><div id="cotTag"></div><div id="cotName"></div><p id="cotText"></p><div id="cotSrc"></div><button id="cotOk" type="button">なるほど！</button></div></div>
 <button id="menuB" type="button" aria-haspopup="dialog">☰ メニュー</button>
 <div id="introSub" hidden></div>
+<div id="introLead" hidden>これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。</div>
 <button id="introTap" type="button" hidden>タッチしてね</button>
 <div id="load" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="invite" hidden role="dialog" aria-label="招待状のお知らせ"><div id="invCard"><div id="invEnv" aria-hidden="true"><i></i><b></b></div><div id="invHead">招待状が届いているよ！</div><div id="invFrom"></div><div id="invTitle"></div><div id="invRow"><button id="invGo" type="button">先に招待状を見る</button><button id="invLater" type="button">町を見てから</button></div></div></div>
 <button id="inviteBtn" type="button" hidden>✉ 招待状を見る</button>
 <div id="shopUI" hidden><button id="shopBack" type="button">‹ 港町へもどる</button></div>
 <div id="shopWait" hidden><i></i>いらっしゃいませ</div>
-<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR</button><button type="button" data-t="rec">きろく</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button></div></div>
+<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="make">カードをつくる</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR・スマホへ</button><button type="button" data-t="rec">きろく</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button></div></div>
 <div id="fps" hidden></div>
 <script type="module">
 // 冬の夜の、北欧の入り江の港町。湾を囲むハーバーに、お菓子の家（ジンジャーブレッドの壁・フロスティングの屋根・飴の窓）が坂の上まで段々に続く
@@ -750,7 +753,14 @@ function label(text, sub) {
 }
 // GitHub では、街と仕掛けを同じフォルダに置き、同じタブで行き来する（共通/まとめる_pages.py が PAGES を true にする）。claude.ai の試作では、仕掛けごとの非公開ページへ
 const PAGES = true;
-const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html', post: 'card.html' }
+// 届いたカード（GitHub の公開版で、リンクに #c=x1.〜 が付いて開いた時）。中身は 共通/card_code.js で確かめてから使い、画面には textContent でしか出さない
+// このタブの間は覚えておく（カードを見てから「港町へもどる」で #post に来ると、#c= が外れて「✉ 招待状を見る」が消えていた 2026-10-18）。郵便局からも、もらったカードへ
+const INVITE = PAGES ? Card.fromHash(location.hash) : null, CARD_KEEP = 'xmas-card-hash';
+let INVITE_HASH = INVITE ? location.hash : '';
+try { if (INVITE) sessionStorage.setItem(CARD_KEEP, INVITE_HASH); else if (PAGES) { const h = sessionStorage.getItem(CARD_KEEP); if (h && Card.fromHash(h)) INVITE_HASH = h; } } catch (e) { /* 覚えておけない画面 */ }
+const CARD_GOT = INVITE || (INVITE_HASH ? Card.fromHash(INVITE_HASH) : null), CARD_IS_G = !!CARD_GOT && CARD_GOT.k === 'g';
+if (PAGES && q.has('openExternalBrowser')) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // LINE から開きなおした後は、アドレスを元に
+const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html', post: 'card.html' + INVITE_HASH }
   : { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U', post: 'https://claude.ai/artifact/8BYtjoMnsyP5yRzrQojXfC' };
 if (PAGES) { $('go').removeAttribute('target'); $('go').removeAttribute('rel'); }
 function area(id, name, sub, text, link, grp, view, labelY, labelSub) {
@@ -2069,7 +2079,13 @@ function drawMenu() {
       ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b));
     P.append(mEl('div', 'hd', 'ともだちに教える（QR コード）')); P.append(qrBox()); }
   else if (menuTab === 'rec') drawRecords(P);
-  else if (menuTab === 'qr') { P.append(mEl('div', 'hd', 'この港町の QR コード。スマホのカメラで読みとると、ここへ来られます')); P.append(qrBox()); }
+  else if (menuTab === 'qr') { P.append(mEl('div', 'hd', 'ともだちに教える（スマホのカメラで読みとると、ここへ来られます）')); P.append(qrBox()); homeRows(P); }
+  else if (menuTab === 'make') { P.append(mEl('div', 'hd', 'LINE で送れるカードを、2種類つくれます'));   // 本人 2026-10-18「招待状モードと、メリークリスマスを伝えるだけのグリーティングカードモード」
+    const mk = (kind) => { const a = mEl('a', 'go', 'つくる ›'); a.href = (PAGES ? 'card.html' : ART.post) + '#make-' + kind; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } a.addEventListener('click', () => use('post')); return a; };
+    P.append(mRow('✉ 招待状', '日にち・場所・お返事つき。クリスマス会のお誘いに', mk('invite')));
+    P.append(mRow('🎄 グリーティングカード', '「メリークリスマス」のひとことを。あて名・ひとこと・差出人だけ', mk('greet')));
+    if (CARD_GOT) { const a = mEl('a', null, '見る ›'); a.href = 'card.html' + INVITE_HASH; P.append(mRow(CARD_IS_G ? 'もらったカード' : 'もらった招待状', (CARD_GOT.f ? CARD_GOT.f + ' さんから' : '') + (CARD_GOT.t ? '「' + CARD_GOT.t + '」' : ''), a)); }
+    P.append(mEl('div', 'note', 'カードを受け取った人は、カードを見たあと、この港町でも遊べます。カードの中身はリンクの中に入り、サーバーには保存されません。見せたくない情報は入れないでください。')); }
   else { P.append(mEl('div', 'hd', 'BGM は、この港町の中だけで鳴ります'));
     const slider = (label, key, apply) => { const r = mRow(label, null), w = mEl('input'); w.type = 'range'; w.min = 0; w.max = 100; w.step = 5; w.value = PREF[key]; w.className = 'vol'; w.setAttribute('aria-label', label);
       w.addEventListener('input', () => { PREF[key] = +w.value; apply(PREF[key] / 100); }); w.addEventListener('change', () => { savePref(); if (key === 'seVol') SND.tap(); }); r.append(w); return r; };
@@ -2088,7 +2104,17 @@ function screenRows(P) { P.append(mEl('div', 'hd', '画面を広く'));
   const canLock = !!(screen.orientation && screen.orientation.lock) && !IOS, lockTo = (o) => { const go = () => screen.orientation.lock(o).catch(() => {}); try { if (document.fullscreenElement || document.webkitFullscreenElement) go(); else (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen).call(document.documentElement).then(go, go); } catch (e) { /* できない端末 */ } setTimeout(drawMenu, 600); };
   if (canLock) { const r = mRow('画面の向き', '縦・横を、ボタンで切りかえ（全画面になります）'); r.append(mBtn('縦', () => lockTo('portrait')), mBtn('横', () => lockTo('landscape'), 'go')); P.append(r); }
   else P.append(mRow('画面の向き', IOS ? 'スマホを横にすると横画面に。ならない時は、コントロールセンターの「画面縦向きのロック」を切ってください' : 'スマホを横にすると横画面に。ならない時は、端末の「画面の自動回転」をオンに'));
-  if (IN_LINE) P.append(mRow('LINE の下の枠は、消せません', '右上の「…」→「ブラウザで開く」で、いつものブラウザでも遊べます（記録は別になります）')); }
+  if (IN_LINE) P.append(mRow('LINE の下の枠は、消せません', 'いつものブラウザで開きなおすと、画面を広くできます（右上の「…」→「ブラウザで開く」でも。記録は別になります）', mBtn('ブラウザで開きなおす', reopenBrowser, 'go'))); }
+// LINE の中のブラウザで開いている時：いつものブラウザで開きなおす（LINE は、アドレスに openExternalBrowser=1 が付いたページを、外のブラウザで開く）。届いたカードも一緒に
+function reopenBrowser() { const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); if (!u.hash && INVITE_HASH) u.hash = INVITE_HASH; location.href = u.href; }
+// スマホに入れる（ホーム画面に追加）：開いている所ごとに、やり方を1つだけ（本人 2026-10-18「ショートカットやアプリとして登録できるように、その案内も」）
+function homeRows(P) { P.append(mEl('div', 'hd', 'スマホに入れる（ホーム画面に追加）'));
+  if (IN_LINE) P.append(mRow('LINE の中で開いています', 'いつものブラウザで開きなおすと、ホーム画面に追加できます（遊んだ記録は、LINE の中とは別になります）', mBtn('ブラウザで開きなおす', reopenBrowser, 'go')));
+  else if (STANDALONE) P.append(mRow('ホーム画面のアイコンから開いています', 'このまま、画面いっぱいで遊べます'));
+  else if (IOS) P.append(mRow('iPhone・iPad', 'Safari の共有ボタン（□↑）→「ホーム画面に追加」。ほかのブラウザでも、共有のボタンから追加できます'));
+  else if (/Android/i.test(navigator.userAgent)) P.append(mRow('Android', 'ブラウザの右上の「︙」→「ホーム画面に追加」（「アプリをインストール」と出ることもあります）'));
+  else P.append(mRow('パソコン', 'ブラウザのメニューの「インストール」や「ショートカットを作成」から'));
+  P.append(mEl('div', 'note', 'ホーム画面のアイコンから開くと、アドレスバーのない、画面いっぱいで遊べます。遊んだ記録は、開いた所（ブラウザ・LINE・ホーム画面のアイコン）ごとに別々です。')); }
 // きろく：何をどこまで集めたか（ケーキの山の条件）・見つけたもの・こわした／食べた数（この端末にずっと足していく。仕掛けのページの分も）
 const REC_FOUND = [['spoon', '大きなスプーンが山をすくった'], ['silver', '銀のスプーン・フォーク'], ['gold', '金のスプーン・フォーク'], ['fork', '大きなフォークがケーキを刺した'], ['lhDown', 'お菓子の灯台が崩れた'], ['pick', 'ピックが家を空へ'], ['flick', '降ってきた飴をはじいた'], ['deer', '空を駆けるトナカイ'], ['bgm', 'BGM を変えてみた']];
 const REC_DONE = [['glassSanta', 'ステンドグラスの天井のサンタ'], ['chand', '美術館のシャンデリアを揺らした'], ['crystal', '美術館の大クリスタルを落とした'], ['gemGlow', '宝石が自分で光った'], ['ice24', '氷から宝石を24個'], ['water', 'みずの玉をちぎった'], ['tower', 'グミのつみきを高く積んだ']];
@@ -2108,8 +2134,12 @@ function drawRecords(P) { readGDone(); const S = gstats(), nT = TRIVIA.filter((T
   for (const [hd, list] of REC_STAT) { P.append(mEl('div', 'hd', `こわした・食べた（${hd}）`)); for (const [k, name] of list) P.append(mRow(name, null, mEl('b', 'num', S[k] ? S[k].toLocaleString() + ' 回' : '—'))); }
   P.append(mEl('div', 'note', 'この記録は、この端末の、いま開いているアプリ（ブラウザ・LINE・ホーム画面のアイコン）の中だけに残ります。LINE とブラウザでは別々の記録になります。ブラウザの履歴やサイトのデータを消すと、はじめからになります。')); }
 // QR コード：アドレスの絵（共通/town_qr.js＝QRを作る.py が作った固定の形）と、アドレスを写すボタン
+// URLだけを送る時は、何のアプリかの一文を添える（本人 2026-10-18）
+const APP_LEAD = 'これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。';
 function qrBox() { const w = mEl('div', 'qr'), c = mEl('div', 'code'); c.innerHTML = QR_SVG; w.append(c, mEl('small', null, QR_URL));
-  const b = mBtn('アドレスを写す', () => { const done = () => { b.textContent = '写しました'; }; try { navigator.clipboard.writeText(QR_URL).then(done, () => selectText(w.querySelector('small'))); } catch (e) { selectText(w.querySelector('small')); } }); w.append(b); return w; }
+  const b = mBtn('アドレスを写す', () => { const done = () => { b.textContent = '写しました'; }; try { navigator.clipboard.writeText(QR_URL).then(done, () => selectText(w.querySelector('small'))); } catch (e) { selectText(w.querySelector('small')); } });
+  const ln = mEl('a', 'line', 'LINE で送る'); ln.href = 'https://line.me/R/share?text=' + encodeURIComponent(['とろけて聖夜', APP_LEAD, QR_URL].join('\n')); ln.target = '_blank'; ln.rel = 'noopener'; ln.addEventListener('click', () => SND.tap());
+  const row = mEl('div', 'qrb'); row.append(b, ln); w.append(row); return w; }
 function selectText(el) { try { const r = document.createRange(); r.selectNodeContents(el); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch (e) { /* 選べない画面 */ } }
 $('menuB').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu(); });
 // 右上の「豆知識 ○/12」からも、豆知識の一覧へ（一度見た豆知識は、ふつうに触っても雲が出ないものがあるので、ここで読み返す）
@@ -2155,8 +2185,6 @@ function goSimple(tag) {
 function simpleNote() { if (simpleNote.done) return; simpleNote.done = true; const d = document.createElement('div');
   d.style.cssText = 'position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:min(92vw,420px);padding:9px 14px;border-radius:14px;background:rgba(20,24,48,.88);color:#fff;font-size:13px;line-height:1.5;text-align:center;cursor:pointer';
   d.textContent = 'この端末では動かない表現があったので、一部の動きを省いて表示しています（さわると、くわしい情報）'; d.addEventListener('pointerdown', () => { d.remove(); showDiag(); }); document.body.appendChild(d); setTimeout(() => d.remove(), 10000); }
-// 届いた招待状（GitHub の公開版で、リンクに #c=x1.〜 が付いて開いた時）。中身は 共通/card_code.js で確かめてから使い、画面には textContent でしか出さない
-const INVITE = PAGES ? Card.fromHash(location.hash) : null, INVITE_HASH = INVITE ? location.hash : '';
 function startIntro() { const q2 = new URLSearchParams(location.search); if ((location.hash && !INVITE) || (q2.has('fps') && !q2.has('intro'))) { introEnd(); if (INVITE) showInvite(); return; }
   const two = cam.aspect < 0.9, D = 11, vh = 2 * D * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2), vw = vh * cam.aspect, rows = two ? [[0, 1, 2, 3], [4, 5]] : [[0, 1, 2, 3, 4, 5]];
   const S = Math.min((vw * 0.86) / rows[0].length, (vh * 0.42) / (rows.length * 1.15));
@@ -2165,14 +2193,18 @@ function startIntro() { const q2 = new URLSearchParams(location.search); if ((lo
   // 副題：題字のいちばん下の段の、すぐ下に（画面の座標へ写して置く）
   INTRO.g.updateMatrixWorld(true); cam.updateMatrixWorld(); const low = Math.min(...rows.map((r, ri) => ((rows.length - 1) / 2 - ri) * 1.15 - 0.5)), P = new THREE.Vector3(0, low - 0.12, 0).applyMatrix4(INTRO.g.matrixWorld).project(cam);
   const sub = $('introSub'); sub.style.top = ((-P.y * 0.5 + 0.5) * innerHeight).toFixed(0) + 'px'; sub.textContent = ''; [...'はじいて、こわして、とろける。'].forEach((ch, i) => { const e = document.createElement('span'); e.textContent = ch; e.style.animationDelay = (1.15 + i * 0.06).toFixed(2) + 's'; sub.appendChild(e); }); sub.hidden = false; sub.classList.remove('bye');
-  $('introTap').style.top = ((-P.y * 0.5 + 0.5) * innerHeight + 54).toFixed(0) + 'px';
+  // URLだけで開いた時は、副題の下に案内の一文（何のアプリか）。届いたカードがある時は、お知らせが出るので出さない。下に入りきらない画面（横向きのスマホなど）は、上の題の下へ
+  const subTop = (-P.y * 0.5 + 0.5) * innerHeight, lead = $('introLead'); lead.hidden = !!INVITE; lead.classList.remove('bye'); let tapTop = subTop + 54;
+  if (!INVITE) { lead.style.top = (subTop + 40).toFixed(0) + 'px'; const lh = lead.offsetHeight; if (subTop + 40 + lh + 16 + 58 < innerHeight - 8) tapTop = subTop + 40 + lh + 16; else lead.style.top = ($('top').getBoundingClientRect().bottom + 6).toFixed(0) + 'px'; }
+  $('introTap').style.top = tapTop.toFixed(0) + 'px';
   INTRO.g.visible = true; INTRO.t = 0; $('hint').style.opacity = 0; }
-function introEnd() { INTRO.t = -1; INTRO.sc.remove(INTRO.g); for (const L of INTRO.L) { L.m.geometry.dispose(); L.m.material.dispose(); } INTRO.L.length = 0; $('introSub').hidden = true; $('introTap').hidden = true; $('hint').style.opacity = ''; }
+function introEnd() { INTRO.t = -1; INTRO.sc.remove(INTRO.g); for (const L of INTRO.L) { L.m.geometry.dispose(); L.m.material.dispose(); } INTRO.L.length = 0; $('introSub').hidden = true; $('introLead').hidden = true; $('introTap').hidden = true; $('hint').style.opacity = '';
+  if (CARD_GOT && !INVITE) $('inviteBtn').hidden = false; }   // このタブで前にもらったカード（カードを見てから戻った時など）は、お知らせなしで封筒のボタンだけ
 function stepIntro(dt) { if (INTRO.t < 0) return; INTRO.t += dt; const t = INTRO.t;
   if (INVITE && !INVITE.shown && t > 1.4) { INVITE.shown = true; INTRO.hold = true; showInvite(); }   // 字が降りそろったら、招待状のお知らせ。答えるまで、題字ははじけない
   if ((INTRO.hold || INTRO.wait) && INTRO.out < t + 0.2) INTRO.out = t + 0.2;   // wait＝町の用意がまだ（はじけると、何もない画面になる）
   if (INTRO.out === Infinity && !INTRO.wait && !INTRO.hold && t > 1.9 && $('introTap').hidden) $('introTap').hidden = false;   // 字が降りそろって、町の用意ができたら
-  if (t > INTRO.out - 0.25 && !INTRO.subBye) { INTRO.subBye = true; $('introSub').classList.add('bye'); }
+  if (t > INTRO.out - 0.25 && !INTRO.subBye) { INTRO.subBye = true; $('introSub').classList.add('bye'); $('introLead').classList.add('bye'); }
   INTRO.L.forEach((L, k) => { const tk = t - k * 0.14, tout = INTRO.out + k * 0.07;
     if (t >= tout) { const u = clamp((t - tout) / 0.28, 0, 1); L.piv.scale.set(1 + 0.45 * u, Math.max(0.001, 1 - u), 1 + 0.45 * u);
       if (u >= 1 && !L.popped) { L.popped = true; L.piv.visible = false; L.m.getWorldPosition(V1); const c = new THREE.Color(L.col); for (let n = 0; n < 34 && SPARKS.length < FW_N - 1; n++) { const a = Math.random() * TAU, b2 = Math.random() * Math.PI; SPARKS.push({ p: V1.clone(), v: new THREE.Vector3(Math.cos(a) * Math.sin(b2), Math.cos(b2), Math.sin(a) * Math.sin(b2)).multiplyScalar(rnd(1.5, 4)), t: 0, L: rnd(0.6, 1.3), c: n % 3 ? c : new THREE.Color('#ffffff'), tr: 0, g: 0.6 }); } SND.chime(k); }
@@ -2186,7 +2218,10 @@ function stepIntro(dt) { if (INTRO.t < 0) return; INTRO.t += dt; const t = INTRO
 const skipIntro = (e) => { if (INTRO.hold || INTRO.wait || (e && e.target && e.target.closest && e.target.closest('#invite'))) return; if (INTRO.t >= 0 && INTRO.t < INTRO.out) { INTRO.out = INTRO.t; $('introTap').hidden = true; if (e && e.type === 'pointerdown') e.stopPropagation(); } };
 addEventListener('pointerdown', skipIntro, { capture: true }); addEventListener('keydown', skipIntro, { capture: true });
 // 招待状のお知らせ：「先に招待状を見る」＝カードへ／「町を見てから」＝閉じて、題字がはじけて探索。あとからは、左上の封筒のボタンで
-function showInvite() { if (!INVITE) return; const f = INVITE.f, t = INVITE.t; $('invFrom').textContent = f ? `${f} さんから` : ''; $('invTitle').textContent = t ? `「${t}」` : ''; $('invite').hidden = false; requestAnimationFrame(() => $('invite').classList.add('on')); SND.audio(); SND.suzu(); }
+// グリーティングカード（k＝'g'）は「メリークリスマスが届いているよ！」「先にカードを見る」
+function showInvite() { if (!INVITE) return; const f = INVITE.f, t = INVITE.t; $('invHead').textContent = CARD_IS_G ? 'メリークリスマスが届いているよ！' : '招待状が届いているよ！'; $('invGo').textContent = CARD_IS_G ? '先にカードを見る' : '先に招待状を見る';
+  $('invFrom').textContent = f ? `${f} さんから` : ''; $('invTitle').textContent = t ? `「${t}」` : ''; $('invite').hidden = false; requestAnimationFrame(() => $('invite').classList.add('on')); SND.audio(); SND.suzu(); }
+$('inviteBtn').textContent = CARD_IS_G ? '✉ カードを見る' : '✉ 招待状を見る';
 function closeInvite() { $('invite').classList.remove('on'); setTimeout(() => { $('invite').hidden = true; }, 300); INTRO.hold = false; INTRO.out = Math.min(INTRO.out, INTRO.t + 0.4); $('inviteBtn').hidden = false; }
 $('invGo').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
 $('invLater').addEventListener('click', () => { SND.tap(); closeInvite(); });
