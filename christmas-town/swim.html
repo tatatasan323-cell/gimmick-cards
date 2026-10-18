@@ -198,9 +198,11 @@ function mergeEnd(d) {
 }
 // 砕ける：引いた向きの側に種を多めにまいて、体を4〜5の部屋に分ける。部屋ごとの体積は、体の中に点をまいて数える
 function shatterBody(h) {
-  const it = h.it, n = new THREE.Vector3(...h.g.d).normalize(), f = it.type0.fAll, B0 = it.type0.B0, B1 = it.type0.B1, S = [[-n.x * 0.15, -n.y * 0.15, -n.z * 0.15]]; h.g = null;
+  const it = h.it, n = new THREE.Vector3(...h.g.d).normalize(), f = it.type0.fAll, B0 = it.type0.B0, B1 = it.type0.B1, S = [[-n.x * 0.15, -n.y * 0.15, -n.z * 0.15]];
   for (let tries = 0; S.length < 5 && tries < 600; tries++) { const q = [0, 1, 2].map((a) => B0[a] + Math.random() * (B1[a] - B0[a])); if (f(...q) < -0.04 && q[0] * n.x + q[1] * n.y + q[2] * n.z > -0.05 && S.every((s2) => Math.hypot(s2[0] - q[0], s2[1] - q[1], s2[2] - q[2]) > 0.35)) S.push(q); }
+  // 細い体（雪の結晶）は部屋の種が足りず、しずくでちぎる。つまんだ所（h.g）を消すのは、その後（先に消すと、ちぎれずに伸びたまま止まった 本人 2026-10-18）
   if (S.length < 3) { tear(h, h.pw); return; }
+  h.g = null;
   const NS = 8000, cnt = S.map(() => 0), vBox = (B1[0] - B0[0]) * (B1[1] - B0[1]) * (B1[2] - B0[2]);
   for (let k = 0; k < NS; k++) { const q = [0, 1, 2].map((a) => B0[a] + Math.random() * (B1[a] - B0[a])); if (f(...q) >= 0) continue; let bi = 0, bd = 1e9; S.forEach((sd, i) => { const dd = (q[0] - sd[0]) ** 2 + (q[1] - sd[1]) ** 2 + (q[2] - sd[2]) ** 2; if (dd < bd) { bd = dd; bi = i; } }); cnt[bi]++; }
   it.cells = { seeds: S, keep: new Set([0]) }; rebuild(it, undefined, () => wobbleIn(it, new THREE.Vector3(...S[0]), n, -0.25, 0.9)); it.frags = S.length - 1; it.g.updateMatrixWorld();
