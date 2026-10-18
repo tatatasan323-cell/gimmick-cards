@@ -369,50 +369,6 @@ export function cakeMats(env) {
     gold: new THREE.MeshPhysicalMaterial(E({ color: '#ffd04a', metalness: 1, roughness: 0.2, clearcoat: 0.6, emissive: '#7a5000', emissiveIntensity: 0.5 })),
   };
 }
-// いちごのショートケーキ：白いクリームの大きな丸いケーキ。側面は絞りの縦すじ、上のふちにクリームの花と、いちご。真ん中に「Merry Christmas」のチョコの板とヒイラギ。すそにもクリームの縁どり
-export function shortcakeMountain(MM, CM, R, H, seed = 1) {
-  const g = new THREE.Group(), acc = new Acc(), mats = { ...MM, ...CM }, top = H * 0.78, fil = R * 0.1;
-  const prof = [[0.001, top + R * 0.015], [R * 0.6, top + R * 0.01], [R - fil, top], [R - fil * 0.3, top - fil * 0.3], [R, top - fil], [R, H * 0.05], [R * 1.02, 0], [R * 1.02, -1.5]];
-  const body = new THREE.LatheGeometry(prof.reverse().map(([x, y]) => new THREE.Vector2(x, y)), 160), p = body.attributes.position, col = new Float32Array(p.count * 3);
-  for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), r = Math.hypot(x, z), side = r > R * 0.97 && y > H * 0.06 && y < top - fil, k = side ? 1 + 0.012 * Math.abs(Math.sin(a * 40)) : 1;
-    p.setX(i, x * k); p.setZ(i, z * k); const v = 0.95 + 0.05 * vnoise(a * 30, y * 2); col.set([v, v * 0.985, v * 0.96], i * 3); }
-  body.setAttribute('color', new THREE.BufferAttribute(col, 3)); body.computeVertexNormals(); acc.add('cream', body);
-  const S = R * 0.075, nR = 16, UPB = STRAW.clone().rotateX(Math.PI).translate(0, 1.15, 0);   // いちごは先を上に
-  for (let i = 0; i < nR; i++) { const an = (i / nR) * TAU + seed, [sw] = softServe(R * 0.085, R * 0.13, '#fffdf8', '#fff4e6', 2.4); acc.add('cream', sw, null, place(Math.cos(an) * R * 0.87, top - R * 0.01, Math.sin(an) * R * 0.87, 1));
-    const ab = an + Math.PI / nR; acc.add('berry', UPB.clone(), null, place(Math.cos(ab) * R * 0.8, top - S * 0.1, Math.sin(ab) * R * 0.8, S, 0.25, -ab, 0.15)); }
-  for (let i = 0; i < 7; i++) { const an = i * 0.9 + seed, rr = R * (0.18 + 0.12 * (i % 3)); acc.add('berry', UPB.clone(), null, place(Math.cos(an) * rr, top - S * 0.1, Math.sin(an) * rr, S * 1.25, 0.3, -an, 0.25)); }
-  // 側面の上のほうに、クリームの飾りひも（垂れた弧）と、弧の継ぎ目に小さなクリームの花
-  for (let i = 0; i < 14; i++) { const an = (i / 14) * TAU + seed * 0.3, sw = new THREE.TorusGeometry(R * 0.2, R * 0.022, 6, 20, Math.PI).rotateZ(Math.PI);
-    acc.add('cream', sw, null, new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(an + Math.PI / 14) * R * 1.012, top - R * 0.16, Math.sin(an + Math.PI / 14) * R * 1.012), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -an - Math.PI / 14 - Math.PI / 2), new THREE.Vector3(1, 1, 1)));
-    acc.add('cream', new THREE.SphereGeometry(R * 0.04, 10, 8), null, place(Math.cos(an) * R * 1.02, top - R * 0.17, Math.sin(an) * R * 1.02, 1)); }
-  // すその縁どり（貝の形の絞り）
-  { const N = 96, pos = []; for (let i = 0; i < N; i++) { const an = (i / N) * TAU; acc.add('cream', new THREE.SphereGeometry(1, 10, 8).scale(R * 0.06, R * 0.05, R * 0.09).rotateY(-an), null, place(Math.cos(an) * R * 1.03, R * 0.04, Math.sin(an) * R * 1.03, 1)); } }
-  // チョコの板（真ん中に立てて、少し傾ける）とヒイラギ
-  { const pl = new THREE.BoxGeometry(R * 0.55, R * 0.28, R * 0.03); acc.add('plate', pl, null, place(-R * 0.08, top + R * 0.17, R * 0.12, 1, -0.35, 0.3, 0)); }
-  for (let i = 0; i < 3; i++) acc.add('leaf', new THREE.PlaneGeometry(1, 0.42).translate(0.5, 0, 0), null, place(R * 0.25, top + R * 0.03, -R * 0.12, R * 0.16, -1.25, i * 2.1 + seed, 0.15));
-  for (let i = 0; i < 3; i++) acc.add('cherry', new THREE.SphereGeometry(1, 14, 10), null, place(R * 0.25 + Math.cos(i * 2.1) * R * 0.03, top + R * 0.05, -R * 0.12 + Math.sin(i * 2.1) * R * 0.03, R * 0.03));
-  return meshesOf(acc, mats, g);
-}
-// ブッシュ・ド・ノエル：チョコの木の幹（樹皮のすじ・粉砂糖の雪）。切り口は、スポンジとクリームのうず。小さな切り株、メレンゲのきのこ、ヒイラギ
-export function bucheMountain(MM, CM, L, R, seed = 1) {
-  const g = new THREE.Group(), acc = new Acc(), mats = { ...MM, ...CM };
-  const bark = (len, rad, NA = 72, NL = 40) => { const geo = new THREE.CylinderGeometry(rad, rad, len, NA, NL, true), p = geo.attributes.position, col = new Float32Array(p.count * 3);
-    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), gro = vnoise(a * 7 + seed, y * 0.25) * 0.6 + vnoise(a * 26, y * 1.3) * 0.4, k = 1 + 0.05 * (gro - 0.5) + 0.015 * Math.sin(a * 30 + y * 0.4);
-      p.setX(i, x * k); p.setZ(i, z * k); const d = 0.75 + 0.5 * gro; col.set([0.29 * d, 0.15 * d, 0.07 * d], i * 3); }
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals(); return geo; };
-  const sugar = (geo, M) => { geo.applyMatrix4(M); const p = geo.attributes.position, n = geo.attributes.normal, c = geo.attributes.color; for (let i = 0; i < p.count; i++) { const up = n.getY(i), s = SS(up, 0.35, 0.8) * SS(vnoise(p.getX(i) * 3, p.getZ(i) * 3 + seed), 0.35, 0.6); c.setXYZ(i, c.getX(i) + (0.96 - c.getX(i)) * s, c.getY(i) + (0.96 - c.getY(i)) * s, c.getZ(i) + (0.98 - c.getZ(i)) * s); } return geo; };
-  acc.add('bark', sugar(bark(L, R).rotateZ(Math.PI / 2), new THREE.Matrix4().makeTranslation(0, R * 0.92, 0)));
-  for (const sx of [-1, 1]) acc.add('ends', new THREE.CircleGeometry(R * 0.97, 48).rotateY(sx * Math.PI / 2), null, place(sx * L / 2 * 0.995, R * 0.92, 0, 1));
-  // 小さな切り株（上に、うずの切り口）
-  { const sr = R * 0.36, sh = R * 0.7, sx = L * 0.22; acc.add('bark', sugar(bark(sh, sr, 36, 8), new THREE.Matrix4().makeTranslation(sx, R * 0.92 + R * 0.75 + sh / 2 - R * 0.2, -R * 0.15))); acc.add('ends', new THREE.CircleGeometry(sr * 0.97, 32).rotateX(-Math.PI / 2), null, place(sx, R * 0.92 + R * 0.75 + sh - R * 0.2, -R * 0.15, 1)); }
-  // メレンゲのきのこ（白いかさにココアの粉）
-  for (let i = 0; i < 5; i++) { const x = (-0.35 + i * 0.17) * L, a = (i % 2 ? 1 : -1) * (0.5 + 0.2 * i), y0 = R * 0.92 + Math.cos(a) * R * 0.98, z0 = Math.sin(a) * R * 0.98, s = R * (0.16 + 0.04 * (i % 3));
-    acc.add('mochi', new THREE.CylinderGeometry(s * 0.35, s * 0.45, s * 1.0, 14), null, place(x, y0 + s * 0.35, z0, 1, a * 0.4, 0, 0));
-    acc.add('mochi', new THREE.SphereGeometry(s, 18, 10, 0, TAU, 0, Math.PI / 2).scale(1, 0.62, 1), '#f6efe6', place(x, y0 + s * 0.85, z0, 1, a * 0.4, 0, 0)); }
-  for (let i = 0; i < 4; i++) acc.add('leaf', new THREE.PlaneGeometry(1, 0.42).translate(0.5, 0, 0), null, place(-L * 0.12, R * 1.9, R * 0.05, R * 0.32, -1.2, i * 1.6 + seed, 0.15));
-  for (let i = 0; i < 3; i++) acc.add('cherry', new THREE.SphereGeometry(1, 14, 10), null, place(-L * 0.12 + Math.cos(i * 2.1) * R * 0.06, R * 1.94, R * 0.05 + Math.sin(i * 2.1) * R * 0.06, R * 0.06));
-  return meshesOf(acc, mats, g);
-}
 
 // ---------- ジンジャークッキーの住人：形を細かく割り、肩・股から先をぐにょりと曲げる。端から削れて消え、また集まる ----------
 // 外形（身長1・横は±0.42）。dress＝スカート
@@ -587,10 +543,11 @@ function cutTex(kind) { return ctex(128, 512, (g, w, h) => {
   for (let i = 0; i < 900; i++) { const x = hash2(i, 7) * w, y = hash2(7, i) * h; g.fillStyle = kind === 'choco' ? 'rgba(30,10,4,.35)' : 'rgba(170,110,40,.35)'; g.beginPath(); g.arc(x, y, 0.6 + hash2(i, 9) * 1.4, 0, TAU); g.fill(); }   // 気泡の穴
   g.fillStyle = kind === 'choco' ? '#3a1a0a' : '#fffaf0'; g.fillRect(w * 0.94, 0, w * 0.06, h);   // 外側のクリーム（チョコ）のぬり
 }); }
-// 扇形の切り口の面：中心（半径0）から外（半径 r）まで、高さ y0〜y1。phi の向きに、out＝±1 の側を表に
+// 扇形の切り口の面：中心（半径0）から外（半径 r）まで、下は y0、上は top(半径) まで（H＝絵の層の高さ）。phi の向きに、out＝±1 の側を表に
+// 上は、ケーキの形のふち（角の丸み・上の盛り上がり）に沿わせる。平らな四角だった時は、角の丸みの所で切り口の角がクリームの外へ出て、8つの切れ目が見えた（本人 2026-10-18）
 // 網目は0.6mおき（切れを持っていった後の切り口も、かじってへこむように。中心と外の2列だけでは、かじっても欠けなかった 2026-10-18）
-function cutFace(phi, r, y0, y1, out) { const n = Math.max(6, Math.ceil((y1 - y0) / 0.6)), m = Math.max(1, Math.ceil(r / 0.6)), W = m + 1, pos = [], uv = [], T = new THREE.Vector3(Math.cos(phi), 0, -Math.sin(phi)).multiplyScalar(out), idx = [];
-  for (let j = 0; j <= n; j++) for (let i = 0; i <= m; i++) { const rr = (i / m) * r, y = y0 + (y1 - y0) * (j / n); pos.push(Math.sin(phi) * rr, y, Math.cos(phi) * rr); uv.push(i / m, j / n); }
+function cutFace(phi, r, y0, top, H, out) { const n = Math.max(6, Math.ceil((top(0) - y0) / 0.6)), m = Math.max(1, Math.ceil(r / 0.6)), W = m + 1, pos = [], uv = [], T = new THREE.Vector3(Math.cos(phi), 0, -Math.sin(phi)).multiplyScalar(out), idx = [];
+  for (let j = 0; j <= n; j++) for (let i = 0; i <= m; i++) { const rr = (i / m) * r, y = y0 + (top(rr) - y0) * (j / n); pos.push(Math.sin(phi) * rr, y, Math.cos(phi) * rr); uv.push(i / m, (y - y0) / H); }
   const quads = (flip) => { idx.length = 0; for (let j = 0; j < n; j++) for (let i = 0; i < m; i++) { const a = j * W + i, b = a + W; if (flip) idx.push(a, b + 1, a + 1, a, b, b + 1); else idx.push(a, a + 1, b + 1, a, b + 1, b); } };
   quads(false); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   const nz = g.attributes.normal; if (nz.getX(0) * T.x + nz.getZ(0) * T.z < 0) { quads(true); g.setIndex(idx); }
@@ -614,19 +571,30 @@ const fineLine = (pts, step) => { const out = [pts[0]]; for (let i = 1; i < pts.
 export function sliceCake(MM, CM, tiers, N = 8, seed = 1, top = 'star') {
   const mats = { ...MM, ...CM, cut: CM.cut }, parts = Array.from({ length: N }, () => []), wc = [], da = TAU / N, inW = (a) => Math.floor((((a % TAU) + TAU) % TAU) / da) % N;
   const UPB = STRAW.clone().rotateX(Math.PI).translate(0, 1.15, 0); let y0 = 0;
-  tiers.forEach(([R, h], ti) => { const y1 = y0 + h, fil = R * 0.08, S = Math.min(R * 0.075, 0.9);
-    for (let k = 0; k < N; k++) { const a0 = k * da, prof = fineLine([[R * 1.0, y0], [R, y0 + h * 0.02], [R, y1 - fil], [R - fil * 0.3, y1 - fil * 0.3], [R - fil, y1], [R * 0.6, y1 + R * 0.01], [0.001, y1 + R * 0.012]], 0.4);
-      const body = new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 18, a0, da), p = body.attributes.position, col = new Float32Array(p.count * 3);
-      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(x, z), r = Math.hypot(x, z), side = r > R * 0.97 && y > y0 + h * 0.06 && y < y1 - fil, kk = side ? 1 + 0.012 * Math.abs(Math.sin(a * 40)) : 1; p.setX(i, x * kk); p.setZ(i, z * kk); const v = 0.95 + 0.05 * vnoise(a * 30, y * 2); col.set([v, v * 0.985, v * 0.96], i * 3); }
-      body.setAttribute('color', new THREE.BufferAttribute(col, 3)); body.computeVertexNormals(); parts[k].push(['cream', body]);
-      parts[k].push(['cut', cutFace(a0, R * 0.995, y0 + 0.01, y1 - 0.02, -1)], ['cut', cutFace(a0 + da, R * 0.995, y0 + 0.01, y1 - 0.02, 1)]);
+  const tops = []; tiers.forEach(([R, h], ti) => { const y1 = y0 + h, fil = R * 0.08, S = Math.min(R * 0.075, 0.9); tops.push(y1);
+    const prof0 = [[R * 1.0, y0], [R, y0 + h * 0.02], [R, y1 - fil], [R - fil * 0.3, y1 - fil * 0.3], [R - fil, y1], [R * 0.6, y1 + R * 0.01], [0.001, y1 + R * 0.012]], prof = fineLine(prof0, 0.4);
+    const topAt = (rr) => { for (let j = 2; j < prof0.length - 1; j++) { const [xa, ya] = prof0[j], [xb, yb] = prof0[j + 1]; if (rr >= xb) return ya + ((yb - ya) * (xa - rr)) / Math.max(1e-6, xa - xb); } return prof0[prof0.length - 1][1]; };   // 半径 rr での、上のふちの高さ
+    // 側面の絞りの縦すじ（40本）：なめらかな波で、切れの境はすじの谷にそろえ、1切れ20列（すじ1本に4列）。向きは計算で出す（切れごとに面から出すと、境で光り方が食いちがい、8本の線に見えた 本人 2026-10-18）
+    for (let k = 0; k < N; k++) { const a0 = k * da;
+      const body = new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 20, a0, da), p = body.attributes.position, nm = body.attributes.normal, col = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(x, z), r = Math.hypot(x, z), side = r > R * 0.97 && y > y0 + h * 0.06 && y < y1 - fil;
+        if (side) { const kk = 1 + 0.006 * (1 - Math.cos(a * 40)), t = (0.24 * Math.sin(a * 40)) / kk, sa = Math.sin(a), ca = Math.cos(a), nx = sa - t * ca, nz = ca + t * sa, nl = Math.hypot(nx, nz); p.setX(i, x * kk); p.setZ(i, z * kk); nm.setXYZ(i, nx / nl, 0, nz / nl); }
+        const v = 0.95 + 0.05 * vnoise(x * 2.7, z * 2.7 + y * 2); col.set([v, v * 0.985, v * 0.96], i * 3); }
+      body.setAttribute('color', new THREE.BufferAttribute(col, 3)); parts[k].push(['cream', body]);
+      const top = (rr) => topAt(rr) - 0.012;
+      parts[k].push(['cut', cutFace(a0, R * 0.995, y0 + 0.01, top, h, -1)], ['cut', cutFace(a0 + da, R * 0.995, y0 + 0.01, top, h, 1)]);
       if (ti === 0) wc[k] = new THREE.Vector3(Math.sin(a0 + da / 2) * R * 0.55, (y1 * 0.5), Math.cos(a0 + da / 2) * R * 0.55); }
     // 上のふちのクリームの花といちご・側面の飾りひも・すその貝の絞り（どれも、その角度の切れへ）
     const nR = Math.max(8, Math.round(16 * R / tiers[0][0]) * 2);
     for (let i = 0; i < nR; i++) { const an = (i / nR) * TAU + 0.07, sw = rosette(R * 0.075, R * 0.13); parts[inW(an)].push(['cream', sw.applyMatrix4(place(Math.sin(an) * R * 0.87, y1 - R * 0.01, Math.cos(an) * R * 0.87, 1))]);
       const ab = an + Math.PI / nR; parts[inW(ab)].push(['berry', UPB.clone().applyMatrix4(place(Math.sin(ab) * R * 0.8, y1 - S * 0.1, Math.cos(ab) * R * 0.8, S, 0.25, ab, 0.15))]); }
-    for (let i = 0; i < nR / 2; i++) { const an = (i / (nR / 2)) * TAU + da / 2, sw = new THREE.TorusGeometry(R * 0.18, R * 0.02, 6, 16, Math.PI).rotateZ(Math.PI);
-      parts[inW(an)].push(['cream', sw.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(Math.sin(an) * R * 1.012, y1 - h * 0.28, Math.cos(an) * R * 1.012), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), an + Math.PI / 2), new THREE.Vector3(1, 1, 1)))]); }
+    // 側面の飾りひもは、切れごとに1本。側面に沿って垂れ下がるクリームのひもと、両端の丸い絞り（切れの中に収める）
+    // 半円の輪を、側面から外へ突き出す向きに付けていた時は、上向きの細い棒に見えた（本人 2026-10-18「どんなデコレーションのパーツ？」）
+    { const tr = R * 0.022, Rs = R * 1.012 + tr * 0.4, yT = y1 - h * 0.16, sag = Math.min(h * 0.22, R * da * 0.16), span = da * 0.88;
+      for (let k = 0; k < N; k++) { const ac = k * da + da / 2, pts = [];
+        for (let j = 0; j <= 12; j++) { const t = j / 12, an = ac + (t - 0.5) * span; pts.push(new THREE.Vector3(Math.sin(an) * Rs, yT - sag * Math.sin(Math.PI * t), Math.cos(an) * Rs)); }
+        parts[k].push(['cream', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, tr, 6, false)]);
+        for (const e of [pts[0], pts[12]]) parts[k].push(['cream', new THREE.SphereGeometry(tr * 1.8, 10, 8).translate(e.x, e.y, e.z)]); } }
     const nS = Math.round(64 * R / tiers[0][0]); for (let i = 0; i < nS; i++) { const an = ((i + 0.5) / nS) * TAU; parts[inW(an)].push(['cream', new THREE.SphereGeometry(1, 7, 5).scale(R * 0.06, R * 0.05, R * 0.085).rotateY(an).applyMatrix4(place(Math.sin(an) * R * 1.03, y0 + R * 0.04, Math.cos(an) * R * 1.03, 1))]); }
     y0 = y1; });
   // いちばん上：いちごの山と、星（タワー）／チョコの板（ショートケーキ）。どちらも、その角度の切れへ
@@ -636,7 +604,7 @@ export function sliceCake(MM, CM, tiers, N = 8, seed = 1, top = 'star') {
     const sg = new THREE.ExtrudeGeometry(st, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.1, bevelSegments: 2 }).translate(0, 0, -0.15); parts[0].push(['gold', sg.applyMatrix4(place(Math.sin(da / 2) * Rt * 0.18, y0 + Rt * 0.55, Math.cos(da / 2) * Rt * 0.18, Rt * 0.32, 0, 0.3, 0))], ['gold', new THREE.CylinderGeometry(Rt * 0.03, Rt * 0.03, Rt * 0.5, 8).applyMatrix4(place(Math.sin(da / 2) * Rt * 0.18, y0 + Rt * 0.25, Math.cos(da / 2) * Rt * 0.18, 1))]); }
   else parts[0].push(['plate', new THREE.BoxGeometry(Rt * 0.55, Rt * 0.28, Rt * 0.03).applyMatrix4(place(Math.sin(da / 2) * Rt * 0.3, y0 + Rt * 0.17, Math.cos(da / 2) * Rt * 0.3, 1, -0.35, da / 2, 0))]);
   for (let i = 0; i < 3; i++) parts[1 % N].push(['leaf', new THREE.PlaneGeometry(1, 0.42).translate(0.5, 0, 0).applyMatrix4(place(Math.sin(da * 1.5) * Rt * 0.35, y0 + Rt * 0.03, Math.cos(da * 1.5) * Rt * 0.35, Rt * 0.16, -1.25, i * 2.1 + seed, 0.15))], ['cherry', new THREE.SphereGeometry(1, 12, 8).applyMatrix4(place(Math.sin(da * 1.5) * Rt * 0.35 + Math.cos(i * 2.1) * Rt * 0.03, y0 + Rt * 0.05, Math.cos(da * 1.5) * Rt * 0.35 + Math.sin(i * 2.1) * Rt * 0.03, Rt * 0.03))]);
-  const g = sliceBuild(parts, wc, { ...mats, gold: CM.gold }); g.userData.kind = 'round'; g.userData.H = y0; g.userData.R = tiers[0][0]; return g; }
+  const g = sliceBuild(parts, wc, { ...mats, gold: CM.gold }); g.userData.kind = 'round'; g.userData.H = y0; g.userData.R = tiers[0][0]; g.userData.tiers = tiers.map(([R], i) => [R, tops[i]]); return g; }
 // ブッシュ・ド・ノエル（輪切りにできる）：長さ L・半径 R を N 枚に。切り口は、うずの絵
 export function sliceBuche(MM, CM, L, R, N = 8, seed = 5) {
   const mats = { ...MM, ...CM }, parts = Array.from({ length: N }, () => []), wc = [], sl = L / N, cy = R * 0.92;
@@ -656,4 +624,4 @@ export function sliceBuche(MM, CM, L, R, N = 8, seed = 5) {
     parts[seg(x)].push(['mochi', new THREE.CylinderGeometry(s * 0.35, s * 0.45, s * 1.0, 14).applyMatrix4(place(x, y0 + s * 0.35, z0, 1, a * 0.4, 0, 0))], ['mochi', new THREE.SphereGeometry(s, 18, 10, 0, TAU, 0, Math.PI / 2).scale(1, 0.62, 1).applyMatrix4(place(x, y0 + s * 0.85, z0, 1, a * 0.4, 0, 0)), '#f6efe6']); }
   const hx = -L * 0.18; for (let i = 0; i < 4; i++) parts[seg(hx)].push(['leaf', new THREE.PlaneGeometry(1, 0.42).translate(0.5, 0, 0).applyMatrix4(place(hx, cy + R * 0.98, R * 0.05, R * 0.32, -1.2, i * 1.6 + seed, 0.15))]);
   for (let i = 0; i < 3; i++) parts[seg(hx)].push(['cherry', new THREE.SphereGeometry(1, 14, 10).applyMatrix4(place(hx + Math.cos(i * 2.1) * R * 0.06, cy + R * 1.02, R * 0.05 + Math.sin(i * 2.1) * R * 0.06, R * 0.06))]);
-  const g = sliceBuild(parts, wc, mats); g.userData.kind = 'log'; g.userData.L = L; g.userData.R = R; g.userData.H = cy + R; return g; }
+  const g = sliceBuild(parts, wc, mats); g.userData.kind = 'log'; g.userData.L = L; g.userData.R = R; g.userData.cy = cy; g.userData.H = cy + R; return g; }
