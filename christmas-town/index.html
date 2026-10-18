@@ -2066,9 +2066,14 @@ $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'car
 (async () => { size(); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
   BATCH = new Batcher(scene, { meshes: renderer.capabilities.isWebGL2 }).add([...BOATS.map((b) => b.g), ...AREAS.map((A) => A.g), BAKERY.g, BIGTREE, BAUBLE.g, WR.g, REST.g, BOWL.parent, SHOE, LUCIA, ...PUYOS.filter((b) => b.grp.parent === scene).map((b) => b.grp)]).addSprites(SPR);   // 同じ材質の部品は、持ち主をまたいで1回で描く
   makeTools();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
-  // 町のシェーダーを用意する間（GPU の待ちで、画面の処理は手が空く）に、題字だけ先に用意して降らせる。町の用意ができたら、題字がはじけて町が現れる
+  // 町のシェーダーを用意する間（GPU の待ちで、画面の処理は手が空く）に、題字だけ先に用意して降らせる。町の用意ができたら、町が現れる
+  // 待つ間は、夜空（星とオーロラ）だけを題字の場面へ移して、後ろに描く。黒い画面に題字だけだと、シェーダーを覚えておけない LINE の中で、長く真っ黒に見えた（本人 2026-10-18。ブラウザは覚えているので、すぐ町が出る）
+  const skyBack = () => { scene.add(sky.root); INTRO.sc.background = null; };   // 町を描いた上に題字を重ねる時は、題字の場面に背景を描かない
+  INTRO.sc.add(sky.root); INTRO.sc.background = scene.background;
   let early = false; try { await renderer.compileAsync(INTRO.sc, cam); startIntro(); early = INTRO.t >= 0; } catch (e) { /* 古いブラウザは、町の用意のあとに */ }
-  if (early) { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
-  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); frame(); if (q.has('diag')) setTimeout(showDiag, 3000); })();   // 隠れている物（ケーキ・スプーン…）のシェーダーは、開いてから裏で   // 隠れている物（ケーキ・スプーン…）のシェーダーは、開いてから裏で
+  if (!early) skyBack();
+  else { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const t0 = pt; const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; sky.update(cam.position, (n - t0) / 1000); renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
+  // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
+  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); frame(); if (q.has('diag')) setTimeout(showDiag, 3000); })();
 </script>
 </body></html>
