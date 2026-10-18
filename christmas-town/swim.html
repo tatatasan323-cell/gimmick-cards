@@ -16,6 +16,8 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 #modes button{font:800 14px/1 inherit;font-family:inherit;padding:10px 16px;border-radius:999px;border:2px solid rgba(255,255,255,.45);background:rgba(10,30,80,.45);color:#eef6ff;letter-spacing:.08em}
 #modes button.on{background:#ffe27a;color:#3a2a00;border-color:#ffe27a}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#lost{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(3,5,15,.6);padding:16px;color:#eef6ff;text-align:center;font-weight:800;line-height:1.8}#lost[hidden]{display:none}
+#lost button{margin-top:12px;font-size:15px;font-weight:800;font-family:inherit;padding:11px 22px;border-radius:999px;border:0;background:#ffe27a;color:#3a2a00}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
@@ -27,6 +29,7 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <div id="pad"><div id="knob"></div></div>
 <div id="modes"><button data-m="loose" class="on">ゆるい</button><button data-m="looser">もっとゆるい</button><button data-m="water">みず</button></div>
 <div id="fps" hidden></div>
+<div id="lost" hidden><div>画面の描きこみが止まりました<br><small>スマホの空きメモリが足りなくなったようです</small><br><button type="button">もう一度ひらく</button></div></div>
 <script type="module">
 // 無重力の水の中に、クリスマスのグミが20種。自分で泳ぎ（前・後ろ・向き）、触る。触ったグミだけ、ばねの格子で動かす（他は軽い揺れだけ）
 import * as THREE from 'three';
@@ -47,10 +50,12 @@ let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matche
 const scene = new THREE.Scene(), BG = '#050816'; scene.background = new THREE.Color('#03050f');
 scene.fog = new THREE.FogExp2(BG, 0.03); const space = makeSpace(scene);
 setGummyLook({ outer: 0.88, core: 0.9 });   // 少し不透明に（本人 2026-10-15「透明すぎる」）
-{ const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, vertexShader: 'varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}', fragmentShader: 'varying vec3 p;void main(){float h=normalize(p).y;gl_FragColor=vec4(mix(vec3(.15,.12,.4),vec3(.2,.45,.75),smoothstep(-.6,.9,h)),1.);}' })));
+const makeEnv = (() => { const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, vertexShader: 'varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}', fragmentShader: 'varying vec3 p;void main(){float h=normalize(p).y;gl_FragColor=vec4(mix(vec3(.15,.12,.4),vec3(.2,.45,.75),smoothstep(-.6,.9,h)),1.);}' })));
   const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
   box(16, 8, 0, 16, 2, '#f4fbff', 5); box(10, 8, -12, 6, 8, '#fff1e0', 3.5); box(6, 10, 14, 3, 4, '#7fe8ff', 3.5); box(10, 5, 0, -12, -6, '#ff9be0', 2.4);
-  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.03).texture; }
+  // 画面の描きこみを失って戻った時は、映り込みを作り直す（作った絵は GPU の中にしかなく、戻っても空のまま。グミのつやと透けが消えた）
+  return () => { const pm = new THREE.PMREMGenerator(renderer); if (scene.environment) scene.environment.dispose(); scene.environment = pm.fromScene(env, 0.03).texture; pm.dispose(); }; })();
+makeEnv();
 scene.add(new THREE.HemisphereLight('#bfe8ff', '#3a2a80', 0.8));
 const sun = new THREE.DirectionalLight('#f4fbff', 2.2); sun.position.set(-2, 8, 4); scene.add(sun);
 const rim = new THREE.DirectionalLight('#ff9be0', 1.4); rim.position.set(3, -2, -5); scene.add(rim);
@@ -251,7 +256,18 @@ const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById(
 let ready = false, T = 0, frames = 0, tf = performance.now(), simMs = 0, fAcc = 0, fN = 0, fTot = 0;
 const rel = new THREE.Vector3(), tmpLook = new THREE.Vector3(), tmp = new THREE.Vector3();
 const dz = (v) => (Math.abs(v) < 0.12 ? 0 : v), clamp1 = (v) => Math.max(-1, Math.min(1, v));
-function frame() {
+// 次のコマを先に頼み、1コマの中でエラーが出ても描く繰り返しは止めない。エラーの時は、つかんだままの指を片付けて立て直す
+// （最後に頼んでいた時は、途中のエラー1回で画面がそのまま固まった。スマホのブラウザで、何度か引っ張ると固まった 本人 2026-10-18）
+const ERRS = [], noteErr = (e) => { ERRS.push(String((e && e.stack) || e).slice(0, 300)); if (ERRS.length > 5) ERRS.shift(); };
+addEventListener('error', (e) => noteErr(e.error || e.message));   // 指の知らせの中のエラーも控える
+// スマホのブラウザは、メモリが足りないと画面の描きこみ（WebGL）を取り上げることがある。three が取り戻すのを2.5秒待ち、戻らなければ開き直しを案内する
+const lostEl = document.getElementById('lost'); let lostT = 0;
+cvs.addEventListener('webglcontextlost', () => { noteErr('webglcontextlost'); releaseAll(); lostT = setTimeout(() => { lostEl.hidden = false; }, 2500); });
+cvs.addEventListener('webglcontextrestored', () => { clearTimeout(lostT); lostEl.hidden = true; makeEnv(); });
+lostEl.querySelector('button').addEventListener('click', () => location.reload());
+function frame() { requestAnimationFrame(frame);
+  try { step(); } catch (e) { noteErr(e); console.error('swim frame:', e); try { releaseAll(); } catch (e2) { holds.clear(); } } }
+function step() {
   const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1); T += dt; timeU.value = T;   // __slow＝検査でスロー再生
   // 泳ぐ：前後（水の重さで、ゆっくり速さが変わる）と向き
   const k = (...a) => (a.some((x) => keys.has(x)) ? 1 : 0), fIn = clamp1(dz(-joy.y) + k('w', 'arrowup') - k('s', 'arrowdown')), sIn = clamp1(dz(joy.x) + k('d') - k('a')), uIn = clamp1(ud.v + k('e', ' ') - k('q', 'shift')), tIn = k('arrowleft') - k('arrowright');
@@ -312,11 +328,10 @@ function frame() {
   space.update(cam.position, T, dt); renderer.render(scene, cam);
   // 遅い端末では、解像度を下げる（30コマの平均が24ms超）。グミを作っている間の重さは数えない
   if (ready && raw < 1 && ++fTot > 20) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
-  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} soft ${(simMs / frames).toFixed(1)}ms active ${actives.size} drops ${drops.length}\ncalls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} gummies ${insts.length} mode ${mode}`; frames = 0; simMs = 0; tf = performance.now(); }
-  requestAnimationFrame(frame);
+  frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} soft ${(simMs / frames).toFixed(1)}ms active ${actives.size} drops ${drops.length}\ncalls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} gummies ${insts.length} mode ${mode}${ERRS.length ? `\nerr ${ERRS.length}: ${ERRS[ERRS.length - 1].slice(0, 90)}` : ''}`; frames = 0; simMs = 0; tf = performance.now(); }
 }
 const volOf = (it) => { let V = 0; for (const mm of it.g.userData.meshes) { if (mm.kind !== 'o' || mm.q.p.solid) continue; const g = mm.geo0, P = g.attributes.position.array, I = g.index.array; for (let k = 0; k < I.length; k += 3) { const a = I[k] * 3, b = I[k + 1] * 3, c = I[k + 2] * 3; V += (P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c])) / 6; } } return V; };
 const jag = (it, rend) => { if (!it.act) return 0; const L = it.act.lat, X = rend ? L.xr : L.x, lap = new Float32Array(L.N * 3), qs = []; for (let e = 0; e < L.E; e++) { const a = L.sa[e] * 3, b = L.sb[e] * 3; for (let k = 0; k < 3; k++) { lap[a + k] += X[b + k] - L.r[b + k]; lap[b + k] += X[a + k] - L.r[a + k]; } } for (let i = 0; i < L.N; i++) { let q = 0; for (let k = 0; k < 3; k++) { const d = X[i * 3 + k] - L.r[i * 3 + k] - lap[i * 3 + k] / L.deg[i]; q += d * d; } qs.push(Math.sqrt(q)); } qs.sort((a, b) => a - b); return qs[Math.floor(qs.length * 0.97)] / L.h; };   // 細かい凹凸＝となりの平均からのずれ（上位3%の値・格子の間隔で割る）
-if (fpsEl) window.__dbg = { yaw: () => yaw, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, water: (o) => Object.assign(MODES.water, o), bring: (name, d) => { const it = insts.find((x) => x.type0.spec.name === name && !x.frags && !x.cuts.length); it.base.copy(pos).addScaledVector(fwd, d); it.g.position.copy(it.base); it.vel.set(0, 0, 0); it.spin = 0; it.g.rotation.set(0, 0, 0); return insts.indexOf(it); }, count: () => insts.length, frags: () => drops.filter((d) => d.cell).length, volAll: (i) => { const it = insts[i]; return volOf(it) + drops.filter((d) => d.it === it).reduce((v, d) => v + d.vol, 0); }, insts, cam, pos, actives, drops, holds, joy, jobs: () => jobs.size, vol: (i) => volOf(insts[i]), jag: (i, rend) => jag(insts[i], rend), screenOf: (i) => { const v = insts[i].g.position.clone().project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, vel: (i) => insts[i].vel.length(), dist: (i) => insts[i].g.position.distanceTo(cam.position), base: (i) => insts[i].base.toArray(), setP: (o) => { Object.assign(MODES[mode].P, o); for (const it of actives) Object.assign(it.act.lat.P, o); }, setMode: (m) => document.querySelector(`#modes [data-m=${m}]`).click(), pickAt: (x, y) => { setRay({ clientX: x, clientY: y }); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.inst.type.spec.name : null; } };
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), mem: () => [renderer.info.memory.geometries, renderer.info.memory.textures, renderer.info.programs.length, Math.round((performance.memory ? performance.memory.usedJSHeapSize : 0) / 1e6)], yaw: () => yaw, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, water: (o) => Object.assign(MODES.water, o), bring: (name, d) => { const it = insts.find((x) => x.type0.spec.name === name && !x.frags && !x.cuts.length); it.base.copy(pos).addScaledVector(fwd, d); it.g.position.copy(it.base); it.vel.set(0, 0, 0); it.spin = 0; it.g.rotation.set(0, 0, 0); return insts.indexOf(it); }, count: () => insts.length, frags: () => drops.filter((d) => d.cell).length, volAll: (i) => { const it = insts[i]; return volOf(it) + drops.filter((d) => d.it === it).reduce((v, d) => v + d.vol, 0); }, insts, cam, pos, actives, drops, holds, joy, jobs: () => jobs.size, vol: (i) => volOf(insts[i]), jag: (i, rend) => jag(insts[i], rend), screenOf: (i) => { const v = insts[i].g.position.clone().project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, vel: (i) => insts[i].vel.length(), dist: (i) => insts[i].g.position.distanceTo(cam.position), base: (i) => insts[i].base.toArray(), setP: (o) => { Object.assign(MODES[mode].P, o); for (const it of actives) Object.assign(it.act.lat.P, o); }, setMode: (m) => document.querySelector(`#modes [data-m=${m}]`).click(), pickAt: (x, y) => { setRay({ clientX: x, clientY: y }); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.inst.type.spec.name : null; } };
 frame(); buildAll().then(() => { ready = true; window.__ok = true; });
 </script></body></html>
