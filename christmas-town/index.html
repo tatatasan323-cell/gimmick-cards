@@ -377,7 +377,7 @@ function eatable(m, inner, deep, tag = '') { const prev = m.onBeforeCompile, key
           if (dot(dir, dir) < 0.25) { float L = length(v); if (L < d.w) { vec3 nv = v / max(L, 1e-4); eOff += nv * (d.w - L + ${deep.toFixed(2)}); eN = -nv; vDent = 1.0; } }
           else { float al = dot(v, dir); vec3 q = v - dir * al; float q2 = dot(q, q), r2 = d.w * d.w;
             if (q2 < r2) { float bt = sqrt(r2 - q2); if (al > -bt) { eOff += dir * (-bt - ${deep.toFixed(2)} - al); eN = normalize(dir * bt - q); vDent = 1.0; } } } } }
-      if (vDent > 0.5) { dentOff = (vec4(eOff, 0.0) * modelMatrix).xyz / eS2; /*DENT_CLAMP*/ objectNormal = normalize((vec4(eN, 0.0) * modelMatrix).xyz); } } }`)   // 繰り返しの中で continue を使わない（スマホのブラウザで、頂点の繰り返しに continue があるシェーダーが描かれなかった疑い 2026-10-17）
+      /*DENT_ITEM*/ if (vDent > 0.5) { dentOff = (vec4(eOff, 0.0) * modelMatrix).xyz / eS2; /*DENT_CLAMP*/ objectNormal = normalize((vec4(eN, 0.0) * modelMatrix).xyz); } } }`)   // 繰り返しの中で continue を使わない（スマホのブラウザで、頂点の繰り返しに continue があるシェーダーが描かれなかった疑い 2026-10-17）
       // 跡は世界の座標で持つので、頂点も世界へ移して比べ、ずらす量を形の座標へ戻す。山と灯台は形が世界の座標のままだが、ケーキは置いた所・向きの分ずれていて、かじっても欠けなかった（本人 2026-10-18）
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += dentOff;');
     sh.fragmentShader = 'varying float vDent; varying float vEatY;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>' + (inner ? '\n ' + INNER[inner] : '')); };
@@ -388,8 +388,9 @@ function innerRGB(kind, y) { const fr = (v) => v - Math.floor(v);
   if (kind === 'white') return [0.93, 0.95, 1.0];
   if (kind === 'cake') { const ly = fr(y / 1.7); return ly < 0.58 ? [0.96, 0.8, 0.5] : ly < 0.74 ? [1.0, 0.98, 0.94] : ly < 0.84 ? [0.86, 0.14, 0.22] : [1.0, 0.98, 0.94]; }
   const ly = fr(y / 1.1 + 0.2 * Math.sin(y * 3)); return ly < 0.7 ? [0.42, 0.22, 0.1] : [1.0, 0.97, 0.92]; }
+// ガラスの器と、そのふちの輪（rim）は食べない（ふちの輪だけ食べられる物に入っていて、パフェのふちを触るとガラスが欠けて形が変わった 本人 2026-10-18）
 { const done = new Set(), body = new Set([MM.ice, MM.cream, MM.sponge, MM.flakes, MM.sauce, CM.cream, CM.bark]), IN = INNER_OF;
-  for (const mm of EAT_MESHES) { const m = mm.material, b = m.userData.base || m; if (!mm.geometry.attributes.aMtn || done.has(m) || b === MM.glass) continue; done.add(m); eatable(m, IN.get(b) || null, body.has(b) ? 0 : 0.35, b === CM.cream ? '|cake' : ''); } }
+  for (const mm of EAT_MESHES) { const m = mm.material, b = m.userData.base || m; if (!mm.geometry.attributes.aMtn || done.has(m) || b === MM.glass || b === MM.rim) continue; done.add(m); eatable(m, IN.get(b) || null, body.has(b) ? 0 : 0.35, b === CM.cream ? '|cake' : ''); } }
 // 切れごとの量（0＝持っていかれた・1＝ある）。戻る間は、下から積み上がる：ケーキの底から量の高さまでを描き、それより上の頂点はその高さにそろえる
 // （切れのまん中から大きくしていた時は、ほかの山や氷の像の「下から積み上がる」戻り方とそろわなかった 本人 2026-10-18）
 // 食べた跡は、残っている切れの中に収める：くぼみは「すくう向きの手前を、球の奥の面まで押しこむ」作りなので、切った後の細い所では、押しこんだ面が向こう側の切り口や側面を突き抜けて、ケーキの外にこぶが出た（本人 2026-10-18）
@@ -408,6 +409,16 @@ function ckGLSL(deep) { const wIn = (deep > 0 ? 0.14 : 0.04).toFixed(2), rIn = (
             d -= 6.2831853 * floor((d + 3.14159265) / 6.2831853);
             if (abs(d) > hw) { float b = am + sign(d) * max(hw, 0.0); vec2 u = vec2(sin(b), cos(b)); cp.xz = u * max(dot(cp.xz, u), 0.0); } } }
         dentOff = cp - position; }`; }
+// ケーキの飾り（いちご・クリームの花・星など。aIC＝飾りのまん中）は、跡がまん中にかかったら丸ごと消し（まん中へ縮める）、かからなければ形を変えない
+// 飾りも頂点ごとに押していた時は、一部の頂点だけが動いて三角が引き伸ばされ、いちごの色が膜のように大きく広がった（本人 2026-10-18）
+const ITEM_GLSL = `if (aIC.y > -1000.0) { vec3 ic = (modelMatrix * vec4(aIC, 1.0)).xyz; bool eaten = false;
+        for (int i = 0; i < ${DENT_N}; i++) { vec4 d = eatT(i), dn = eatT(${DENT_N} + i);
+          if (d.w > 0.0 && abs(dn.w - aMtn) <= 0.5) { vec3 v = ic - d.xyz;
+            if (dot(dn.xyz, dn.xyz) < 0.25) { if (dot(v, v) < d.w * d.w) eaten = true; }
+            else { float al = dot(v, dn.xyz); vec3 q = v - dn.xyz * al; float q2 = dot(q, q), r2 = d.w * d.w; if (q2 < r2 && al > -sqrt(r2 - q2)) eaten = true; } } }
+        vDent = 0.0; dentOff = eaten ? aIC - position : vec3(0.0); }`;
+const itemEaten = (i, c) => EAT.list.some((D) => { if (D.i !== i) return false; const d = EAT.dent[D.slot], dir = EAT.dir[D.slot]; if (!(d.w > 0)) return false; const vx = c.x - d.x, vy = c.y - d.y, vz = c.z - d.z;
+  if (D.ball) return vx * vx + vy * vy + vz * vz < d.w * d.w; const al = vx * dir.x + vy * dir.y + vz * dir.z, q2 = vx * vx + vy * vy + vz * vz - al * al, r2 = d.w * d.w; return q2 < r2 && al > -Math.sqrt(r2 - q2); });
 // 同じ戻し方（JS）：フォークで持っていく1切れへ跡を写す時。持っていった切れは、その切れだけで立つので、自分の切れの中へ戻す（P＝ケーキの座標）
 function cakeClamp(ud, k0, P, deep) { const wIn = deep > 0 ? 0.14 : 0.04;
   if (ud.kind === 'log') { const sl = ud.L / ud.N, xa = -ud.L / 2 + k0 * sl + wIn; P.x = clamp(P.x, xa, Math.max(xa, xa + sl - 2 * wIn)); const dy = P.y - ud.cy, rr = Math.hypot(dy, P.z), rl = ud.R * 0.97 - wIn; if (rr > rl) { P.y = ud.cy + (dy * rl) / rr; P.z *= rl / rr; } return; }
@@ -423,7 +434,7 @@ for (const M of CAKES) { M.wsU = [new THREE.Vector4(1, 1, 1, 1), new THREE.Vecto
   M.g.traverse((o) => { if (!o.isMesh) return; o.geometry.computeBoundingBox(); M.yr.x = Math.min(M.yr.x, o.geometry.boundingBox.min.y); M.yr.y = Math.max(M.yr.y, o.geometry.boundingBox.max.y); });   // 底と、飾りまで入れたてっぺん
   M.g.traverse((o) => { if (!o.isMesh) return; const m = o.material, prev = m.onBeforeCompile, key = m.customProgramCacheKey;
   m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); sh.uniforms.uWS0 = { value: M.wsU[0] }; sh.uniforms.uWS1 = { value: M.wsU[1] }; sh.uniforms.uYR = { value: M.yr }; sh.uniforms.uCkK = { value: M.ck.K }; sh.uniforms.uCkT = { value: M.ck.T }; sh.uniforms.uCkR = { value: M.ck.R };
-    sh.vertexShader = 'attribute float aWedge; attribute vec3 aWC; uniform vec4 uWS0; uniform vec4 uWS1; uniform vec2 uYR; uniform vec4 uCkK; uniform vec4 uCkT; uniform vec4 uCkR;\nfloat wsOf(int k) { vec4 o = k < 4 ? uWS0 : uWS1; int c = k - (k / 4) * 4; return c == 0 ? o.x : c == 1 ? o.y : c == 2 ? o.z : o.w; }\n' + sh.vertexShader.replace('/*DENT_CLAMP*/', ckGLSL(m.userData.deep || 0)).replace('#include <project_vertex>', '{ float ws = wsOf(int(aWedge + 0.5)); if (ws < 0.01) transformed = aWC; else if (ws < 0.999) transformed.y = min(transformed.y, mix(uYR.x, uYR.y, ws)); }\n#include <project_vertex>'); };
+    sh.vertexShader = 'attribute float aWedge; attribute vec3 aWC; attribute vec3 aIC; uniform vec4 uWS0; uniform vec4 uWS1; uniform vec2 uYR; uniform vec4 uCkK; uniform vec4 uCkT; uniform vec4 uCkR;\nfloat wsOf(int k) { vec4 o = k < 4 ? uWS0 : uWS1; int c = k - (k / 4) * 4; return c == 0 ? o.x : c == 1 ? o.y : c == 2 ? o.z : o.w; }\n' + sh.vertexShader.replace('/*DENT_ITEM*/', ITEM_GLSL).replace('/*DENT_CLAMP*/', ckGLSL(m.userData.deep || 0)).replace('#include <project_vertex>', '{ float ws = wsOf(int(aWedge + 0.5)); if (ws < 0.01) transformed = aWC; else if (ws < 0.999) transformed.y = min(transformed.y, mix(uYR.x, uYR.y, ws)); }\n#include <project_vertex>'); };
   m.customProgramCacheKey = () => (key ? key.call(m) : '') + '|slice'; }); }
 // 跡の枠（DENT_N）の使い方：空いた枠 → 枠がなければ、同じ物の重なる跡にまとめる → それもなければ、いちばん古い跡を譲ってもらう。スプーンの大きな跡（pin）は、山が戻るまで譲らない
 // 輪番で上書きしていた時は、すくった後にほかの山をかじると、すくった跡が消えて山がすぐ元に戻った（枠の少ないタブレットで本人が見た 2026-10-17）
@@ -435,19 +446,23 @@ function addDent(i, c, r, dir, grow = 0.15, pin = false) { const used = new Set(
   // （古い跡を消して空けると、その所がふいに元へ戻った。新しくかじった跡にまとめると、かじっても欠けなかった＝どちらも枠の少ないスマホで 2026-10-17）
   // まとめた跡は、2つをちょうど包む球にし、元の1口（r0）の2倍まで。前は「大きい方＋中心の間の半分（2.2倍まで）」で、まとめた跡がまたまとまるたびに膨らみ、続けてかじると1口で山より大きく削れた（本人 2026-10-18）
   // 包む球が1口の2.6倍を超える組（離れた2つ）はまとめない。2倍を超える分は、外の端が少し戻る
+  // ケーキは1.5倍まで（2倍だと、タワーのいちばん上の段（半径4.8）が、まとめた跡（半径4.4）に丸ごと飲みこまれ、押し戻した面がくしゃくしゃのピンクの膜になった 本人 2026-10-18）
   if (slot < 0) { let best = null, bg = 1e9; const Ls = EAT.list;
     for (let a = 0; a < Ls.length; a++) for (let b = a + 1; b < Ls.length; b++) { const A = Ls[a], B = Ls[b]; if (A.i !== B.i || !A.ball || !B.ball || A.pin || B.pin || A.i === RESTORING) continue;
       const d = A.c.distanceTo(B.c), big = Math.max(A.r, B.r), rn = Math.max(big, (d + A.r + B.r) / 2), g = rn - big; if (rn <= 2.6 * Math.max(A.r0, B.r0) && g < bg) { bg = g; best = [A, B, d, rn]; } }
     if (best) { const [A, B, d, rn] = best;
       if (B.r >= d + A.r) A.c.copy(B.c);   // B が A を包む
       else if (A.r < d + B.r) { const u = V1.subVectors(B.c, A.c).divideScalar(Math.max(d, 1e-6)); A.c.addScaledVector(u, (rn - A.r)); }   // 包む球の中心＝2つの外の端どうしのまん中
-      A.r0 = Math.max(A.r0, B.r0); A.r = Math.min(rn, 2 * A.r0); A.seq = Math.max(A.seq, B.seq); slot = B.slot; dropDent(B); } }
+      A.r0 = Math.max(A.r0, B.r0); A.r = Math.min(rn, (MOUNTS[A.i] && MOUNTS[A.i].cake ? 1.5 : 2) * A.r0); A.seq = Math.max(A.seq, B.seq); slot = B.slot; dropDent(B); } }
   if (slot < 0) { const other = EAT.list.filter((D) => !D.pin && D.i !== i), pool = other.length ? other : EAT.list.filter((D) => !D.pin), old = (pool.length ? pool : EAT.list).reduce((a, b) => (a.seq < b.seq ? a : b)); slot = old.slot; dropDent(old); EAT.evict = (EAT.evict || 0) + 1; }
   const D = { slot, i, c: c.clone(), r, r0: r, t: 0, grow, k: 1, pin, ball, seq: DENT_SEQ++ }; EAT.list.push(D); EAT.dir[slot].copy(dir).normalize(); EAT.dm[slot] = i + 1; EAT.on[i] = 1; return D; }
 // 山の状態：すくった回数・最後にすくった時・スプーン（ケーキはフォーク）・戻り
 const MTN_ST = MOUNTS.map(() => ({ taps: 0, last: -99, spoon: null, rest: null, eaten: false }));
+// ケーキの1口は、かじった段が小さい時だけ小さくする（段の半径の0.35倍まで。タワーのいちばん上の段で1.7。いちばん下の段に合わせた1口では、上の段が大きく欠けすぎた。
+// どの段も段の0.2倍・上の段を0.28倍にした時は、かじっても欠けたのが見えにくかった＝町の検査 Y8）
+const BITE_P = new THREE.Vector3(), cakeTierR = (M, p) => { const ud = M.g.userData; if (ud.kind !== 'round') return M.R; const y = M.g.worldToLocal(BITE_P.copy(p)).y, t = ud.tiers.find(([, top]) => y < top + 0.3) || ud.tiers[ud.tiers.length - 1]; return t[0]; };
 function mtnBite(i, p) { const M = MOUNTS[i], S = MTN_ST[i]; if (S.spoon || S.rest || M.on === false) return;
-  const r = M.cake ? clamp(M.R * 0.2, 1.3, 2.2) : clamp(M.R * 0.13, 1.1, 2.0), toC = V1.copy(cam.position).sub(p).normalize(); addDent(i, p.clone().addScaledVector(toC, r * 0.45), r, V2b.set(0, 0, 0)); S.taps++; S.last = nowS(); S.eaten = true; counts.mtnBites++;
+  const r = M.cake ? Math.min(clamp(M.R * 0.2, 1.3, 2.2), cakeTierR(M, p) * 0.35) : clamp(M.R * 0.13, 1.1, 2.0), toC = V1.copy(cam.position).sub(p).normalize(); addDent(i, p.clone().addScaledVector(toC, r * 0.45), r, V2b.set(0, 0, 0)); S.taps++; S.last = nowS(); S.eaten = true; counts.mtnBites++;
   if (M.cake) { SND.cakeBite(M.k); counts.cakeBites++; mark('cake'); } else SND.shaku(M.k);
   for (let n = 0; n < 22 && SPARKS.length < FW_N - 1; n++) { const a = Math.random() * TAU; SPARKS.push({ p: p.clone(), v: new THREE.Vector3(Math.cos(a) * rnd(1, 3), rnd(1.5, 4.5), Math.sin(a) * rnd(1, 3)), t: 0, L: rnd(0.5, 1.1), c: new THREE.Color(n % 3 ? '#ffffff' : M.col), tr: 0, g: 1.6 }); }
   if (S.taps >= (M.cake ? 18 : 30)) { if (M.cake) startFork(i); else startSpoon(i); } }
@@ -459,7 +474,7 @@ function pickMetal() { if (FORCE_METAL) return FORCE_METAL; const u = Math.rando
 function metalNote(kind) { if (kind === 'normal') return; counts[kind]++; mark(kind); if (kind === 'gold') SND.goldShine(); else SND.silverShine(); }
 // すくった所の形を写し取る：山 i の、中心 C・半径 r の「たての筒の中で、球の下の面より上」にある三角（くぼみの式と同じ所）。写した形は世界の座標のまま返す
 function chunkOf(i, C, r, ball = false) { const out = new THREE.Group();
-  for (const mm of EAT_MESHES) { const R = mm.userData.rng[i + 1]; if (!R || mm.material === MM.glass) continue;
+  for (const mm of EAT_MESHES) { const R = mm.userData.rng[i + 1]; if (!R || mm.material === MM.glass || mm.material === MM.rim) continue;
     const A = mm.geometry.attributes, pa = A.position.array, keep = [];
     for (let v = R[0]; v + 2 < R[1]; v += 3) { const cx = (pa[v * 3] + pa[v * 3 + 3] + pa[v * 3 + 6]) / 3 - C.x, cy = (pa[v * 3 + 1] + pa[v * 3 + 4] + pa[v * 3 + 7]) / 3, cz = (pa[v * 3 + 2] + pa[v * 3 + 5] + pa[v * 3 + 8]) / 3 - C.z, q2 = cx * cx + cz * cz;
       if (ball ? q2 + (cy - C.y) * (cy - C.y) < r * r : q2 < r * r && cy > C.y - Math.sqrt(r * r - q2)) keep.push(v); }
@@ -536,7 +551,8 @@ function takeSlice(i, k, inv) { const M = MOUNTS[i], out = new THREE.Group(), rn
   M.g.traverse((o) => { if (!o.isMesh) return; const R = rng[o.userData.key] && rng[o.userData.key][k]; if (!R || R[1] <= R[0]) return; const A = o.geometry.attributes, g = new THREE.BufferGeometry(), n = R[1] - R[0];
     for (const name of ['position', 'normal', 'uv', 'color']) { const src = A[name]; if (!src) continue; g.setAttribute(name, new THREE.BufferAttribute(src.array.slice(R[0] * src.itemSize, R[1] * src.itemSize), src.itemSize)); }
     const ys = g.attributes.position.array.filter((_, j) => j % 3 === 1);   // 跡の中の色は、形の座標の高さで決める
-    g.applyMatrix4(o.matrixWorld); out.userData.baked = (out.userData.baked || 0) + bakeDents(g, i, o.material.userData.deep || 0, INNER_OF.get(o.material.userData.base || o.material), ys, k); g.applyMatrix4(inv); g.computeBoundingSphere(); const m = new THREE.Mesh(g, o.material.userData.base || o.material); m.frustumCulled = false; out.add(m); });
+    const ic = A.aIC ? A.aIC.array.slice(R[0] * 3, R[1] * 3) : null;   // 飾りのまん中（丸ごと消すか、形を変えないか）
+    g.applyMatrix4(o.matrixWorld); out.userData.baked = (out.userData.baked || 0) + bakeDents(g, i, o.material.userData.deep || 0, INNER_OF.get(o.material.userData.base || o.material), ys, k, ic); g.applyMatrix4(inv); g.computeBoundingSphere(); const m = new THREE.Mesh(g, o.material.userData.base || o.material); m.frustumCulled = false; out.add(m); });
   M.ws[k] = M.wsT[k] = 0;
   // 持っていった切れの中に収まる跡は消す（写したので）。となりの切れにかかる跡は残す（全部残すと、見えない跡が枠を使い続けて、まとめる回数が増えた 2026-10-18）
   const ud = M.g.userData, N = ud.N, da = TAU / N;
@@ -547,9 +563,10 @@ function takeSlice(i, k, inv) { const M = MOUNTS[i], out = new THREE.Group(), rn
   return out; }
 // 持っていく切れに、かじった跡を写す：世界の座標の頂点を、シェーダーと同じ式（球・たての筒）で動かし、跡の中はケーキの中の色に
 // 写さなかった時は、手前の端をかじっていると、刺した瞬間に切れが新品に戻って見えた（本人 2026-10-18）
-function bakeDents(g, i, deep, kind, ys, k0) { const Ls = EAT.list.filter((D) => D.i === i && EAT.dent[D.slot].w > 0); if (!Ls.length) return 0; let moved = 0; const M = MOUNTS[i], L = new THREE.Vector3();
+function bakeDents(g, i, deep, kind, ys, k0, ic = null) { const Ls = EAT.list.filter((D) => D.i === i && EAT.dent[D.slot].w > 0); if (!Ls.length) return 0; let moved = 0; const M = MOUNTS[i], L = new THREE.Vector3();
   const p = g.attributes.position, nm = g.attributes.normal, cl = g.attributes.color, P = new THREE.Vector3(), off = new THREE.Vector3(), v = new THREE.Vector3(), q = new THREE.Vector3(), N = new THREE.Vector3();
-  for (let k = 0; k < p.count; k++) { P.fromBufferAttribute(p, k); off.set(0, 0, 0); let hit = false;
+  for (let k = 0; k < p.count; k++) { if (ic && ic[k * 3 + 1] > -1000) { M.g.localToWorld(L.set(ic[k * 3], ic[k * 3 + 1], ic[k * 3 + 2])); if (itemEaten(i, L)) { p.setXYZ(k, L.x, L.y, L.z); moved++; } continue; }
+    P.fromBufferAttribute(p, k); off.set(0, 0, 0); let hit = false;
     for (const D of Ls) { const d = EAT.dent[D.slot], dir = EAT.dir[D.slot]; v.copy(P).add(off).sub(V1.set(d.x, d.y, d.z));
       if (D.ball) { const L = v.length(); if (L < d.w) { v.divideScalar(Math.max(L, 1e-4)); off.addScaledVector(v, d.w - L + deep); N.copy(v).negate(); hit = true; } }
       else { const al = v.dot(dir); q.copy(v).addScaledVector(dir, -al); const q2 = q.lengthSq(), r2 = d.w * d.w; if (q2 < r2) { const bt = Math.sqrt(r2 - q2); if (al > -bt) { off.addScaledVector(dir, -bt - deep - al); N.copy(dir).multiplyScalar(bt).sub(q).normalize(); hit = true; } } } }
@@ -1348,6 +1365,7 @@ const snowG = new THREE.BufferGeometry(); snowG.setAttribute('position', new THR
 
 // ---------- 世界の飴が降る（町の豆知識12をぜんぶ集めると、雪にまじって）。落ちた飴は町のあちこちに転がり、しばらくすると溶けて消える。さわると、はじける（はじくだけ） ----------
 // 屋根や建物の上には落とさない（すり抜けて見えるので）。海に落ちた飴は、ぷかぷか浮いて、早めに溶ける
+// 落ちてから溶けるまで10〜15秒（海は6秒）。25〜40秒だった時は、地面に残る飴が多く、描く手間が重かった（本人 2026-10-18）
 const RAIN = CANDIES.map((C, j) => { const geo = candyGeo(C), m = new THREE.InstancedMesh(geo, candyMat(C, { env: GEM_ENV, glow: 0.32, key: 'rain' }), 12); m.frustumCulled = false; m.visible = false;
   for (let i = 0; i < 12; i++) m.setColorAt(i, new THREE.Color('#ffffff')); m.count = 0; scene.add(m);
   geo.computeBoundingBox(); const sz = geo.boundingBox.getSize(new THREE.Vector3()), thin = sz.x <= sz.y && sz.x <= sz.z ? new THREE.Vector3(1, 0, 0) : sz.y <= sz.z ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
@@ -1361,11 +1379,11 @@ const rainFree = (x, z) => !blockerAt(x, z);
 const CANDY_REACH = 14;
 function spawnCandy() { const R = RAIN[(Math.random() * RAIN.length) | 0]; if (R.list.length >= 12) return; const fy = -Math.sin(drone.yaw), fz = -Math.cos(drone.yaw);
   for (let k = 0; k < 10; k++) { const a = rnd(-1.1, 1.1), d = rnd(4, 26), x = cam.position.x + (fy * Math.cos(a) - fz * Math.sin(a)) * d, z = cam.position.z + (fz * Math.cos(a) + fy * Math.sin(a)) * d; if (!rainFree(x, z)) continue;
-    const wet = inWater(x, z), g = wet ? WATER_Y : surfaceAt(x, z); R.list.push({ p: new THREE.Vector3(x, Math.max(cam.position.y + rnd(8, 14), g + 10), z), v: new THREE.Vector3(rnd(-0.4, 0.4), -rnd(1.5, 3), rnd(-0.4, 0.4)), q: new THREE.Quaternion().random(), w: new THREE.Vector3(rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)), st: 'fall', t: 0, life: rnd(25, 40), s: R.C.sz * rnd(0.85, 1.15), col: R.C.cols ? R.C.cols[(Math.random() * R.C.cols.length) | 0] : '#ffffff', wet }); return; } }
+    const wet = inWater(x, z), g = wet ? WATER_Y : surfaceAt(x, z); R.list.push({ p: new THREE.Vector3(x, Math.max(cam.position.y + rnd(8, 14), g + 10), z), v: new THREE.Vector3(rnd(-0.4, 0.4), -rnd(1.5, 3), rnd(-0.4, 0.4)), q: new THREE.Quaternion().random(), w: new THREE.Vector3(rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)), st: 'fall', t: 0, life: rnd(10, 15), s: R.C.sz * rnd(0.85, 1.15), col: R.C.cols ? R.C.cols[(Math.random() * R.C.cols.length) | 0] : '#ffffff', wet }); return; } }
 // はじく：見ている人から遠ざかる向きへ。山・ケーキ・家などに乗っている飴は、その物から離れる向きへ大きく飛ばす（乗ったままだと、山やケーキがかじれなかった 2026-10-18）
 function flickCandy(R, k) { const c = R.list[k]; if (!c || c.st === 'melt') return; const B = blockerAt(c.p.x, c.p.z), away = B ? V1.set(c.p.x - B[0], 0, c.p.z - B[1]) : V1.set(c.p.x - cam.position.x, 0, c.p.z - cam.position.z);
   if (away.lengthSq() < 1e-6) away.set(1, 0, 0); away.normalize(); const sp = B ? rnd(7, 9.5) : rnd(2.5, 4); c.fl = nowS();
-  c.v.set(away.x * sp, B ? rnd(6, 7.5) : rnd(3, 4.5), away.z * sp); c.w.set(rnd(-14, 14), rnd(-14, 14), rnd(-14, 14)); c.st = 'fall'; c.t = 0; c.life = Math.max(c.life, 12); SND.candyFlick(); counts.flicks++; mark('flick'); }
+  c.v.set(away.x * sp, B ? rnd(6, 7.5) : rnd(3, 4.5), away.z * sp); c.w.set(rnd(-14, 14), rnd(-14, 14), rnd(-14, 14)); c.st = 'fall'; c.t = 0; c.life = Math.max(c.life, 8); SND.candyFlick(); counts.flicks++; mark('flick'); }
 function stepRain(dt, t) {
   if (OPEN.shop && !SHOP.on && !RAIN.paused) { rainT -= dt; if (rainT <= 0) { rainT = rnd(0.45, 0.9); spawnCandy(); } }
   for (const R of RAIN) { if (!R.list.length && !R.m.visible) continue;
@@ -1374,7 +1392,7 @@ function stepRain(dt, t) {
       if (c.st === 'fall') { c.v.y = Math.max(c.v.y - 7 * dt, -6); c.p.addScaledVector(c.v, dt);
         if (c.p.y < g) { c.p.y = g; if (c.v.y < -1.5 && !wet) { c.v.y = -c.v.y * 0.3; c.v.x *= 0.5; c.v.z *= 0.5; c.w.multiplyScalar(0.5); if (cam.position.distanceToSquared(c.p) < 200) SND.candyClack(0.35); } else { c.st = 'rest'; c.t = 0; c.v.set(0, 0, 0); c.wet = wet; } } }
       else if (c.st === 'rest') { c.p.y = g; const a = V2.copy(R.thin).applyQuaternion(c.q); if (a.y < 0) a.negate(); c.q.premultiply(QQ2.setFromUnitVectors(a, V3.copy(a).lerp(V4.set(0, 1, 0), 1 - Math.exp(-dt * 6)).normalize()));   // 薄い向きを上へ（横に寝る）
-        if (c.wet) c.p.x += Math.sin(t * 0.7 + i) * dt * 0.2; if (c.t > (c.wet ? 10 : c.life)) { c.st = 'melt'; c.t = 0; } }
+        if (c.wet) c.p.x += Math.sin(t * 0.7 + i) * dt * 0.2; if (c.t > (c.wet ? 6 : c.life)) { c.st = 'melt'; c.t = 0; } }
       else if (c.t > 3) { R.list.splice(i, 1); continue; } }
     // 形を置く。溶ける時は、世界の上下につぶれながら広がって、消える
     R.list.forEach((c, k) => { RM.compose(c.p, c.q, RS.setScalar(c.s));
@@ -1946,7 +1964,7 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   puyoStack: () => { const L = PUYOS.filter((p) => p.walk && !p.angel), a = L[0], b = L[1]; b.grp.position.set(a.grp.position.x + 0.1, a.grp.position.y, a.grp.position.z); for (const p of [a, b]) { p.hop = 0; p.hv = 0; p.vx = p.vz = 0; p.next = 5; } return [PUYOS.indexOf(a), PUYOS.indexOf(b)]; }, batch: () => BATCH.stats(), dentEvict: () => EAT.evict || 0, dentMax: (i) => +EAT.list.filter((D) => D.i === i).reduce((m, D) => Math.max(m, D.r / D.r0), 0).toFixed(3), eatVol: (i) => { const L = EAT.list.filter((D) => D.i === i && D.ball), h = 0.12; if (!L.length) return 0; const b = new THREE.Box3(); for (const D of L) b.union(new THREE.Box3().setFromCenterAndSize(D.c, V1.setScalar(2 * D.r * D.k))); let n = 0; for (let x = b.min.x; x < b.max.x; x += h) for (let y = b.min.y; y < b.max.y; y += h) for (let z = b.min.z; z < b.max.z; z += h) if (L.some((D) => (D.c.x - x) ** 2 + (D.c.y - y) ** 2 + (D.c.z - z) ** 2 < (D.r * D.k) ** 2)) n++; return +(n * h ** 3).toFixed(2); }, gbAll: () => GBS.map((G) => G.m.getWorldPosition(new THREE.Vector3()).toArray()), programs: () => renderer.info.programs.map((p) => [p.name, p.cacheKey, p.usedTimes]),
   // すくった跡の飛び出しの検査：スプーンの跡（球の外へ押し出す式 'ball'／真上から押し下げる式 'up'）を頂点に当てた時、山の輪郭の外へ出る頂点の数 [外へ出た, 動いた]
   spillOf: (i, mode) => { const M = MOUNTS[i], r = M.rMax * 1.5, C = new THREE.Vector3(M.x, M.y + M.yMax - M.yMax * 0.48 + r, M.z), P = new THREE.Vector3(), d = new THREE.Vector3(); let n = 0, all = 0;
-    for (const mm of EAT_MESHES) { const R = mm.userData.rng[i + 1]; if (!R || mm.material === MM.glass) continue; const deep = mm.material.userData.deep ?? 0, pa = mm.geometry.attributes.position;
+    for (const mm of EAT_MESHES) { const R = mm.userData.rng[i + 1]; if (!R || mm.material === MM.glass || mm.material === MM.rim) continue; const deep = mm.material.userData.deep ?? 0, pa = mm.geometry.attributes.position;
       for (let v = R[0]; v < R[1]; v++) { P.fromBufferAttribute(pa, v); d.copy(P).sub(C); let moved = false;
         if (mode === 'up') { const q2 = d.x * d.x + d.z * d.z; if (q2 < r * r) { const bt = Math.sqrt(r * r - q2); if (d.y > -bt) { P.y = C.y - bt - deep; moved = true; } } }
         else { const L = d.length(); if (L < r) { P.copy(C).addScaledVector(d, (r + deep) / Math.max(L, 1e-4)); moved = true; } }
