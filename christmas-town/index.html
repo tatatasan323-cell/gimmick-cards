@@ -52,6 +52,20 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 @media (prefers-reduced-motion:reduce){#cotC,#cotName span,.spk{animation:none}#cotIn{transition:none}}
 #menuB{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:13px;font-weight:800;color:#fff3df;background:rgba(40,22,8,.55);border:1px solid rgba(255,230,190,.35);border-radius:999px;padding:7px 12px;cursor:pointer}
 #fsB{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));z-index:15;width:38px;height:38px;padding:0;border:0;border-radius:12px;background:rgba(30,18,8,.5);color:#ffe7c0;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)}#fsB[hidden]{display:none}
+#theaterUI{position:fixed;inset:0;z-index:24;overflow:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;padding:calc(14px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));background:radial-gradient(130% 80% at 50% 0%,#6a1222,#2a070e 62%,#14040a);color:#fff3e0}#theaterUI[hidden]{display:none}
+#thHead{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:1120px;margin:0 auto 14px}#thHead b{display:block;font-size:19px;letter-spacing:.06em}#thHead small{display:block;font-size:12px;font-weight:700;color:#f3c98a;margin-top:3px}
+#thBack{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 14px;background:#f3e2c8;color:#4a1a10;cursor:pointer;white-space:nowrap}
+#thList{display:grid;gap:16px;max-width:1120px;margin:0 auto;grid-template-columns:minmax(0,1fr)}@media (min-width:860px){#thList{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.th{min-width:0;border-radius:16px;padding:12px 10px 12px;background:linear-gradient(#4a0e18,#2e0810);border:2px solid #c9a04a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.th .stage{position:relative;max-width:100%;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#07030a;border:6px solid #8a1424;border-top-width:14px;box-shadow:inset 0 0 0 2px #d8b060}
+.th .stage::before{content:"";position:absolute;left:0;right:0;top:0;height:12px;z-index:4;pointer-events:none;background:radial-gradient(circle at 10px 0,#b0182c 9px,transparent 10px) 0 0/20px 12px repeat-x}
+.th video{display:block;width:100%;height:100%;object-fit:contain;background:#07030a}
+.th .play{position:absolute;inset:0;z-index:3;display:grid;place-content:center;justify-items:center;gap:2px;border:0;padding:0;font:inherit;color:#fff;background:rgba(10,4,12,.3);cursor:pointer;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+.th .play i{position:relative;display:block;width:62px;height:62px;border-radius:50%;background:linear-gradient(#ffd87a,#e0962a);box-shadow:0 4px 14px rgba(0,0,0,.45)}.th .play i::after{content:"";position:absolute;left:24px;top:17px;border-left:22px solid #3a1404;border-top:14px solid transparent;border-bottom:14px solid transparent}
+.th .play b{font-size:17px;margin-top:6px}.th .play small{font-size:12px;opacity:.9}.th .play:active i{transform:scale(.94)}.th .play[hidden]{display:none}
+.th .soon{position:absolute;inset:0;display:grid;place-content:center;background:repeating-linear-gradient(90deg,#8a1020 0 12px,#a8162a 12px 24px);color:#ffe9c8;font-weight:800;font-size:17px;letter-spacing:.2em;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+.th .t{margin:10px 2px 0;min-width:0}.th .t b{display:block;font-size:15.5px;overflow-wrap:anywhere}.th .t small{display:block;font-size:12px;color:#f3c98a;margin-top:3px;line-height:1.55}
+.th .full{display:block;margin:10px 2px 0;text-align:center;font:inherit;font-size:14px;font-weight:800;border-radius:999px;padding:9px 12px;background:#c8732e;color:#fff;text-decoration:none}.th .full[aria-disabled="true"]{background:#4a1a22;color:#d8b8a8;cursor:default}
 #menu{position:fixed;inset:0;z-index:25;background:rgba(10,6,20,.45);display:flex;align-items:flex-end;justify-content:center}#menu[hidden]{display:none}
 #sheet{width:min(100%,520px);max-height:82vh;box-sizing:border-box;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:#fff8ee;color:#2a1a10;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(0,0,0,.4)}
 #tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}#tabs button{font:inherit;font-size:12.5px;line-height:1.2;font-weight:800;border:0;border-radius:999px;padding:7px 2px;background:#eadccb;color:#5a3a1a;cursor:pointer}#tabs button.on{background:#c8732e;color:#fff}
@@ -97,6 +111,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="found" role="button" tabindex="0" aria-label="見つけた豆知識の一覧">豆知識 <span id="fN">0</span> / <span id="fT">12</span> ›</div>
 <div class="tx" id="hint">左の丸＝飛ぶ（見ている向きへ）・空や町をなぞる＝見まわす<br>海をなぞる＝光の波・家や住人をタップ＝かじる　♪音あり</div>
 <div id="joy"><div id="knob"></div></div><button class="ud" id="upB" type="button" hidden>▲</button><button class="ud" id="dnB" type="button" hidden>▼</button>
+<div id="theaterUI" role="dialog" aria-label="ミュージカルの劇場" hidden><div id="thHead"><div><b>ミュージカルの劇場</b><small>3つのシアターで、サビを15秒ずつ上映中</small></div><button id="thBack" type="button">‹ 港町へもどる</button></div><div id="thList"></div></div>
 <div id="card" hidden><b id="cName"></b><small id="cSub"></small><p id="cText"></p><div class="src" id="cSrc"></div><div class="row"><a id="go" target="_blank" rel="noopener" hidden>この場所へ ›</a><button id="close" type="button">とじる</button></div></div>
 <div id="tip"><p id="tipQ"></p><div class="row"><button id="tipYes" type="button">うん</button><button id="tipNo" type="button">まだ！ つれてって</button></div></div>
 <div id="cotton" hidden><canvas id="cotC"></canvas><div id="cotIn"><div id="cotTag"></div><div id="cotName"></div><p id="cotText"></p><div id="cotSrc"></div><button id="cotOk" type="button">なるほど！</button></div></div>
@@ -766,7 +781,7 @@ const CARD_GOT = INVITE || (INVITE_HASH ? Card.fromHash(INVITE_HASH) : null), CA
 if (PAGES && q.has('openExternalBrowser')) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // LINE から開きなおした後は、アドレスを元に
 const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html', post: 'card.html' + INVITE_HASH }
   : { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U', post: 'https://claude.ai/artifact/8BYtjoMnsyP5yRzrQojXfC' };
-const MV_HIPHOP = 'https://youtu.be/pEvqS5da3-s';
+if (PAGES) { $('go').removeAttribute('target'); $('go').removeAttribute('rel'); }
 function area(id, name, sub, text, link, grp, view, labelY, labelSub) {
   const A = { id, name, sub, text, link, g: grp, view, kind: 'area' }; grp.traverse((o) => { if (o.isMesh && !o.userData.pick) addPick(o, A); });
   const lb = label(name, labelSub); lb.position.copy(grp.position).setY(grp.position.y + labelY); scene.add(lb); A.label = lb; AREAS.push(A); return A;
@@ -832,11 +847,39 @@ const TOY = (() => { const [x, z, ry] = AREAPOS.toy, o = { x, y: landH(x, z), z,
   const g = houseGroup(o, (acc) => acc.add('frost', new THREE.CylinderGeometry(0.6, 0.65, 0.35, 28).translate(0, 0.17, 2.7)), GUMMY_HOUSE); g.userData.wob = 0;
   TEDDY = new THREE.Group(); TEDDY.position.set(0, 0.35, 2.7); g.add(TEDDY);   // 台の上面（ゆれる軸＝足もと）
   return area('teddy', 'テディグミの店', 'さわると、ぷるん', '店先の大きなくまのグミ。触ると、ぷるんとゆれます。', null, g, { d: 9, h: 1.5 }, 5.8); })();
-// 劇場（④）：丸い建物にチョコのドーム。1曲目のMV（ヒップホップ）を YouTube で上映中・あと2曲は準備中（本人 2026-10-20）。外のページなので、別のタブで開く（港町は残す）
+// 劇場（④）：丸い建物にチョコのドーム。中に入ると3つのシアター（openTheaterUI）
 const THEATER = (() => { const [x, z, ry] = AREAPOS.theater, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = ry; scene.add(g);
   const acc = new SW.Acc(); acc.add('cookie', new THREE.CylinderGeometry(2.4, 2.5, 3.0, 36).translate(0, 1.5, 0), '#f2d6b6'); acc.add('choco', new THREE.CylinderGeometry(2.55, 2.55, 2, 36).translate(0, -0.95, 0)); acc.add('gum', new THREE.SphereGeometry(2.45, 36, 16, 0, TAU, 0, Math.PI / 2).scale(1, 0.65, 1).translate(0, 3.0, 0), '#e0283c'); acc.add('gum', new THREE.TorusGeometry(2.45, 0.14, 8, 48).rotateX(Math.PI / 2).translate(0, 3.0, 0), '#ffd23a'); acc.add('gum', new THREE.SphereGeometry(0.25, 14, 10).translate(0, 4.65, 0), '#ffd23a'); acc.add('choco', new THREE.BoxGeometry(0.9, 1.6, 0.1).translate(0, 0.8, 2.45));
   for (const m of acc.build(MATS)) g.add(m);
-  return Object.assign(area('theater', 'ミュージカルの劇場', '1曲目のMVを上映中（あと2曲は準備中）', 'ジンジャーブレッドたちのミュージカル。1曲目は、ヒップホップの「Friends Around the Table（テーブルに集まれ！）」。フォークとゴスペルも、ここで上映する予定です。', MV_HIPHOP, g, { d: 12, h: 3 }, 6.3, '上映中'), { ext: true, goText: 'MVを見る ›' }); })();
+  return Object.assign(area('theater', 'ミュージカルの劇場', '3つのシアターで、サビを15秒ずつ', 'ジンジャーブレッドたちのミュージカル。中には3つのシアターがあって、3曲のサビを15秒ずつ見られます。シアターの下のボタンから、MVをぜんぶ見ることもできます。', null, g, { d: 12, h: 3 }, 6.3, '上映中'), { enter: () => openTheaterUI(), enterText: '劇場に入る ›' }); })();
+// 劇場の中（本人 2026-10-20「ハロウィンのギミックカードの時のように、中に入ると3つのシアター。3曲ともサビを15秒くらい。下に、MVを一曲全部見るボタン → YouTube」）
+// 動画は、押すまで読みこまない（通信量・LINE の中でも軽く）。流れている間は町の BGM を止めて、終わったら戻す。中にいる間は、町の絵を描かない（スマホで動画をなめらかに）
+// yt＝YouTube の全編。入れた曲だけ、ボタンが押せる（入れていない曲は「近日公開」）。clip が無い曲は、幕が閉じたまま「準備中」
+const SHOWS = [
+  { id: 'hiphop', name: 'Friends Around the Table', ja: 'テーブルに集まれ！', note: 'ヒップホップ｜イブの夜、仲間がつぎつぎにやってくる', clip: 'theater_hiphop.mp4', poster: 'theater_hiphop.jpg', yt: 'https://youtu.be/pEvqS5da3-s' },
+  { id: 'folk', name: 'Christmas Feels Like Being', ja: 'きみといる、それがクリスマス', note: 'フォーク｜同じイブを、家のふたりの側から', clip: 'theater_folk.mp4', poster: 'theater_folk.jpg', yt: 'https://youtu.be/gM8WBMWDdGU' },
+  { id: 'gospel', name: '3曲目（ゴスペル）', ja: '準備中', note: 'クリスマスの朝', clip: null, poster: null, yt: null },
+];
+const TH = { open: false, duck: false };
+function thBuild() { const L = $('thList'); if (L.childElementCount) return;
+  for (const S of SHOWS) { const c = document.createElement('div'), st = document.createElement('div'), tx = document.createElement('div'); c.className = 'th'; c.dataset.id = S.id; st.className = 'stage'; tx.className = 't';
+    if (S.clip) { const v = document.createElement('video'), b = document.createElement('button'); v.playsInline = true; v.preload = 'none'; v.poster = S.poster; v.setAttribute('disablepictureinpicture', ''); v.setAttribute('controlslist', 'nodownload');
+      b.type = 'button'; b.className = 'play'; b.setAttribute('aria-label', S.name + '（サビ15秒）を見る'); b.append(document.createElement('i'), mEl('b', null, '見る'), mEl('small', null, 'サビ 15秒'));
+      b.addEventListener('click', () => { SND.audio(); thStopAll(v); b.hidden = true; v.src = S.clip; v.setAttribute('controls', ''); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { /* 自動で始まらなくても、操作の枠から押せる */ }); });
+      v.addEventListener('play', () => { thStopAll(v); if (!TH.duck && PREF.bgm && soundStarted) { TH.duck = true; BGM.set(SND.audio(), false); } });   // 動画の音と、BGM が重ならないように
+      v.addEventListener('ended', thUnduck);
+      v.addEventListener('error', () => { if (!v.getAttribute('src')) return; thReset(v); thUnduck(); });
+      st.append(v, b); }
+    else st.append(mEl('div', 'soon', '準備中'));
+    tx.append(mEl('b', null, S.name), mEl('small', null, S.ja + '｜' + S.note));
+    let f; if (S.yt) { f = mEl('a', 'full', 'MVを一曲ぜんぶ見る ›'); f.href = S.yt; f.target = '_blank'; f.rel = 'noopener noreferrer'; } else { f = mEl('span', 'full', S.clip ? 'MVの全編は、近日公開' : '近日公開'); f.setAttribute('aria-disabled', 'true'); }
+    c.append(st, tx, f); L.append(c); } }
+function thReset(v) { v.pause(); v.removeAttribute('src'); v.removeAttribute('controls'); try { v.load(); } catch (e) { /* 読みこむものが無い */ } v.parentElement.querySelector('.play').hidden = false; }
+function thStopAll(except) { for (const v of $('thList').querySelectorAll('video')) if (v !== except && v.getAttribute('src')) thReset(v); }
+function thUnduck() { if (TH.duck && PREF.bgm) BGM.set(SND.audio(), true); TH.duck = false; }
+function openTheaterUI() { thBuild(); card.hidden = true; $('theaterUI').hidden = false; $('theaterUI').scrollTop = 0; TH.open = true; use('theater'); SND.tap(); }
+function closeTheaterUI() { if (!TH.open) return; thStopAll(null); thUnduck(); $('theaterUI').hidden = true; TH.open = false; }
+$('thBack').addEventListener('click', () => { SND.tap(); closeTheaterUI(); });
 // 郵便局（クリスマスカードへ）＋赤いポスト（豆知識）
 let POSTBOX = null;
 const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.5, rh: 1.5, roof: 'frost', shade: '#fff4e6', glass: '#ffd86a', door: true, base: 1.6 };
@@ -1734,8 +1777,7 @@ function closeTrivia(now) { if (!COT.open) return; COT.open = false; cancelAnima
 COT.el.addEventListener('click', (e) => { if (performance.now() - COT.t0 < 450) return; if (e.target.id === 'cotOk' || !COT.inn.contains(e.target)) { closeTrivia(); SND.tap(); } });
 addEventListener('resize', () => { if (COT.open) { cotLayout(); cotDraw(9); } });
 let cardArea = null;
-function showCard(name, sub, text, src, link, A = null) { closeTrivia(true); saveProgress(); cardAt = (auto ? auto.p : drone.p).clone(); cardArea = A; $('go').textContent = A && A.enter ? 'お店に入る ›' : (A && A.goText) || 'この場所へ ›'; if (A && A.enter) link = '#'; $('cName').textContent = name; $('cSub').textContent = sub || ''; $('cText').textContent = text; $('cSrc').textContent = src || ''; $('cSrc').hidden = !src; const go = $('go'); if (!PAGES || (A && A.ext)) { go.target = '_blank'; go.rel = 'noopener'; } else { go.removeAttribute('target'); go.removeAttribute('rel'); }   // 仕掛けは同じタブで、外のページ（MV）は別のタブで
-  if (link) { go.href = link; go.hidden = false; } else { go.removeAttribute('href'); go.hidden = true; } card.hidden = false; }
+function showCard(name, sub, text, src, link, A = null) { closeTrivia(true); saveProgress(); cardAt = (auto ? auto.p : drone.p).clone(); cardArea = A; $('go').textContent = A && A.enter ? A.enterText || 'お店に入る ›' : 'この場所へ ›'; if (A && A.enter) link = '#'; $('cName').textContent = name; $('cSub').textContent = sub || ''; $('cText').textContent = text; $('cSrc').textContent = src || ''; $('cSrc').hidden = !src; const go = $('go'); if (link) { go.href = link; go.hidden = false; } else { go.removeAttribute('href'); go.hidden = true; } card.hidden = false; }
 $('close').addEventListener('click', () => { card.hidden = true; SND.tap(); });
 $('go').addEventListener('click', (e) => { const A = cardArea; if (!A) return; if (A.enter) { e.preventDefault(); card.hidden = true; A.enter(); return; } use(A.id); });
 $('shopBack').addEventListener('click', () => { SND.tap(); exitShop(); });
@@ -1819,8 +1861,8 @@ const SEA_P = new THREE.Vector3(0, WATER_Y, 16);
 // 仕掛けのページの中でやったこと（GitHub 版は同じ場所なので、仕掛けのページが xmas-town-done に書く。claude.ai の試作では届かない）
 const GDONE = new Set(); function readGDone() { try { for (const k of JSON.parse(localStorage.getItem('xmas-town-done') || '[]')) GDONE.add(k); } catch (e) { /* 読めなければ空 */ } }
 readGDone(); addEventListener('focus', readGDone); addEventListener('pageshow', readGDone);
-// 名所：中の仕掛けで遊んだか（入った＝遊んだ。劇場は MV を開いた＝見た）
-const areaTip = (A) => ({ id: 'area:' + A.id, q: A.ext ? `「${A.name}」で、MVを見てみた？` : A.link || A.enter ? `「${A.name}」の中で、もう遊んでみた？` : `「${A.name}」って、もう行ってみた？`, done: () => (A.link || A.enter || A.id === 'teddy' ? USED.has(A.id) : !!A.seen), go: () => focusArea(A) });
+// 名所：中の仕掛けで遊んだか（入った＝遊んだ）
+const areaTip = (A) => ({ id: 'area:' + A.id, q: A.link || A.enter ? `「${A.name}」の中で、もう遊んでみた？` : `「${A.name}」って、もう行ってみた？`, done: () => (A.link || A.enter || A.id === 'teddy' ? USED.has(A.id) : !!A.seen), go: () => focusArea(A) });
 const TIPS = [
   ...AREAS.map(areaTip),
   ...TRIVIA.map((T) => ({ id: 'trivia:' + T.id, q: T.id === 'norad' ? '空を走るサンタのそり、見つけた？　さわると、豆知識があるよ' : `「${T.name}」の豆知識って、知ってる？`, done: () => found.has(T.id), go: () => { T.pop = 1; goPoint(T.obj.getWorldPosition(new THREE.Vector3()), T.big ? 12 : 5, T.big ? 2 : 1.8); } })),
@@ -1916,6 +1958,7 @@ const resting = () => performance.now() - idleAt > 3000 && !auto && INTRO.t < 0 
 function frame() {
   if (resting()) { idleSkip = !idleSkip; if (idleSkip) { requestAnimationFrame(frame); return; } }
   const raw = clock.getDelta(), dt = Math.min(0.034, raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
+  if (TH.open) { requestAnimationFrame(frame); return; }   // 劇場の中は町の絵を覆っているので、描かない
   if (SHOP.on) { stepShop(dt, t); renderer.render(SHOP.sc, SHOP.cam); requestAnimationFrame(frame); return; }
   stepDrone(dt, now); sky.update(cam.position, t);
   waterMat.uniforms.uT.value = t; sqMat.uniforms.uT.value = t; FALL.mat.uniforms.uT.value = t;
@@ -2063,7 +2106,7 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   toyWob: () => TOY.g.userData.wob, bgm: () => ({ on: BGM.on, track: BGM.track }), tipList: () => TIPS.map((t) => [t.id, !!t.deep, !!t.asked, t.done()]), tipShow: (id) => showTip(TIP_OF(id)), bellSwing: () => BELL.userData.swing || 0, gbWallMax: () => GBS[0].m.geometry.attributes.aWall ? Math.max(...GBS[0].m.geometry.attributes.aWall.array.filter((v, i) => i % 4 === 3)) : 0,
   angel: (i) => { const b = PUYOS[i]; return { st: b.angel ? b.angel.st : null, y: +b.grp.position.y.toFixed(2), vis: b.grp.visible, wings: !!(b.wings && b.wings[0].visible), halo: !!(b.halo && b.halo.visible) }; }, angelT: (i, t) => { if (PUYOS[i].angel) PUYOS[i].angel.t = t; }, angelParts: (i) => { const b = PUYOS[i], w = (o) => o.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)); return { grp: w(b.grp), body: w(b.body), halo: b.halo ? w(b.halo) : null, wingL: b.wings ? w(b.wings[0]) : null, wingR: b.wings ? w(b.wings[1]) : null, scale: +b.grp.scale.x.toFixed(2) }; },
   cotAt: (t) => { cancelAnimationFrame(COT.raf); COT.t0 = performance.now() - t * 1000; cotDraw(t); },
-  cotClose: (now) => closeTrivia(now), intro: () => (INTRO.t < 0 ? null : +INTRO.t.toFixed(2)), mtn: (i) => { const S = MTN_ST[i]; return { taps: S.taps, dents: EAT.list.filter((D) => D.i === i).length, spoon: SPOON.i === i ? +SPOON.t.toFixed(1) : null, big: EAT.list.some((D) => D.i === i && D.pin), slots: EAT.list.length, dentN: DENT_N, rest: S.rest ? +S.rest.t.toFixed(1) : null, eaten: S.eaten }; }, mtnAt: (i) => { const M = MOUNTS[i]; return [M.x, M.y + M.yMax * 0.55, M.z, M.rMax, M.yMax]; }, mtnHurry: (i) => { const S = MTN_ST[i]; S.last -= 100; if (S.spoonEnd) S.spoonEnd -= 100; }, mtnN: () => MOUNTS.length, inMtn: () => MOUNTS.some((M) => Math.hypot(cam.position.x - M.x, cam.position.z - M.z) < mtnR(M, cam.position.y - M.y)), lamp: (i) => (LAMP.st[i] ? LAMP.st[i].phase : 'ok'), lampAt: (i) => { const [x, z] = LAMPS[i]; return [x, landH(x, z) + 1.3, z]; }, lampPiece: (i) => (LAMP.st[i] ? LAMP.st[i].parts.map((P) => +P.p.y.toFixed(2)) : null), lampsDown: () => LAMP.st.flatMap((S, i) => (S ? [i] : [])), lampKind: (i) => (LAMP.st[i] ? LAMP.st[i].kind + '/' + LAMP.st[i].back : null), lampKinds: () => counts.lampKinds || '', wreath: () => WR.lit, bauble: () => BAUBLE.amp, rest: () => REST.hop, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href, goText: $('go').textContent, tab: $('go').target || null }), areaCard: (id) => { focusArea(AREAS.find((a) => a.id === id)); return true; },
+  cotClose: (now) => closeTrivia(now), intro: () => (INTRO.t < 0 ? null : +INTRO.t.toFixed(2)), mtn: (i) => { const S = MTN_ST[i]; return { taps: S.taps, dents: EAT.list.filter((D) => D.i === i).length, spoon: SPOON.i === i ? +SPOON.t.toFixed(1) : null, big: EAT.list.some((D) => D.i === i && D.pin), slots: EAT.list.length, dentN: DENT_N, rest: S.rest ? +S.rest.t.toFixed(1) : null, eaten: S.eaten }; }, mtnAt: (i) => { const M = MOUNTS[i]; return [M.x, M.y + M.yMax * 0.55, M.z, M.rMax, M.yMax]; }, mtnHurry: (i) => { const S = MTN_ST[i]; S.last -= 100; if (S.spoonEnd) S.spoonEnd -= 100; }, mtnN: () => MOUNTS.length, inMtn: () => MOUNTS.some((M) => Math.hypot(cam.position.x - M.x, cam.position.z - M.z) < mtnR(M, cam.position.y - M.y)), lamp: (i) => (LAMP.st[i] ? LAMP.st[i].phase : 'ok'), lampAt: (i) => { const [x, z] = LAMPS[i]; return [x, landH(x, z) + 1.3, z]; }, lampPiece: (i) => (LAMP.st[i] ? LAMP.st[i].parts.map((P) => +P.p.y.toFixed(2)) : null), lampsDown: () => LAMP.st.flatMap((S, i) => (S ? [i] : [])), lampKind: (i) => (LAMP.st[i] ? LAMP.st[i].kind + '/' + LAMP.st[i].back : null), lampKinds: () => counts.lampKinds || '', wreath: () => WR.lit, bauble: () => BAUBLE.amp, rest: () => REST.hop, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href, goText: $('go').textContent, tab: $('go').target || null }), areaCard: (id) => { focusArea(AREAS.find((a) => a.id === id)); return true; }, theater: () => ({ open: TH.open, duck: TH.duck, bgm: !!(PREF.bgm && soundStarted) }),
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, p.z]; },
   where: (kind, id) => { const o = kind === 'area' ? AREAS.find((a) => a.id === id).g : kind === 'trivia' ? TRIVIA.find((T) => T.id === id).hit : kind === 'gb' ? GBS[id].m : PUYOS[id].body; return o.getWorldPosition(new THREE.Vector3()).toArray(); },
   place: (p, yaw, pitch) => { drone.p.set(...p); drone.v.set(0, 0, 0); drone.yaw = drone.tyaw = yaw; drone.pitch = drone.tpitch = pitch; auto = null; stepDrone(0, nowS()); },
@@ -2104,7 +2147,7 @@ function drawMenu() {
   for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.t === menuTab);
   const P = $('pane'); P.textContent = ''; P.scrollTop = 0;
   if (menuTab === 'places') { P.append(mEl('div', 'hd', 'さわると、そこへ飛びます。「入る」で、中の仕掛けへ'));
-    for (const A of AREAS) { const bs = [mBtn('ここへ', () => { closeMenu(); focusArea(A); })]; if (A.link) { const a = mEl('a', 'go', A.ext ? '見る ›' : '入る ›'); a.href = A.link; if (!PAGES || A.ext) { a.target = '_blank'; a.rel = 'noopener'; } a.addEventListener('click', () => use(A.id)); bs.push(a); } else if (A.enter) bs.push(mBtn('入る ›', () => { closeMenu(); A.enter(); }, 'go'));
+    for (const A of AREAS) { const bs = [mBtn('ここへ', () => { closeMenu(); focusArea(A); })]; if (A.link) { const a = mEl('a', 'go', '入る ›'); a.href = A.link; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } a.addEventListener('click', () => use(A.id)); bs.push(a); } else if (A.enter) bs.push(mBtn('入る ›', () => { closeMenu(); A.enter(); }, 'go'));
       P.append(mRow((USED.has(A.id) || (!A.link && !A.enter && A.id !== 'teddy' && A.seen) ? '✓ ' : '') + A.name, A.sub, ...bs)); }
     if (OPEN.cakes) for (const M of MOUNTS.filter((q) => q.cake)) P.append(mRow((ACH.has('cake') ? '✓ ' : '') + M.name + 'の山', M.where, mBtn('ここへ', () => { closeMenu(); goPoint(new THREE.Vector3(M.x, M.y + M.yMax * 0.6, M.z), M.rMax + 12, 4); }))); }
   else if (menuTab === 'trivia') { P.append(mEl('div', 'hd', `見つけた豆知識　${$('fN').textContent} / ${$('fT').textContent}`));
