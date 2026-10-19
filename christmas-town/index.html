@@ -772,11 +772,22 @@ function area(id, name, sub, text, link, grp, view, labelY, labelSub) {
 }
 const houseGroup = (o, extra, mats = MATS) => { const g = new THREE.Group(); g.position.set(o.x, o.y, o.z); g.rotation.y = o.ry; scene.add(g); const acc = new SW.Acc(); SW.addHouse(acc, { ...o, x: 0, y: 0, z: 0, ry: 0 }); if (extra) extra(acc); for (const m of acc.build(mats)) g.add(m); return g; };
 // 礼拝堂（ステンドグラス）：いちばん上の段。正面に大きな丸窓（サンタのそり）と、鐘の塔
-let ROSE_WIN = null, BELL = null;
+let ROSE_WIN = null, BELL = null, BELL_HIT = null;
+// 鐘楼：塔を屋根の棟（約6.4）より上へ出し、柱だけの開いた鐘楼に鐘を吊るす（どの向きからも見える）。前は塔の正面に半分埋まった小さな鐘で、外からほとんど見えなかった（本人 2026-10-19）
+const BELFRY = { y0: 8.1, y1: 9.7, z: -2.2, half: 0.62 };
 const CHAPEL = (() => { const [x, z, ry] = AREAPOS.chapel, o = { x, y: landH(x, z), z, ry, w: 4.4, d: 6.4, h: 3.6, rh: 2.6, roof: 'frost', shade: '#f2d6b6', glass: '#ffd86a', door: true, base: 2, gum: true };
-  const g = houseGroup(o, (acc) => { acc.add('cookie', new THREE.BoxGeometry(1.5, 4.6, 1.5).translate(0, 5.8, -2.2), '#e6c09a'); acc.add('frost', new THREE.ConeGeometry(1.2, 2.8, 4, 1).rotateY(Math.PI / 4).translate(0, 9.5, -2.2)); });
+  const { y0, y1, z: bz, half } = BELFRY;
+  const g = houseGroup(o, (acc) => { acc.add('cookie', new THREE.BoxGeometry(1.5, 4.6, 1.5).translate(0, 5.8, bz), '#e6c09a');
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) acc.add('cookie', new THREE.BoxGeometry(0.24, y1 - y0, 0.24).translate(sx * half, (y0 + y1) / 2, bz + sz * half), '#e6c09a');   // 鐘楼の4本の柱
+    acc.add('frost', new THREE.BoxGeometry(1.7, 0.2, 1.7).translate(0, y1 + 0.1, bz));   // 鐘楼の天井
+    acc.add('frost', new THREE.ConeGeometry(1.2, 2.8, 4, 1).rotateY(Math.PI / 4).translate(0, y1 + 0.2 + 1.4, bz)); });
   const rw = new THREE.Mesh(new THREE.CircleGeometry(1.15, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.3, 1.3, 1.3) })); rw.position.set(0, 3.95, 3.27); g.add(rw); ROSE_WIN = rw;
-  BELL = new THREE.Group(); BELL.position.set(0, 7.0, -1.42); g.add(BELL); BELL.add(new THREE.Mesh(new THREE.LatheGeometry([[0.001, 0.36], [0.16, 0.34], [0.2, 0.2], [0.24, 0.02], [0.32, -0.08], [0.001, -0.08]].map(([a, b]) => new THREE.Vector2(a, b)), 20), new THREE.MeshStandardMaterial({ color: '#ffcc55', metalness: 1, roughness: 0.25, emissive: '#7a4a10', emissiveIntensity: 0.4 })));
+  // 鐘は天井から吊るし、上の支点で揺れる（前は支点が鐘の下寄りにあり、物理と合わなかった）。大きさは前の1.6倍
+  BELL = new THREE.Group(); BELL.position.set(0, y1 - 0.02, bz); g.add(BELL);
+  const bellGeo = new THREE.LatheGeometry([[0.001, 0.36], [0.16, 0.34], [0.2, 0.2], [0.24, 0.02], [0.32, -0.08], [0.001, -0.08]].map(([a, b]) => new THREE.Vector2(a, b)), 24).translate(0, -0.38, 0).scale(1.6, 1.6, 1.6);
+  BELL.add(new THREE.Mesh(bellGeo, new THREE.MeshStandardMaterial({ color: '#ffcc55', metalness: 1, roughness: 0.25, emissive: '#a0661a', emissiveIntensity: 0.7 })));
+  // 屋根より上の塔・鐘楼・とんがり屋根は、まるごと鐘の当たり（前は鐘のすぐ上から聖堂の当たりで、鐘が鳴らしにくかった 本人 2026-10-19）。見た目より少し大きい見えない箱
+  BELL_HIT = new THREE.Mesh(new THREE.BoxGeometry(1.95, y1 + 3.2 - 6.4, 1.95).translate(0, (6.4 + y1 + 3.2) / 2, bz), new THREE.MeshBasicMaterial()); BELL_HIT.visible = false; g.add(BELL_HIT);
   const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 32), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.06, 5.2); g.add(pool); g.userData.pool = pool;
   return area('glass', 'ステンドグラスの礼拝堂', '色ガラスの窓', 'タップすると窓のかけらが落ちて砕け、少しすると光の粒になって元の窓へ。窓ごとに戻り方がちがいます。', ART.glass, g, { d: 15, h: 5 }, 11.5); })();
 // 宝石の美術館：キャンディケインの柱が並ぶ正面と、屋根の上でゆっくり回る大きな宝石
@@ -1301,7 +1312,7 @@ const TRIVIA = [
   { id: 'seven', obj: BAKERY_TRAY, name: '7種類のクッキー', text: 'ノルウェーでは「クリスマスには7種類のクッキー」と、今も語られます。7は縁起のいい数と考えられていました。決まった7種類はなく、地方や家ごとにちがいます。', src: '出典：ノルウェー政府観光局（visitnorway.com）' },
   { id: 'tree', obj: BIGTREE, name: 'オスロから届くツリー', text: 'ロンドンのトラファルガー広場の大きなツリーは、1947年から毎年、ノルウェーのオスロ市が贈っているトウヒの木。第二次世界大戦中に助けてくれたイギリスへのお礼です。', src: '出典：オスロ市（oslo.kommune.no）', y: 7.8 },
   { id: 'card', obj: POSTBOX, name: 'はじめてのクリスマスカード', text: '最初のクリスマスカードは、1843年のイギリス生まれ。返事を書けない手紙がたまって困ったヘンリー・コールが、1000枚印刷しました。1枚1シリングで売り出しましたが、当時としては高く、商売としては失敗でした。', src: '出典：ヴィクトリア＆アルバート博物館（vam.ac.uk）' },
-  { id: 'silent', obj: BELL, name: '「きよしこの夜」', text: '1818年12月24日、ザルツブルク近くの村オーベルンドルフの教会で初めて歌われました。伴奏はギター。今では300以上の言語・方言で歌われています。', src: '出典：stillenacht.at／salzburgerland.com' },
+  { id: 'silent', obj: BELL, hits: [BELL_HIT], y: 3.6, name:'「きよしこの夜」', text: '1818年12月24日、ザルツブルク近くの村オーベルンドルフの教会で初めて歌われました。伴奏はギター。今では300以上の言語・方言で歌われています。', src: '出典：stillenacht.at／salzburgerland.com' },
   { id: 'lucia', obj: LUCIA, name: '聖ルシア祭', text: 'スウェーデンでは12月13日が聖ルシア祭。白い服の子どもたちが、光の冠をかぶったルシアを先頭に、歌いながら行進します。昔の暦では、一年でいちばん昼が短い日でした。', src: '出典：スウェーデン観光局（visitsweden.com）', y: 1.4 },
   { id: 'yule', obj: SHOE, name: '窓辺の靴', text: 'アイスランドの13人のいたずら小人「ユールラッズ」は、12月12日から一晩に1人ずつやって来ると言い伝えられています。窓辺に置いた靴に、よい子には小さな贈り物、悪い子にはジャガイモを入れていくそうです。', src: '出典：レイキャビク観光局（visitreykjavik.is）' },
   { id: 'almond', obj: BOWL, name: 'アーモンドが1粒', text: 'デンマークのクリスマスのデザート「リスアラマンド」には、丸ごとのアーモンドが1粒だけ隠されています。見つけた人は、プレゼントがもらえます。', src: '出典：デンマーク公式サイト（denmark.dk）' },
@@ -1313,7 +1324,7 @@ const TRIVIA = [
 const sparkTex = ctex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,240,200,.8)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.beginPath(); g.arc(32, 32, 30, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.95)'; for (const [w, h] of [[3, 30], [30, 3]]) { g.beginPath(); g.ellipse(32, 32, w, h, 0, 0, TAU); g.fill(); } });
 const found = new Set();
 TRIVIA.forEach((T, i) => { T.k = i; T.kind = 'trivia'; const mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, color: '#ffd890', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); mk.renderOrder = 7; scene.add(mk); T.mk = mk;
-  const hit = new THREE.Mesh(new THREE.SphereGeometry(T.big ? 2.2 : 0.8, 8, 6), new THREE.MeshBasicMaterial()); hit.visible = false; scene.add(hit); addPick(hit, T); T.hit = hit; T.obj.traverse((o) => { if (o.isMesh) addPick(o, T); }); });
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(T.big ? 2.2 : 0.8, 8, 6), new THREE.MeshBasicMaterial()); hit.visible = false; scene.add(hit); addPick(hit, T); T.hit = hit; T.obj.traverse((o) => { if (o.isMesh) addPick(o, T); }); (T.hits || []).forEach((m) => addPick(m, T)); });
 // 見つけた豆知識・行った名所は、この端末に覚えておく（仕掛けへ行って戻るたびに、0 にもどっていた）
 const SAVE_KEY = 'xmas-town-v1';
 // この端末に覚えておくもの：見つけた豆知識（町12＋飴8）・行った名所（seen）・中で遊んだ仕掛け（used）・見たもの（ach＝大スプーン・金のスプーン・灯台が崩れた など。ヒントを出し分ける）・開いた物（open＝飴工房・ケーキの山）
@@ -1460,10 +1471,16 @@ function biteMat(C) { const U = { uBt: { value: Array.from({ length: BT_N }, () 
   // 跡は配列にせず、8つの uniform を1つずつ読む（頂点シェーダーの uniform の配列は、Android の Chrome で描かれなかった 2026-10-18）
   const BTS = Array.from({ length: BT_N }, (_, i) => 'uBt' + i);
   const m = candyMat(C, { env: scene.environment, glow: 0.1, key: 'shop', extra: (sh) => { if (SIMPLE.bt) return; BTS.forEach((n, i) => { sh.uniforms[n] = { value: U.uBt.value[i] }; }); if (BREAK === 'bt') sh.vertexShader = '#error break\n' + sh.vertexShader;
-    sh.vertexShader = `uniform vec4 ${BTS.join(', ')}; varying float vBt;\nvoid btOne(vec4 b, inout vec3 off, inout vec3 nrm, inout float hit) { if (b.w > 0.0) { vec3 v = position + off - b.xyz; float d = length(v); float rr = b.w * (1.0 + 0.08 * sin(atan(v.y, v.x) * 9.0 + b.z * 37.0));\n  if (d < rr) { vec3 nv = v / max(d, 1e-4); off += nv * rr - v; nrm = -nv; hit = 1.0; } } }\n` + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+    // 跡の球に入った点：芯（aCore＝実のまん中・管の軸など）まで球に入っていたら、その所は食べきった＝芯へ縮めて消す。そうでなければ球の面までへこませるが、芯から元の距離より外へは出さない
+    // （前は球の面まで押し出すだけで、球が実や管より大きいと、点が外へ押し出されて元より大きな黒い殻になった＝冰糖葫芦・クネック 2026-10-19）
+    sh.vertexShader = `uniform vec4 ${BTS.join(', ')}; attribute vec3 aCore; varying float vBt;\nvoid btOne(vec4 b, inout vec3 off, inout vec3 nrm, inout float hit) { if (b.w > 0.0) { vec3 p = position + off; vec3 v = p - b.xyz; float d = length(v); float rr = b.w * (1.0 + 0.08 * sin(atan(v.y, v.x) * 9.0 + b.z * 37.0));\n  if (d < rr) { if (length(aCore - b.xyz) < rr) { off += aCore - p; } else { vec3 nv = v / max(d, 1e-4); vec3 q = b.xyz + nv * rr; float d0 = length(p - aCore), d1 = length(q - aCore); if (d1 > d0) q = aCore + (q - aCore) * (d0 / max(d1, 1e-5)); off += q - p; nrm = -nv; } hit = 1.0; } } }\n` + sh.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
   vec3 btOff = vec3(0.0); vBt = 0.0;
   ${BTS.map((n) => `btOne(${n}, btOff, objectNormal, vBt);`).join(' ')}`).replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += btOff;');
-    sh.fragmentShader = 'varying float vBt;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.12 + 0.05, vBt);'); } });
+    // 跡の面は、割った飴の切り口のように、つやを消して少し明るく（細い飴の小さな切り口が、まわりの棚や暗がりを映して黒緑に見えた 2026-10-19）
+    sh.fragmentShader = 'varying float vBt;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.12 + 0.05, vBt);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.75, vBt);')
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n material.clearcoat = mix(material.clearcoat, 0.0, vBt);\n#endif')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * 0.18 * vBt;'); } });
   const k0 = m.customProgramCacheKey; m.customProgramCacheKey = () => k0() + (SIMPLE.bt ? '|bt0' : ''); m.userData.U = U; return m; }
 function* buildShop() {   // 少しずつ作る（お皿1枚ごとに1回 yield。readyShop が別のコマで進める）
   const sc = new THREE.Scene(); sc.background = new THREE.Color('#2a1a12'); sc.environment = scene.environment; SHOP.sc = sc;
@@ -1572,16 +1589,23 @@ function shopPick(x, y) { const r = cvs.getBoundingClientRect(); ndc.set(((x - r
   const objs = []; for (const it of SHOP.items) if (it.st === 'ok') { it.hit.userData.it = it; objs.push(it.hit); }
   const hs = ray.intersectObjects(objs, false); if (!hs.length) return null; const near = (x) => ray.ray.distanceToPoint(x.object.userData.it.g.getWorldPosition(V4)) / (x.object.userData.it.s || 1) + x.distance * 0.15; const h = hs.reduce((a, b) => (near(b) < near(a) ? b : a));
   // かじる所は、飴の表面（当たりの球から、飴の形へ光線を当てなおす）
-  const it = h.object.userData.it, m = it.C.stick ? it.cap : it.m, h2 = ray.intersectObject(m, false)[0]; return { it, p: h2 ? h2.point : m.getWorldPosition(new THREE.Vector3()), o: m }; }
+  const it = h.object.userData.it, m = it.C.stick ? it.cap : it.m, h2 = ray.intersectObject(m, false)[0]; if (h2) return { it, p: h2.point, o: m, face: h2.face };
+  // 飴の形を外れた時（当たりの球には入った）は、光線にいちばん近い飴の点をかじる。前は飴の真ん中（J字のキャンディケインでは何も無い所）をかじり、細い飴に跡が付かなかった（本人 2026-10-19）
+  const P = m.geometry.attributes.position; RAY_L.copy(ray.ray).applyMatrix4(M4L.copy(m.matrixWorld).invert()); let best = 0, bd = Infinity;
+  for (let i = 0; i < P.count; i++) { V5.fromBufferAttribute(P, i); const d = Math.sqrt(RAY_L.distanceSqToPoint(V5)) + 0.1 * V5.sub(RAY_L.origin).dot(RAY_L.direction); if (d < bd) { bd = d; best = i; } }   // 同じくらい近ければ、手前の面
+  return { it, p: m.localToWorld(V5.fromBufferAttribute(P, best).clone()), o: m, face: { a: best } }; }
+const RAY_L = new THREE.Ray(), M4L = new THREE.Matrix4();
 // 少しかじる：小さな歯の跡を1つ足し、飴は少し小さく（食べきる直前で元の7割）。金太郎飴は少し短く
-function shopBite(it, p, o) { const C = it.C; it.n++; counts.candyEat++; SND.eatCandy(C.hard, C.pitch, it.n === 1, C.id); SHOP.wave = 1;
+function shopBite(it, p, o, face) { const C = it.C; it.n++; counts.candyEat++; SND.eatCandy(C.hard, C.pitch, it.n === 1, C.id); SHOP.wave = 1;
   // 食べる間は、そのお皿へ寄る（本人 2026-10-18「食べる時はもう少しよるといい」）。7秒かじらなければ元の距離へ。2本指で寄せ引きしたら、その距離のまま
   SHOP.tdist = Math.min(SHOP.tdist, SHOP.base * 0.6); SHOP.tpx = clamp(Math.round(it.home.x / PLATE_DX) * PLATE_DX, -PAN_MAX, PAN_MAX); SHOP.biteT = nowS();
   const col = C.cols ? C.cols[1 % C.cols.length] : C.id === 'c_tanghulu' ? '#ff4060' : C.id === 'c_alegria' || C.id === 'c_turron' ? '#f2e2c0' : '#ffffff'; shopFx(p, col, 8, 0.4, 0.5); shopFx(p, '#fff2c0', 3, 0.25, 0.4);
   if (C.stick) { it.len = KIN_LEN * (1 - it.n / it.max); setStick(it); shopFx(it.cap.getWorldPosition(new THREE.Vector3()), '#f2b6c6', 6); }
   // 1口ごとに小さくはしない。かじった所から、口を重ねるほど跡の中心を奥へ進め、端から削れていく（本人 2026-10-18「小さくなるのではなく、端から徐々に削られて」）
   // 跡は飴の太さに合わせて小さめから少しずつ大きく（細い飴に大きな跡をつけると、内側の面が黒く見えた）
-  else { const L = it.m.worldToLocal(p.clone()), d = L.clone().normalize(), g = it.m.geometry; if (!g.boundingBox) g.computeBoundingBox(); const sz = g.boundingBox.getSize(V4), big = Math.max(sz.x, sz.y, sz.z), k = it.n - 1, r = clamp(Math.min(sz.x, sz.y, sz.z) * (0.6 + 0.08 * k), 0.05, 0.28), dep = r * 0.5 - big * 0.1 * k;
+  // 跡の向きは、当たった所の芯（実のまん中・管の軸）から外へ。飴全体の真ん中からの向きだと、J字のキャンディケインでは跡が管からずれて付かなかった（2026-10-19）
+  else { const L = it.m.worldToLocal(p.clone()), g = it.m.geometry, co = g.attributes.aCore, d = co && face ? L.clone().sub(V5.fromBufferAttribute(co, face.a)) : L.clone(); if (d.lengthSq() < 1e-10) d.copy(L); d.normalize(); if (!g.boundingBox) g.computeBoundingBox(); const sz = g.boundingBox.getSize(V4), big = Math.max(sz.x, sz.y, sz.z), thin = Math.min(sz.x, sz.y, sz.z) < big * 0.12, k = it.n - 1, r = clamp(Math.min(sz.x, sz.y, sz.z) * ((thin ? 0.95 : 0.6) + 0.08 * k), 0.05, 0.28), dep = thin ? 0 : r * 0.5 - big * 0.1 * k;
+    // 細い飴（キャンディケイン）は、かじった所で1口ごとに折り取る（跡の中心を管の表面に）。奥へ進める量は飴の長さで決めているので、細い管では2口目から跡が管の向こうへ抜け、何もかじらなかった（2026-10-19）
     it.mat.userData.U.uBt.value[k % BT_N].set(L.x + d.x * dep, L.y + d.y * dep, L.z + d.z * dep, r); }
   if (it.n >= it.max) { it.st = 'gone'; it.t = 0; counts.candyPiece++; use('candy'); mark('candyEat'); const first = !found.has(C.id); SND.chime(3); shopFx(p, col, 14, 0.5, 0.6);
     if (first) { found.add(C.id); updateFound(); saveProgress(); setTimeout(() => { if (SHOP.on) showTrivia(C, true); checkUnlock(); }, 650); } } }
@@ -1616,7 +1640,7 @@ function shopDown(e) { cvs.setPointerCapture(e.pointerId); SHOP.ptrs.set(e.point
 function shopMove(e) { const s = SHOP.ptrs.get(e.pointerId); if (!s) return; s.x = e.clientX; s.y = e.clientY; if (Math.hypot(s.x - s.x0, s.y - s.y0) > 8) s.moved = true; if (!s.moved) return;
   const all = [...SHOP.ptrs.values()]; if (all.length >= 2) { const [a, b] = all, d = Math.hypot(a.x - b.x, a.y - b.y); if (!SHOP.pinch) SHOP.pinch = d; SHOP.biteT = 0; SHOP.tdist = clamp(SHOP.tdist - (d - SHOP.pinch) * 0.006, 1.0, 4.2); SHOP.pinch = d; return; }
   SHOP.tpx = clamp(s.px + (s.x - s.x0) * 0.004 * SHOP.dist, -PAN_MAX, PAN_MAX); SHOP.tpitch = clamp(s.pitch - (s.y - s.y0) * 0.003, 0.08, 1.0); }   // ほかの仕掛けと同じ向き（なぞった方へカメラが進む）
-function shopUp(e) { const s = SHOP.ptrs.get(e.pointerId); SHOP.ptrs.delete(e.pointerId); if (SHOP.ptrs.size < 2) SHOP.pinch = null; if (!s || s.moved || nowS() - s.t0 > 0.5) return; const h = shopPick(e.clientX, e.clientY); if (h) shopBite(h.it, h.p, h.o); else shopOther(); }
+function shopUp(e) { const s = SHOP.ptrs.get(e.pointerId); SHOP.ptrs.delete(e.pointerId); if (SHOP.ptrs.size < 2) SHOP.pinch = null; if (!s || s.moved || nowS() - s.t0 > 0.5) return; const h = shopPick(e.clientX, e.clientY); if (h) shopBite(h.it, h.p, h.o, h.face); else shopOther(); }
 
 // ---------- ドローン：左の丸で飛ぶ・右の▲▼で上下・なぞって見まわす・2本指で前後・タップで触る／そこへ飛ぶ ----------
 const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 600);
@@ -2012,6 +2036,7 @@ if (fpsEl) window.__dbg = { scene, cam, drone, counts,
   shopKeeper: () => [+SHOP.keeper.m.position.x.toFixed(2), +SHOP.px.toFixed(2), +SHOP.dist.toFixed(2), SHOP.base],
   shopIn: async () => { enterShop(); await readyShop(); await new Promise((r) => setTimeout(r, 30)); return SHOP.on; }, shopOut: () => { exitShop(); return SHOP.on; }, shop: () => ({ on: SHOP.on, items: SHOP.items.map((it) => [it.C.id, it.n, it.st]) }),
   shopScreen: (id) => { const it = SHOP.items.find((q) => q.C.id === id && q.st === 'ok'); SHOP.px = SHOP.tpx = it.home.x; SHOP.yaw = SHOP.tyaw; SHOP.pitch = SHOP.tpitch; SHOP.dist = SHOP.tdist; shopCam(); const p = (it.C.stick ? it.cap : it.m).getWorldPosition(new THREE.Vector3()); p.project(SHOP.cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight]; },
+  shopVtx: (id, f) => { const it = SHOP.items.find((q) => q.C.id === id && q.st === 'ok'), P = it.m.geometry.attributes.position, p = it.m.localToWorld(new THREE.Vector3().fromBufferAttribute(P, Math.floor(f * (P.count - 1)))); p.project(SHOP.cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, SHOP.items.indexOf(it)]; },
   shopLen: () => { const it = SHOP.items.find((q) => q.C.stick && q.st === 'ok'); return it ? [+it.len.toFixed(3), KIN_LEN] : null; }, shopDents: (id) => SHOP.items.filter((q) => q.C.id === id).reduce((n, it) => n + it.mat.userData.U.uBt.value.filter((v) => v.w > 0).length, 0), shopPlates: () => CANDIES.map((C) => SHOP.items.filter((q) => q.C.id === C.id).length), cakeWS: (i) => [...MOUNTS[i].ws].map((v) => +v.toFixed(2)), cakeCut: (i, ks) => { const M = MOUNTS[i]; for (const k of ks) M.ws[k] = M.wsT[k] = 0; return [...M.ws]; }, tapsZero: (i) => { MTN_ST[i].taps = 0; }, peekMtn: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, h.o && h.o.i != null ? h.o.i : null] : null; }, landAt: (x, z) => [inWater(x, z), +landH(x, z).toFixed(2)], lhSeaDrop: () => { const L = LIGHTHOUSE; if (L.st !== 'fall') lhCollapse(); let w = null; for (let r = 4; r < 60 && !w; r += 2) for (let a = 0; a < 24 && !w; a++) { const x = L.x + Math.cos(a / 24 * TAU) * r, z = L.z + Math.sin(a / 24 * TAU) * r; if (inWater(x, z) && inWater(x + 6, z) && inWater(x, z + 6)) w = [x, z]; } if (!w) return null; L.segs.forEach((S, k) => { if (!k) return; S.p.set(w[0] + k * 1.0, 3 + k * 0.8, w[1]); S.v.set(0, -1, 0); S.rest = false; S.land = 0; S.delay = 0; }); return w; }, rainVisible: () => { for (const R of RAIN) for (const c of R.list) { if (c.st !== 'rest' || cam.position.distanceTo(c.p) > CANDY_REACH - 1) continue; const v = c.p.clone().project(cam); const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight; if (v.z < 1 && x > 30 && x < innerWidth - 30 && y > 120 && y < innerHeight - 150) return [x, y]; } return null; }, lhSegs: () => LIGHTHOUSE.segs.map((S) => [+S.p.x.toFixed(1), +S.p.y.toFixed(2), +S.p.z.toFixed(1), !!S.wet]), shopPickAt: (x, y) => { const h = shopPick(x, y); return h ? [h.it.C.id, SHOP.items.indexOf(h.it)] : null; }, shopPan: (x) => { if (x != null) SHOP.tpx = x; return [SHOP.px, SHOP.tpx]; },
   lh: () => ({ st: LIGHTHOUSE.st, bites: LIGHTHOUSE.bites, t: +LIGHTHOUSE.t.toFixed(1), dents: EAT.list.filter((D) => D.i === LH_I).length, top: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].p.y.toFixed(2), home: +LIGHTHOUSE.segs[LIGHTHOUSE.segs.length - 1].home.y.toFixed(2), beam: LIGHTHOUSE.beam.visible }), lhAt: (k = 2) => LIGHTHOUSE.segs[k].home.toArray(), lhHurry: () => { LIGHTHOUSE.t = 11.95; },
   pick: () => PICKS.map((P) => [P.st, P.kind, +P.t.toFixed(1), P.H.away]), pickHouse: (i) => { const H = HOUSES.filter((h) => h.c0 && !h.shop)[i]; startPick(H); return [H.x, H.o.y, H.z]; }, pickHurry: () => { for (const P of PICKS) if (P.st === 'gone') P.t = 23.95; }, pickParts: () => PICKS.map((P) => (P.g ? P.g.children.length : 0)),
