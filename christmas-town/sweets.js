@@ -588,6 +588,10 @@ export function sliceCake(MM, CM, tiers, N = 8, seed = 1, top = 'star') {
       body.setAttribute('color', new THREE.BufferAttribute(col, 3)); parts[k].push(['cream', body]);
       const top = (rr) => topAt(rr) - 0.012;
       parts[k].push(['cut', cutFace(a0, R * 0.995, y0 + 0.01, top, h, -1)], ['cut', cutFace(a0 + da, R * 0.995, y0 + 0.01, top, h, 1)]);
+      // いちばん下の段の底：焼き色のスポンジの扇（下向き・かじった跡でへこむよう網目に）。底が無く、フォークで持ち上げた切れの中が下から丸見えだった（本人 2026-10-19）
+      if (ti === 0) { const cap = new THREE.RingGeometry(0.001, R * 0.995, 20, 8, Math.PI / 2 - a0 - da, da).rotateX(Math.PI / 2).translate(0, y0 + 0.012, 0), cp = cap.attributes.position, cu = cap.attributes.uv;
+        for (let i = 0; i < cp.count; i++) cu.setXY(i, (Math.hypot(cp.getX(i), cp.getZ(i)) / R) * 0.9, 0.007);
+        parts[k].push(['cut', cap]); }
       if (ti === 0) wc[k] = new THREE.Vector3(Math.sin(a0 + da / 2) * R * 0.55, (y1 * 0.5), Math.cos(a0 + da / 2) * R * 0.55); }
     // 上のふちのクリームの花といちご・側面の飾りひも・すその貝の絞り（どれも、その角度の切れへ）
     const nR = Math.max(8, Math.round(16 * R / tiers[0][0]) * 2);
