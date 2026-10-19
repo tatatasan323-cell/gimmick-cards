@@ -36,6 +36,7 @@ svg{display:block}
 #bar{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:60;display:flex;gap:8px;align-items:center}
 .ibtn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:rgba(10,4,32,.55);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px);color:var(--cream)}
 .ibtn[aria-pressed="false"]{color:rgba(255,244,214,.45)}
+@media (max-width:380px){#bar{right:8px;gap:5px}.ibtn{width:38px;height:38px}#found{height:38px;padding:0 9px}}
 #btnSound .xx{display:none}#btnSound[aria-pressed="false"] .xx{display:block}#btnSound[aria-pressed="false"] .wv{display:none}
 #btnBgm[aria-pressed="true"],#btnStyle[aria-pressed="true"]{color:var(--orange2);box-shadow:0 0 14px rgba(255,138,31,.55)}
 #btnStyle[aria-pressed="false"]{color:var(--cream)}
@@ -450,6 +451,7 @@ html[data-style="dot"] #confetti i{animation-timing-function:steps(30,end)}
 @keyframes twkpx{0%{opacity:.25}50%{opacity:1}}
 @keyframes burstpx{0%{opacity:0}12%{opacity:1}30%{opacity:.3}45%{opacity:.9}70%{opacity:.4}100%{opacity:0}}
 @keyframes shudderpx{0%,100%{transform:translateX(0)}15%{transform:translateX(-5px)}30%{transform:translateX(5px)}45%{transform:translateX(-5px)}60%{transform:translateX(0)}}
+@media (max-width:380px){html[data-style="dot"] .ibtn{width:38px;height:38px}}
 @media (prefers-reduced-motion:reduce){html[data-style="dot"] .f1,html[data-style="dot"] .f2,html[data-style="dot"] .a-flame,html[data-style="dot"] .a-ember,html[data-style="dot"] .a-twk,html[data-style="dot"] .bubble,html[data-style="dot"] .down,html[data-style="dot"] .hint,html[data-style="dot"] .ch .qmark,html[data-style="dot"] .ch .tapme{animation:none !important}
 html[data-style="dot"] .f2{opacity:0}}
 </style>
@@ -503,6 +505,9 @@ html[data-style="dot"] .f2{opacity:0}}
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="currentColor"/></svg>
     </button>
     <button id="btnHelp" class="ibtn" type="button" aria-haspopup="dialog" aria-label="つかいかた・ルール"><span class="q" aria-hidden="true">?</span></button>
+    <button id="btnFs" class="ibtn" type="button" aria-label="全画面にする" hidden>
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
     <div id="bgmMenu" role="menu" aria-label="BGMをえらぶ" hidden></div>
   </div>
 
@@ -687,6 +692,7 @@ html[data-style="dot"] .f2{opacity:0}}
           <li><i class="ic" data-ic="bgm"></i><span><b>♪</b>BGMをえらびます（ワルツ・マーチ・ゆめ・なし）</span></li>
           <li><i class="ic" data-ic="style"></i><span><b>見た目</b>なめらか ⇄ ドット絵。いる場所も、見つけた数も、そのままです</span></li>
           <li><i class="ic q">?</i><span><b>この説明</b>を開きます</span></li>
+          <li id="hpFs" hidden><i class="ic" data-ic="fs"></i><span><b>全画面</b>アドレスバーなどを消して、画面いっぱいに。もう一度押すと、もどります（できる端末だけに出ます）</span></li>
         </ul>
         <h4>招待状のボタン</h4>
         <ul class="keys">
@@ -3622,10 +3628,24 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   const help = $('#help'), helpBack = $('#helpBack');
   let helpT = 0;
   {
-    const SRC = { found: '#found', sound: '#btnSound', bgm: '#btnBgm', style: '#btnStyle' };
+    const SRC = { found: '#found', sound: '#btnSound', bgm: '#btnBgm', style: '#btnStyle', fs: '#btnFs' };
     help.querySelectorAll('.ic[data-ic]').forEach((i) => { const s = $(SRC[i.dataset.ic] + ' svg'); if (s) i.appendChild(s.cloneNode(true)); });
     help.querySelectorAll('.hpn').forEach((n) => { n.textContent = totalCount(); });
     help.querySelectorAll('.hpt').forEach((n) => { n.textContent = TRIVIA.length; });
+  }
+  // 全画面（本人 2026-10-19）：できる端末（Android の Chrome・iPad など）だけ、右上にボタンを出す。iPhone と、ホーム画面のアイコンから開いた時は出さない
+  {
+    const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), inFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+    const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+    if (fsOK && !standalone) {
+      const b = $('#btnFs'), icon = () => { const on = inFS(); $('#btnFs path').setAttribute('d', on ? 'M7 2v5H2M18 7h-5V2M13 18v-5h5M2 13h5v5' : 'M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5'); b.setAttribute('aria-label', on ? '全画面をやめる' : '全画面にする'); };
+      b.hidden = false; $('#hpFs').hidden = false;
+      b.addEventListener('click', () => {
+        Snd.unlock(); Snd.play('tap');
+        try { const el = document.documentElement, r = inFS() ? (document.exitFullscreen || document.webkitExitFullscreen).call(document) : (el.requestFullscreen || el.webkitRequestFullscreen).call(el); if (r && r.catch) r.catch(() => {}); } catch (e) { /* できない端末 */ }
+      });
+      ['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, icon));
+    }
   }
   function helpTab(id) {
     [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([t, p]) => { const on = t === id; $('#' + t).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; });
