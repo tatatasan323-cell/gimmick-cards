@@ -6,7 +6,7 @@
 
 - 取得元: `https://cdn.jsdelivr.net/npm/three@0.160.0/`
 - 使っているのは2ファイル：`build/three.module.js`、`examples/jsm/geometries/RoundedBoxGeometry.js`
-- 使っているページ：`christmas-trial/index.html`、`christmas-town/`（港町と5つの仕掛け）
+- 使っているページ：`christmas-town/`（港町と5つの仕掛け）
 
 ## Rapier 3D（compat）0.14.0（Apache-2.0ライセンス・`rapier3d-compat@0.14.0/LICENSE`）
 
