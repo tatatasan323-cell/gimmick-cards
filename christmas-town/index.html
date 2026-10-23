@@ -857,7 +857,7 @@ const THEATER = (() => { const [x, z, ry] = AREAPOS.theater, g = new THREE.Group
 // yt＝YouTube の全編。入れた曲だけ、ボタンが押せる（入れていない曲は「近日公開」）。clip が無い曲は、幕が閉じたまま「準備中」
 const SHOWS = [
   { id: 'hiphop', name: 'Friends Around the Table', ja: 'テーブルに集まれ！', note: 'ヒップホップ｜イブの夜、仲間がつぎつぎにやってくる', clip: 'theater_hiphop.mp4', poster: 'theater_hiphop.jpg', yt: 'https://youtu.be/pEvqS5da3-s' },
-  { id: 'folk', name: 'Christmas Feels Like Being', ja: 'きみといる、それがクリスマス', note: 'フォーク｜同じイブを、家のふたりの側から', clip: 'theater_folk.mp4', poster: 'theater_folk.jpg', yt: 'https://youtu.be/RKxuMam_c9c' },
+  { id: 'folk', name: 'Christmas Feels Like Being', ja: 'きみといる、それがクリスマス', note: 'フォーク｜同じイブを、家のふたりの側から', clip: 'theater_folk.mp4', poster: 'theater_folk.jpg', yt: 'https://youtu.be/Z6vJkx9_u-s' },
   { id: 'gospel', name: 'Singing Glory', ja: 'グローリー・グローリー！', note: 'ゴスペル｜町じゅうの声が集まって、クリスマスの朝へ', clip: 'theater_gospel.mp4', poster: 'theater_gospel.jpg', yt: 'https://youtu.be/oR3KyE3Zmxo' },
 ];
 const TH = { open: false, duck: false };
@@ -2130,7 +2130,7 @@ const kickSound = () => { if (soundStarted) SND.audio(); };
 for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, kickSound, { capture: true });
 // LINE の中の画面などで開きなおすと、前の画面が裏で鳴りつづけて、BGM が2重になったことがある（本人 2026-10-17）
 // ①見えていない間は音を止める ②この画面にさわったら「いま鳴っているのはここ」と、同じ端末のほかの港町の画面へ知らせ、知らせを受けた画面は止まる
-const SOUND_ID = Math.random().toString(36).slice(2); let SOUND_BC = null, soundSaid = 0;
+const SOUND_ID = Math.random().toString(36).slice(2); let SOUND_BC = null, soundSaid = -1e9;
 const otherSaid = (id) => { if (id && id !== SOUND_ID) SND.pause(true); };
 try { SOUND_BC = new BroadcastChannel('xmas-town-sound'); SOUND_BC.onmessage = (e) => otherSaid(e.data && e.data.id); } catch (e) { /* 古い端末は、下の記録の知らせだけ */ }
 addEventListener('storage', (e) => { if (e.key === 'xmas-town-sound-now' && e.newValue) otherSaid(e.newValue.split(':')[0]); });
