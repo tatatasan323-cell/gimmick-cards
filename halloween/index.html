@@ -612,7 +612,7 @@ html[data-style="dot"] .f2{opacity:0}}
   <div id="finale" hidden role="dialog" aria-modal="true" aria-labelledby="finH">
     <div class="finbox">
       <h2 id="finH">Happy Halloween!</h2>
-      <p id="finMsg">おばけたち全員に会えたね。</p>
+      <p id="finMsg">ぜんぶ見つけたね。</p>
       <button id="finClose" class="pump" type="button"><span>招待状にもどる</span></button>
       <button id="finStay" class="chip" type="button">もっと、おばけに会いに行く</button>
     </div>
@@ -683,9 +683,9 @@ html[data-style="dot"] .f2{opacity:0}}
           <li><b>表紙のおばけに、タッチ。</b>おばけの庭に入れます。招待状（日にち・場所・ひとこと）は、表紙の下にあります。</li>
           <li><b>庭では、左右にスワイプ。</b>パソコンは、ドラッグ・マウスのホイール・左右のボタンでも動けます。</li>
           <li><b>気になるおばけを、タップ。</b>音と動きのあとに、ハロウィンの豆知識が出ます。「こたえを見る」で、答えと出典がわかります。</li>
-          <li><b>おばけは、全部で<span class="hpn"></span>人。</b>豆知識のおばけ<span class="hpt"></span>人と、魔女の家の魔女です。会った数は、右上の <i class="ic" data-ic="found"></i> に出ます。<b>魔女は、ノックして、ダンスのミュージックビデオを見ると仲間入り。</b>全員に会うと、お祝いの画面が出ます。</li>
+          <li><b>仕掛けは、全部で<span class="hpn"></span>つ。</b>庭の豆知識<span class="hpt"></span>つと、魔女の家です。見つけた数は、右上の <i class="ic" data-ic="found"></i> に出ます。<b>魔女は、ノックして、ダンスのミュージックビデオを見ると仲間入り。</b>全部見つけると、お祝いの画面が出ます。</li>
           <li><b>庭のまんなかの「魔女の家」</b>をノックすると、魔女のダンスのミュージックビデオ（サビの15秒）が見られます。見ると、魔女に会ったことになります。全編は、その下のボタンから YouTube で見られます。</li>
-          <li><b>おばけの友だちが、表紙に集まります。</b>豆知識を1つ見るたびに、表紙のおばけが1人ずつ増えます。<b>9人全員に会う（魔女のダンスも見る）と、表紙が「おばけ大集合」</b>に。友だちにも、見せてあげてね。</li>
+          <li><b>おばけの友だちが、表紙に集まります。</b>豆知識を1つ見るたびに、表紙のおばけが1人ずつ増えます。<b>9つ全部を見つける（魔女のダンスも見る）と、表紙が「おばけ大集合」</b>に。友だちにも、見せてあげてね。</li>
         </ol>
         <h4>右上のボタン</h4>
         <ul class="keys">
@@ -3028,7 +3028,8 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
 
   // 記録（端末の中だけ）：見つけた豆知識・ミュージックビデオを見たか。サーバーには送らない。使えない時（プライベートモードなど）は、今の画面の中だけ
   const STORE = 'hc-halloween-v1';
-  // おばけは全部で9人＝豆知識のおばけ8人＋魔女（魔女の家で、ダンスのMVを見ると仲間入り）。9人そろうと「全部見つけた」
+  // 仕掛けは全部で9つ＝庭の豆知識8つ＋魔女の家（ダンスのMVを見ると魔女が仲間入り）。9つそろうと「全部見つけた」
+  // おばけがいるのは7つ（庭の6＋魔女）。魔女の大なべ・お菓子のかごは物なので、表示は「人」でなく「つ」で数える（本人 2026-10-25）
   const metCount = () => state.found.size + (state.mv ? 1 : 0), totalCount = () => TRIVIA.length + 1, isComplete = () => state.found.size >= TRIVIA.length && !!state.mv;
   function loadProgress() {
     try {
@@ -3366,7 +3367,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function markMv() {
     if (state.mv) return;
     state.mv = true; saveProgress(); updateFound(); renderFriends(); markSeen();
-    toast(isComplete() ? '魔女のダンス、見たね！\n魔女も仲間入り。とじると、お祝い！' : '魔女のダンス、見たね！\n魔女も仲間入り（あと' + (totalCount() - metCount()) + '人）');
+    toast(isComplete() ? '魔女のダンス、見たね！\n魔女も仲間入り。とじると、お祝い！' : '魔女のダンス、見たね！\n魔女も仲間入り（あと' + (totalCount() - metCount()) + 'つ）');
   }
   function setupMv() {
     const v = $('#mvVideo');
@@ -3395,7 +3396,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
     $('#shQ').textContent = 'トントントン…… だれかいるかな？';
     const box = $('#shAText'); box.textContent = '';
     ['扉があいて、魔女が顔を出しました。', 'いっしょに踊ろう！ ミュージックビデオの、はじまりです。'].forEach((p, i) => { const e = el('p', null, p); if (i) e.style.marginTop = '.6em'; box.appendChild(e); });
-    $('#shSrc').textContent = state.mv ? '魔女は、もう仲間です。見てくれて、ありがとう。' : 'おばけは、全部で' + totalCount() + '人。魔女のダンス（このビデオ）を見ると、魔女も仲間入りだよ。';
+    $('#shSrc').textContent = state.mv ? '魔女は、もう仲間です。見てくれて、ありがとう。' : '仕掛けは、全部で' + totalCount() + 'つ。魔女のダンス（このビデオ）を見ると、魔女も仲間入りだよ。';
     $('#shReveal').hidden = true; $('#shA').hidden = false; $('#shNext').hidden = true;
     setupMv();
     sheetBack.hidden = false; sheet.hidden = false; void sheet.offsetWidth; sheet.classList.add('open');
@@ -3478,7 +3479,7 @@ const Snd = new Proxy({}, { get: (_, k) => STYLES[styleId].snd[k] });
   function showFinale() {
     state.done = true;
     const c = state.card || {};
-    let msg = 'おばけたち全員に会えたね。\n魔女のダンスも、ばっちり。\n表紙が、おばけ大集合になったよ！\n';
+    let msg = 'ぜんぶ見つけたね。\n魔女のダンスも、ばっちり。\n表紙が、おばけ大集合になったよ！\n';
     msg += c.d && !state.sample ? dateText(c).split('\n')[0] + 'に、会場で会いましょう。' : '本番は、会場で会いましょう。';
     $('#finMsg').textContent = msg;
     const box = $('#confetti'); box.textContent = '';
