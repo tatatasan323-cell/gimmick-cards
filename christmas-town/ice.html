@@ -507,4 +507,5 @@ if (fpsEl) window.__dbg = { statues, trees, cam, get chunks() { return chunks; }
   phase: (i) => statues[i].phase, front: (i) => statues[i].front,
   chunkTilt: () => chunks.map((c) => Math.acos(Math.min(1, new THREE.Vector3(0, 1, 0).applyQuaternion(c.grp.quaternion).y))),
   pick: (i, k) => pickGem(statues[i].gems[k]), grinding: () => SND.grinding(), audio: () => SND.audio().state };
-</script></body></html>
+</script><script src="./kobo_back.js"></script>
+</body></html>

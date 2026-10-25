@@ -1159,4 +1159,5 @@ if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer,
   hit: (x, y) => { const h = hitAt(x, y); return h ? (h.ex ? [h.ex.i, h.onFloor] : h.crystal ? 'crystal' : h.tree ? 'tree' : h.decor ? h.decor.kind : h.bench ? 'bench' : 'floor') : null; },
   crystal: () => ({ state: CRY.state, stress: +CRY.stress.toFixed(3), notes: CRY.notes, falls: CRY.falls, restores: CRY.restores, frags: CRY_FRAG.length, vis: CRY_MESH.visible, quake: +CRY.quake.toFixed(2), y: +cryPivot.position.y.toFixed(2) }), crystalW: () => [CRY.x, CRY.y0 + 1.0, CRY.z],
   crystalTint: () => { const c = CRY_GEO.attributes.color, p = CRY_GEO.attributes.position; let lo = null, hi = null; for (let i = 0; i < p.count; i++) { if (!lo || p.getY(i) < lo[0]) lo = [p.getY(i), c.getX(i), c.getY(i), c.getZ(i)]; if (!hi || p.getY(i) > hi[0]) hi = [p.getY(i), c.getX(i), c.getY(i), c.getZ(i)]; } return [lo.slice(1).map((v) => +v.toFixed(2)), hi.slice(1).map((v) => +v.toFixed(2)), CRY.front, CRY.up]; }, crystalTap: () => crystalTap(), smash: (i) => disaster(exhibits[i], 'tap') };
-</script></body></html>
+</script><script src="./kobo_back.js"></script>
+</body></html>

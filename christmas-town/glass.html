@@ -311,4 +311,5 @@ if (fpsEl) window.__dbg = { panes, cam, breakAt, look: (y, p) => { yaw = tYaw = 
   proj: (i, x, y) => { const w = panes[i]; w.g.updateMatrixWorld(); const v = w.g.localToWorld(new THREE.Vector3(x, y, 0)).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
   broken: () => panes.reduce((n, w) => n + (w.parts ? w.parts.filter((p) => p && p.state).length : 0), 0), counts: () => ({ falling: falling.length, shards: shards.length, comets: comets.length }), voices: SND.voices, level: SND.level, hissRate: SND.hissRate };
 frame(); window.__ok = true;
-</script></body></html>
+</script><script src="./kobo_back.js"></script>
+</body></html>
