@@ -11,10 +11,19 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 .nav{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));font-family:inherit;font-size:15px;font-weight:800;line-height:1;padding:12px 16px;border-radius:999px;border:2px solid rgba(255,240,210,.55);background:rgba(30,20,50,.55);color:#f6eedc;letter-spacing:.06em}
 #prev{left:16px}#next{right:16px}#up{left:50%;transform:translateX(-50%)}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+/* 読み込みの幕：窓を全部描いて、かけらに分け、絵の具を用意し終えるまで、部屋を見せない（作りかけで動かすと、最初の数秒がスローでカクついた 2026-10-25）。待つ間の粒は CSS だけで動かす */
+#veil{position:fixed;inset:0;background:#0c0912;transition:opacity .6s}
+#veil.off{opacity:0;pointer-events:none}
+#veil[hidden]{display:none}
+#veil .dots{position:absolute;left:50%;top:52%;transform:translateX(-50%);display:flex;gap:14px}
+#veil i{width:14px;height:14px;transform:rotate(45deg);border-radius:3px;background:#e0283c;box-shadow:0 0 12px rgba(255,120,120,.5);animation:vhop .9s ease-in-out infinite;will-change:transform}
+#veil i:nth-child(2){background:#ffd23f;box-shadow:0 0 12px rgba(255,220,120,.5);animation-delay:.15s}#veil i:nth-child(3){background:#3a8cff;box-shadow:0 0 12px rgba(120,170,255,.5);animation-delay:.3s}
+@keyframes vhop{0%,100%{transform:translateY(0) rotate(45deg)}50%{transform:translateY(-12px) rotate(45deg)}}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
 </head><body><canvas id="c"></canvas>
+<div id="veil" aria-hidden="true"><div class="dots"><i></i><i></i><i></i></div></div>
 <!-- 港町（町の全景）へもどる -->
 <a id="toTown" href="./#glass">‹ 港町へもどる</a>
 <div class="tx" id="top">ステンドグラスの礼拝堂<small id="sub">じゅんびちゅう…</small></div>
@@ -118,8 +127,6 @@ function prepare(w) {
   w.parts = parts; w.comp = B.comp; w.RW = B.RW; w.RH = B.RH; w.ready = true;
 }
 const ORDER = [0, 1, N - 1, 2, N - 2, 3, N - 3, 4, N - 4, 5, N - 5, 6, N].filter((v, i, a) => a.indexOf(v) === i);
-prepare(panes[0]);
-let prepI = 1; const prepNext = () => { if (prepI < ORDER.length) { prepare(panes[ORDER[prepI++]]); setTimeout(prepNext, 40); } else { window.__prepared = true; document.getElementById('sub').textContent = '12まいの窓と、天井の丸窓'; } }; setTimeout(prepNext, 200);
 const setPiece = (w, pt, vis, glow) => { const a = w.mesh.geometry.attributes.aVis, b = w.mesh.geometry.attributes.aGlow; for (let k = pt.start; k < pt.start + pt.count; k++) { a.array[k] = vis; b.array[k] = glow; } a.needsUpdate = b.needsUpdate = true; };
 
 // ---------- ろうそく・ちり ----------
@@ -309,7 +316,25 @@ function frame() {
 }
 if (fpsEl) window.__dbg = { panes, cam, breakAt, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, lookUp, kinds: () => [...seen].sort(),
   proj: (i, x, y) => { const w = panes[i]; w.g.updateMatrixWorld(); const v = w.g.localToWorld(new THREE.Vector3(x, y, 0)).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
-  broken: () => panes.reduce((n, w) => n + (w.parts ? w.parts.filter((p) => p && p.state).length : 0), 0), counts: () => ({ falling: falling.length, shards: shards.length, comets: comets.length }), voices: SND.voices, level: SND.level, hissRate: SND.hissRate };
-frame(); window.__ok = true;
+  broken: () => panes.reduce((n, w) => n + (w.parts ? w.parts.filter((p) => p && p.state).length : 0), 0), counts: () => ({ falling: falling.length, shards: shards.length, comets: comets.length }), voices: SND.voices, level: SND.level, hissRate: SND.hissRate,
+  programs: () => renderer.info.programs.length, ready: () => panes.every((w) => w.ready), veil: () => document.getElementById('veil').hidden };   // 確かめる時に使う：用意した絵の具の数・全部の窓がかけらに分かれたか・幕が開いたか
+// 部屋の立ち上げ：幕の裏で、13枚の窓を描いてかけらに分け（1枚ずつ、間で画面に手を返す）、窓の絵を GPU へ送り、割れたかけらの絵の具まで用意してから、幕を開けて動かしはじめる
+// 前は、1枚目だけ用意して動かしはじめ、残り12枚を動きながら用意していた。そのたびに画面が0.3〜0.8秒止まり、1コマで進める時間の上限（0.033秒）で、最初の数秒がスローになって、ガラスがきれいに落ちなかった（本人 2026-10-25）
+(async () => {
+  const sub = document.getElementById('sub'), rest = () => new Promise((r) => setTimeout(r, 0));
+  for (let k = 0; k < ORDER.length; k++) { prepare(panes[ORDER[k]]); sub.textContent = `じゅんびちゅう… 窓 ${k + 1}/${ORDER.length}`; await rest(); }
+  window.__prepared = true; sub.textContent = 'じゅんびちゅう… 光と絵の具';
+  for (const w of panes) { renderer.initTexture(w.tex); renderer.initTexture(w.lead.material.map); await rest(); }
+  // 割れて落ちるかけらの絵の具（大きさのない三角1枚で、先に用意させる。はじめて割った時に、画面が止まらないように）
+  const g0 = new THREE.BufferGeometry(); g0.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3)); g0.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
+  const warm = new THREE.Mesh(g0, new THREE.MeshBasicMaterial({ map: panes[0].tex, toneMapped: false, side: THREE.DoubleSide, transparent: true })); warm.frustumCulled = false; scene.add(warm);
+  try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
+  // 1度、ぜんぶを描いておく（見えていない向きの窓の形も、ここで GPU へ送る。向きを変えた時に引っかからないように）
+  const culled = []; scene.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; culled.push(o); } }); renderer.render(scene, cam); for (const o of culled) o.frustumCulled = true;
+  // この材質は捨てない（捨てると、同じ絵の具を使う物がない間に絵の具ごと消え、かけらが割れるたびに作り直していた）
+  scene.remove(warm); g0.dispose(); window.__warmMat = warm.material;
+  sub.textContent = '12まいの窓と、天井の丸窓'; clock.getDelta(); frame(); window.__ok = true;
+  const veil = document.getElementById('veil'); veil.classList.add('off'); setTimeout(() => { veil.hidden = true; }, 700);
+})();
 </script><script src="./kobo_back.js"></script>
 </body></html>

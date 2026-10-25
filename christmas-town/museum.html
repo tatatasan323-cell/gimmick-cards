@@ -41,7 +41,6 @@ import { gemEnv, gemMaterial } from './gemshader.js';
 import * as SND from './museum_sound.js';
 import { makeSky } from './space.js';
 import * as RM from './real_mats.js';
-import { DESIGNS, CEILING, ARCH, ROSE, paint } from './designs.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
 let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
@@ -212,22 +211,25 @@ for (const z of CHANDS) {
 // ---------- ステンドグラス（壊れない飾り）：ステンドグラスの試作と同じ絵柄。月の光で透け、床に色の光が落ちる ----------
 const winTex = ctex(128, 192, (g) => { g.beginPath(); g.moveTo(8, 190); g.lineTo(8, 64); g.arc(64, 64, 56, Math.PI, 0); g.lineTo(120, 190); g.closePath(); const gr = g.createLinearGradient(0, 0, 0, 192); gr.addColorStop(0, '#0b1a48'); gr.addColorStop(1, '#2a3f86'); g.fillStyle = gr; g.fill(); g.lineWidth = 6; g.strokeStyle = '#d9ae55'; g.stroke(); });   // 描きあがるまでの仮の窓
 const WINDOWS = [];   // { mesh, design, frame, w, h, pos, ry, lit }（lit＝月の側の窓：左の壁と突き当たり）
-const ARCH_S = { ...ARCH, W: 384, H: 653 }, ROSE_S = { ...ROSE, W: 1024, H: 1024 };   // 美術館の窓は、試作の半分の細かさで描く（読み込みを軽く）
-function addWindow(design, frame, w, pos, ry, lit) {
+// 窓の形（ステンドグラスの部屋の designs.js の ARCH・ROSE と同じ座標）。絵は、試作の半分の細かさで焼いた画像（アーチ 384x653・バラ窓 1024x1024）
+const ARCH_S = { x0: -1, x1: 1, y0: 0, y1: 3.4 }, ROSE_S = { x0: -1, x1: 1, y0: -1, y1: 1 };
+function addWindow(design, frame, w, pos, ry, lit) {   // design＝絵柄の番号（0〜11）か 'rose'
   const h = (w * (frame.y1 - frame.y0)) / (frame.x1 - frame.x0), mat = new THREE.MeshBasicMaterial({ map: winTex, transparent: true, color: new THREE.Color(1.15, 1.15, 1.15) }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
   mesh.position.set(...pos); mesh.rotation.y = ry; scene.add(mesh);
   const frameM = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.08, h * 1.05), new THREE.MeshStandardMaterial({ color: '#0c0f1e', roughness: 0.6 })); frameM.position.copy(mesh.position).add(V1.set(0, 0, -0.01).applyEuler(E.set(0, ry, 0))); frameM.rotation.y = ry; scene.add(frameM);
   WINDOWS.push({ mesh, design, frame, w, h, pos, ry, lit });
 }
-SIDE_Z.forEach((z, k) => { for (const s of [-1, 1]) addWindow(DESIGNS[s < 0 ? k : 7 - k], ARCH_S, 1.15, [s * (HW - 0.09), 5.15, z], -s * Math.PI / 2, s < 0); });
-addWindow(CEILING, ROSE_S, 4.4, [0, 4.75, -HL + 0.1], 0, true);   // ツリーの星の後ろの大きなバラ窓（サンタのそり）
-addWindow(DESIGNS[8], ARCH_S, 1.4, [-4.1, 3.4, -HL + 0.09], 0, true); addWindow(DESIGNS[9], ARCH_S, 1.4, [4.1, 3.4, -HL + 0.09], 0, true);
-addWindow(DESIGNS[10], ARCH_S, 1.2, [-4.3, 4.2, HL - 0.09], Math.PI, false); addWindow(DESIGNS[11], ARCH_S, 1.2, [4.3, 4.2, HL - 0.09], Math.PI, false);
-function paintWindow(W, seed) {
-  const F = W.frame, P = paint({ ...W.design, frame: F }, seed), sx = F.W / (F.x1 - F.x0), c = document.createElement('canvas'); c.width = F.W; c.height = F.H; const g = c.getContext('2d');
-  g.beginPath(); F.outline.forEach(([x, y], i) => (i ? g.lineTo((x - F.x0) * sx, (F.y1 - y) * sx) : g.moveTo((x - F.x0) * sx, (F.y1 - y) * sx))); g.closePath(); g.save(); g.clip(); g.drawImage(P.color, 0, 0); g.drawImage(P.lead, 0, 0); g.restore();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; W.mesh.material.map = t; W.mesh.material.needsUpdate = true; W.canvas = c;
-}
+SIDE_Z.forEach((z, k) => { for (const s of [-1, 1]) addWindow(s < 0 ? k : 7 - k, ARCH_S, 1.15, [s * (HW - 0.09), 5.15, z], -s * Math.PI / 2, s < 0); });
+addWindow('rose', ROSE_S, 4.4, [0, 4.75, -HL + 0.1], 0, true);   // ツリーの星の後ろの大きなバラ窓（サンタのそり）
+addWindow(8, ARCH_S, 1.4, [-4.1, 3.4, -HL + 0.09], 0, true); addWindow(9, ARCH_S, 1.4, [4.1, 3.4, -HL + 0.09], 0, true);
+addWindow(10, ARCH_S, 1.2, [-4.3, 4.2, HL - 0.09], Math.PI, false); addWindow(11, ARCH_S, 1.2, [4.3, 4.2, HL - 0.09], Math.PI, false);
+// 窓の絵は、前もって焼いた画像（museum_win_00〜11.webp・バラ窓は museum_win_rose.webp。焼き方は 窓の絵を焼く.py）。読み込みのはじめから並べて読む
+//   前は、ひらくたびに21枚を1片ずつ描いていた（ステンドグラスの部屋と同じ描き方。CPU4倍遅くで約2.9秒）。窓は割れないので、絵を貼るだけでよい（本人 2026-10-25「割れなくていいので、同じデザインなだけでいい」）
+//   左右の壁の16枚は、8つの絵柄を2回ずつ使う＝同じ画像（テクスチャ）を使い回す。2枚は月の側とそうでない側なので、明るさはもともと違う（updateMoon の材質の色）
+//   読めなかった窓は、仮の窓（winTex）のまま。月明かりの色は、焼いた画像から拾う（buildMoon が窓の絵を光の入口の面へ写す）
+const WIN_TEX = new Map(), winLoad = Promise.all([...new Set(WINDOWS.map((W) => W.design))].map(async (id) => {
+  try { const img = new Image(); img.src = `museum_win_${id === 'rose' ? 'rose' : String(id).padStart(2, '0')}.webp`; await img.decode(); const t = new THREE.Texture(img); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; WIN_TEX.set(id, t); } catch (e) { /* 仮の窓のまま */ } }));
+function paintWindow(W) { const t = WIN_TEX.get(W.design); if (!t) return false; W.mesh.material.map = t; W.mesh.material.needsUpdate = true; W.canvas = t.image; return true; }
 
 const grad = (stops) => ctex(4, 128, (g) => { const gr = g.createLinearGradient(0, 128, 0, 0); for (const [o, a] of stops) gr.addColorStop(o, `rgba(255,255,255,${a})`); g.fillStyle = gr; g.fillRect(0, 0, 4, 128); });
 
@@ -1123,9 +1125,12 @@ let winPainted = 0, flyT = 0, FREEZE = false;
 const LOADT = [["start", performance.now()]], rapierP = RAPIER.init(); buildExhibits(); buildLights(); LOADT.push(["gems", performance.now()]);
 rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticColliders(); LOADT.push(["rapier", performance.now()]); window.__phys = true; }).catch(() => { document.getElementById('sub').textContent = 'この画面では、宝石が落ちる仕掛けが動きませんでした'; });
 (async () => {
-  // ステンドグラスは、読み込みの間に描いておく（開いた後に1枚ずつ描くと、そのたびに画面が引っかかった）
-  for (let i = 0; i < WINDOWS.length; i++) { paintWindow(WINDOWS[i], 11 + i); winPainted++; if (i % 4 === 3) { document.getElementById('sub').textContent = `じゅんびちゅう… ステンドグラス ${i + 1}/${WINDOWS.length}`; await new Promise((r) => setTimeout(r, 0)); } }
-  LOADT.push(["windows", performance.now()]); buildMoon(); LOADT.push(["moon", performance.now()]);
+  // 壁の窓（ステンドグラス21枚＝左右の壁に8枚ずつ・奥のバラ窓と窓2枚・入口側に2枚）は、読み込みの間に貼っておく（開いた後に1枚ずつ描くと、そのたびに画面が引っかかった）
+  // 読み込みの字は、進み具合の点だけ。裏の作業の名前は出さない（「ステンドグラス 12/21」と出ていて、宝石の部屋なのに何のことか分からなかった 本人 2026-10-25）
+  const sub = document.getElementById('sub'), dots = (f) => { const k = Math.max(1, Math.min(8, Math.round(f * 8))); sub.textContent = 'じゅんびちゅう… ' + '●'.repeat(k) + '○'.repeat(8 - k); };
+  dots(0.3); await winLoad; for (const W of WINDOWS) if (paintWindow(W)) winPainted++; dots(0.6);
+  for (const t of WIN_TEX.values()) { renderer.initTexture(t); await new Promise((r) => setTimeout(r, 0)); }   // 窓の絵を GPU へ（開いてから送ると、見まわした時に引っかかる）
+  LOADT.push(["windows", performance.now()]); buildMoon(); LOADT.push(["moon", performance.now()]); dots(0.85);
   // 絵の具（シェーダー）を、先にまとめて用意する（歩いて初めて見えた宝石の所で、画面が引っかからないように）
   { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3)); const m = new THREE.Mesh(g, shardMat); m.frustumCulled = false; scene.add(m); }   // ガラスのかけらの絵の具も（大きさのない三角1枚で、先に用意させる）
   scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; });   // 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
