@@ -16,6 +16,7 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 #modes button{font:800 14px/1 inherit;font-family:inherit;padding:10px 16px;border-radius:999px;border:2px solid rgba(255,255,255,.45);background:rgba(10,30,80,.45);color:#eef6ff;letter-spacing:.08em}
 #modes button.on{background:#ffe27a;color:#3a2a00;border-color:#ffe27a}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(12px + env(safe-area-inset-top));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font:800 11px/1.5 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 #lost{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(3,5,15,.6);padding:16px;color:#eef6ff;text-align:center;font-weight:800;line-height:1.8}#lost[hidden]{display:none}
 #lost button{margin-top:12px;font-size:15px;font-weight:800;font-family:inherit;padding:11px 22px;border-radius:999px;border:0;background:#ffe27a;color:#3a2a00}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
@@ -29,11 +30,13 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <div id="pad"><div id="knob"></div></div>
 <div id="modes"><button data-m="loose" class="on">ゆるい</button><button data-m="looser">もっとゆるい</button><button data-m="water">みず</button></div>
 <div id="fps" hidden></div>
+<div id="liteTag"></div>
 <div id="lost" hidden><div>画面の描きこみが止まりました<br><small>スマホの空きメモリが足りなくなったようです</small><br><button type="button">もう一度ひらく</button></div></div>
 <script type="module">
 // 無重力の水の中に、クリスマスのグミが20種。自分で泳ぎ（前・後ろ・向き）、触る。触ったグミだけ、ばねの格子で動かす（他は軽い揺れだけ）
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
+import { makeLite } from './lite.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone, gstat } from './gdone.js';
@@ -44,7 +47,12 @@ import { makeSpace } from './space.js';
 import * as SND from './water_sound.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+// かるい表示（共通/lite.js・港町と同じ設定）：画質の段 100・70・50。重い時は自動で下げ、札に「画質 ○%」。港町のメニューの「画質」で100%に固定すると、ここも100%（本人 2026-10-26）
+//   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30まで（港町と同じ。60コマのままだと、CPU4倍遅くで主スレッドが6〜9割だった＝2026-10-26）、パソコンは60（100%）→30
+const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
+const LITE = makeLite({ page: 'swim', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 30 } },
+  baseGap: () => 1000 / (TOUCH_DEV ? 30 : 60), onChange: (lv) => liteApply(lv), tag: document.getElementById('liteTag') });
+let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 背景＝暗い星空と、遠くの太陽系（近づけない）。遠くのグミは、夜の色にとけて消える
 const scene = new THREE.Scene(), BG = '#050816'; scene.background = new THREE.Color('#03050f');
@@ -255,7 +263,8 @@ cvs.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let ready = false, T = 0, frames = 0, tf = performance.now(), simMs = 0, fAcc = 0, fN = 0, fTot = 0;
+let ready = false, T = 0, frames = 0, tf = performance.now(), simMs = 0, lastF = 0;
+function liteApply() { DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); }   // 段ごとのつまみは画素の倍率だけ（グミの数・形の細かさは、遊びの中身なので変えない）
 const rel = new THREE.Vector3(), tmpLook = new THREE.Vector3(), tmp = new THREE.Vector3();
 const dz = (v) => (Math.abs(v) < 0.12 ? 0 : v), clamp1 = (v) => Math.max(-1, Math.min(1, v));
 // 次のコマを先に頼み、1コマの中でエラーが出ても描く繰り返しは止めない。エラーの時は、つかんだままの指を片付けて立て直す
@@ -268,9 +277,12 @@ cvs.addEventListener('webglcontextlost', () => { noteErr('webglcontextlost'); re
 cvs.addEventListener('webglcontextrestored', () => { clearTimeout(lostT); lostEl.hidden = true; makeEnv(); });
 lostEl.querySelector('button').addEventListener('click', () => location.reload());
 function frame() { requestAnimationFrame(frame);
-  try { step(); } catch (e) { noteErr(e); console.error('swim frame:', e); try { releaseAll(); } catch (e2) { holds.clear(); } } }
+  if (performance.now() - lastF < LITE.gap() - 4) return;   // 決めたコマ数より早いコマは、何もしない（rAF は毎回受ける：港町と同じ）
+  const f0 = lastF = performance.now();
+  try { step(); } catch (e) { noteErr(e); console.error('swim frame:', e); try { releaseAll(); } catch (e2) { holds.clear(); } }
+  if (ready) LITE.frame(f0); }   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
 function step() {
-  const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1); T += dt; timeU.value = T;   // __slow＝検査でスロー再生
+  const raw = clock.getDelta(), dt = Math.min(0.05, raw) * (window.__slow || 1); T += dt; timeU.value = T;   // __slow＝検査でスロー再生
   // 泳ぐ：前後（水の重さで、ゆっくり速さが変わる）と向き
   const k = (...a) => (a.some((x) => keys.has(x)) ? 1 : 0), fIn = clamp1(dz(-joy.y) + k('w', 'arrowup') - k('s', 'arrowdown')), sIn = clamp1(dz(joy.x) + k('d') - k('a')), uIn = clamp1(ud.v + k('e', ' ') - k('q', 'shift')), tIn = k('arrowleft') - k('arrowright');
   tYaw += tIn * 1.3 * dt;
@@ -329,7 +341,6 @@ function step() {
   const p = bg.attributes.position.array; for (let i = 0; i < NB; i++) { p[i * 3 + 1] += dt * 0.35; for (let a = 0; a < 3; a++) { const c = cam.position.getComponent(a), v = p[i * 3 + a]; if (v - c > BOX / 2) p[i * 3 + a] -= BOX; else if (c - v > BOX / 2) p[i * 3 + a] += BOX; } } bg.attributes.position.needsUpdate = true;
   space.update(cam.position, T, dt); renderer.render(scene, cam);
   // 遅い端末では、解像度を下げる（30コマの平均が24ms超）。グミを作っている間の重さは数えない
-  if (ready && raw < 1 && ++fTot > 20) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} soft ${(simMs / frames).toFixed(1)}ms active ${actives.size} drops ${drops.length}\ncalls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} gummies ${insts.length} mode ${mode}${ERRS.length ? `\nerr ${ERRS.length}: ${ERRS[ERRS.length - 1].slice(0, 90)}` : ''}`; frames = 0; simMs = 0; tf = performance.now(); }
 }
 const volOf = (it) => { let V = 0; for (const mm of it.g.userData.meshes) { if (mm.kind !== 'o' || mm.q.p.solid) continue; const g = mm.geo0, P = g.attributes.position.array, I = g.index.array; for (let k = 0; k < I.length; k += 3) { const a = I[k] * 3, b = I[k + 1] * 3, c = I[k + 2] * 3; V += (P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c])) / 6; } } return V; };

@@ -17,6 +17,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #card b{display:block;font-size:20px;letter-spacing:.08em}#card small{display:block;font-size:12px;font-weight:700;color:#5a6890;margin-top:2px}#card p{margin:8px 0 0;font-size:12.5px;line-height:1.6;text-align:left}
 #card i{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.2)}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(64px + env(safe-area-inset-top));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font:800 11px/1.5 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
@@ -29,6 +30,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="statues"></div>
 <div id="card" hidden><b id="cardName"></b><small id="cardSub"></small><p id="cardFact" hidden></p></div>
 <div id="fps" hidden></div>
+<div id="liteTag"></div>
 <script type="module">
 // 雪の夜の広場に、氷の彫像が5体（サンタ・ツリー・オーナメント・プレゼント・ゆきだるま）。1体に宝石が3つずつ。ノミでコンコン、機械でガリガリ削って取り出す
 // 根元を削りすぎると折れて倒れ、宙に浮いた氷は落ちて砕ける。宝石を取り出しきると雪が降り、結晶が渦を巻いて吸い込まれ、氷が下から波のように組み上がる（新しい宝石が3つ中に）
@@ -41,13 +43,19 @@ import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { IceGrid, Mesher } from './icegrid.js';
 import { STATUES } from './statues.js';
 import { GEMS, makeGem, gemLabel } from './gems.js';
-import { gemEnv } from './gemshader.js';
+import { gemEnv, GEM_Q } from './gemshader.js';
+import { makeLite } from './lite.js';
 import * as SND from './ice_sound.js';
 import { makeSky } from './space.js';
 import { gel, timeU } from './mat.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+// かるい表示（共通/lite.js・港町と同じ設定）：画質の段 100・70・50。重い時は自動で下げ、札に「画質 ○%」。港町のメニューの「画質」で100%に固定すると、ここも100%（本人 2026-10-26）
+//   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30まで（港町と同じ。60コマのままだと、CPU4倍遅くで主スレッドが6〜9割だった＝2026-10-26）、パソコンは60（100%）→30
+const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
+const LITE = makeLite({ page: 'ice', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 30 } },
+  baseGap: () => 1000 / (TOUCH_DEV ? 30 : 60), onChange: (lv) => liteApply(lv), tag: document.getElementById('liteTag') });
+let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#04060f'); scene.fog = new THREE.FogExp2('#070b1c', 0.02);
 const sky = makeSky(scene, { aurora: 0.6 });
@@ -385,10 +393,13 @@ overview(); yaw = tYaw; pitch = tPitch; dist = tDist;
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let frames = 0, tf = performance.now(), acc = 0, checkT = 0, fAcc = 0, fN = 0, fTot = 0;
+let frames = 0, tf = performance.now(), acc = 0, checkT = 0, lastF = 0;
+function liteApply(lv) { DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); GEM_Q.value = { 100: 5, 70: 4, 50: 3 }[lv]; }   // 段ごとのつまみ：画素の倍率・宝石の中で光が跳ね返る回数
 const STEP = 1 / 60, SHK = new THREE.Vector3();
 function frame() {
-  const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), now = nowS(); timeU.value = now;
+  if (performance.now() - lastF < LITE.gap() - 4) { requestAnimationFrame(frame); return; }   // 決めたコマ数より早いコマは、何もしない（rAF は毎回受ける：港町と同じ）
+  const f0 = lastF = performance.now();
+  const raw = clock.getDelta(), dt = Math.min(0.05, raw) * (window.__slow || 1), now = nowS(); timeU.value = now;
   yaw += (tYaw - yaw) * Math.min(1, dt * 6); pitch += (tPitch - pitch) * Math.min(1, dt * 6); dist += (tDist - dist) * Math.min(1, dt * 6); TGT.lerp(tTGT, Math.min(1, dt * 4));
   shake *= Math.exp(-dt * 7); SHK.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(shake);
   cam.position.set(TGT.x + Math.sin(yaw) * Math.cos(pitch) * dist, TGT.y + Math.sin(pitch) * dist, TGT.z + Math.cos(yaw) * Math.cos(pitch) * dist).add(SHK); cam.lookAt(TGT);
@@ -469,7 +480,7 @@ function frame() {
   for (const tr of trees) { if (!tr.amp) continue; tr.t += dt; const dec = Math.exp(-tr.t * 2.8), w = tr.amp * dec * Math.sin(tr.t * 13); if (dec < 0.01) { tr.amp = 0; } tr.tiers.forEach((m, k) => { m.position.x = w * 0.06 * (k + 1); m.scale.set(1 + w * 0.05, 1 - w * 0.06 * (k + 1), 1 + w * 0.05); }); tr.star.position.x = w * 0.24; tr.star.rotation.z = -w * 0.15; }
   for (const L of [GLINT, SPARK, SNOW, CRYS]) { L.g.setDrawRange(0, L.n); L.g.attributes.position.needsUpdate = L.g.attributes.color.needsUpdate = true; } GLINT.n = 0;
   sky.update(cam.position, now); renderer.render(scene, cam);
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (ready) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} tris ${statues.reduce((s, x) => s + x.view.tris, 0)} chunks ${chunks.length}\n${statues.map((s) => s.phase[0] + s.gems.map((g) => g.state[0]).join('')).join(' ')}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }
@@ -487,7 +498,7 @@ let initBreaks = -1;
   try { await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; }
   world = new RAPIER.World({ x: 0, y: -11, z: 0 }); world.createCollider(RAPIER.ColliderDesc.cuboid(30, 0.1, 30).setTranslation(0, -0.1, 0).setFriction(0.6).setRestitution(0.2).setCollisionGroups(FLOOR));
   for (const st of statues) { st.gems = drawSpecs(3).map((s) => newGem(st, s)); findHomes(st, st.gems); for (const g of st.gems) seatGem(st, g); }
-  document.getElementById('sub').textContent = 'けずると、中から宝石が…'; ready = true; window.__ok = true;
+  document.getElementById('sub').textContent = 'けずると、中から宝石が…'; liteApply(LITE.lv); ready = true; window.__ok = true;
 })();
 if (fpsEl) window.__dbg = { statues, trees, cam, get chunks() { return chunks; }, initBreaks: () => initBreaks,
   look: (y, p, d) => { yaw = tYaw = y; pitch = tPitch = p; if (d) dist = tDist = d; },

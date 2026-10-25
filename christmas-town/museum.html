@@ -14,6 +14,7 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 #joy{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:118px;height:118px;border-radius:50%;background:rgba(255,240,220,.12);border:2px solid rgba(255,230,190,.35);touch-action:none;z-index:5}
 #knob{position:absolute;left:39px;top:39px;width:40px;height:40px;border-radius:50%;background:rgba(255,236,200,.75);box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(12px + env(safe-area-inset-top));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font:800 11px/1.5 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
@@ -25,6 +26,7 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 <div class="tx" id="hint">左の丸＝歩く・なぞる＝見まわす<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
 <div id="card" hidden><b id="cardName"></b><small id="cardSub"></small><p id="cardFact" hidden></p></div>
 <div id="fps" hidden></div>
+<div id="liteTag"></div>
 <script type="module">
 // 夜の大ホール。真ん中に大きな虹色のクリスタル（触るとワルツ・なかなか割れないが、倒れると衝撃でまわりも崩れる）。宝石48種（誕生石を中心に、よく知られた宝石・光り方に特徴のある石・鉱物）が、ホールのあちこちの台座の上・光の台の上・宙を飛びまわって（指輪とピアスだけガラスケース）、突き当たりの天窓とバラ窓の下に宝石のクリスマスツリー
 // 照明は落としてある：展示は天井のレールの細いスポットだけが照らし、浮かぶろうそくの灯りが揺れ、左のステンドグラス・バラ窓・天窓から月明かりが差しこむ（月は少しずつ動き、雲で明るさが変わる）。ときどき宝石が自分で光る
@@ -37,13 +39,19 @@ guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町
 import { gdone, gstat } from './gdone.js';
 import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
 import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
-import { gemEnv, gemMaterial } from './gemshader.js';
+import { gemEnv, gemMaterial, GEM_Q } from './gemshader.js';
+import { makeLite } from './lite.js';
 import * as SND from './museum_sound.js';
 import { makeSky } from './space.js';
 import * as RM from './real_mats.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+// かるい表示（共通/lite.js・港町と同じ設定）：画質の段 100・70・50。重い時は自動で下げ、札に「画質 ○%」。港町のメニューの「画質」で100%に固定すると、ここも100%（本人 2026-10-26）
+//   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30まで（港町と同じ。60コマのままだと、CPU4倍遅くで主スレッドが6〜9割だった＝2026-10-26）、パソコンは60（100%）→30。50%は毎秒20（美術館は30コマのままだと、50%でも主スレッドが6割ちょうどだった。ほかの部屋は30のまま4割台）
+const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
+const LITE = makeLite({ page: 'museum', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 20 } },
+  baseGap: () => 1000 / (TOUCH_DEV ? 30 : 60), onChange: (lv) => liteApply(lv), tag: document.getElementById('liteTag') });
+let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#05060d');
 const sky = makeSky(scene, { aurora: 0.5 });   // 天井の丸い天窓から見える空
@@ -1020,7 +1028,9 @@ function readKeys(now) {
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let frames = 0, tf = performance.now(), acc = 0, fAcc = 0, fN = 0, fTot = 0, ready = false;
+let frames = 0, tf = performance.now(), acc = 0, lastF = 0, ready = false;
+// 段ごとのつまみ：画素の倍率・月明かりの光の筋を拾う歩数（10→10→7。前は重い時だけ5に。等倍で見ると、70%を7・50%を5にした時は光の筋に細かい格子の模様が出たので、70%は10のまま・50%は7＝画素1倍では目立たなかった 2026-10-26）・宝石の中で光が跳ね返る回数（5→4→3）
+function liteApply(lv) { DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); const n = { 100: 10, 70: 10, 50: 7 }[lv]; for (const src of SRC) if (src.mat) src.mat.uniforms.uN.value = n; GEM_Q.value = { 100: 5, 70: 4, 50: 3 }[lv]; }
 const STEP = 1 / 60, LOOK = new THREE.Vector3();
 // 宙を飛ぶ宝石：ゆったりした8の字の軌道へ引かれながら飛ぶ（速さを持つ）。ほかの宝石に触れたら、はじき合い、軌道の位相がずれて、行き先が変わる
 // （軌道を時間の式だけで決めていた時は、宝石どうしが空中で通り抜けた。本人 2026-10-17）。こわれている途中の宝石には当たらない
@@ -1043,7 +1053,9 @@ function stepFly(dt) {
   for (const ex of L) ex.grp.position.copy(ex.fly.p);
 }
 function frame() {
-  const raw = clock.getDelta(), dt = Math.min(0.033, raw) * (window.__slow || 1), now = nowS();
+  if (performance.now() - lastF < LITE.gap() - 4) { requestAnimationFrame(frame); return; }   // 決めたコマ数より早いコマは、何もしない（rAF は毎回受ける：港町と同じ）
+  const f0 = lastF = performance.now();
+  const raw = clock.getDelta(), dt = Math.min(Math.max(0.05, LITE.gap() * 0.0015), raw) * (window.__slow || 1), now = nowS();   // 進める時間の上限：0.05秒（毎秒20コマの段では、決めた間隔の1.5倍）
   // 歩く：左の丸か、キー（W/S＝前後・A/D＝横・←→（Q/E）＝向き）
   readKeys(now); const K = (k) => (keys.has(k) ? 1 : 0), dz = (v) => (Math.abs(v) > 0.12 ? v : 0), kz = K('f') - K('b') - dz(joy.y), kx = K('r') - K('l') + dz(joy.x); tYaw += (K('tl') - K('tr')) * dt * 1.7;
   const fw = V3.set(Math.sin(yaw), 0, Math.cos(yaw)); let moved = 0;
@@ -1115,7 +1127,7 @@ function frame() {
   stepCrystal(dt, now); stepLighting(dt, now); cullFaint();
   for (const L of [GLINT, SPARK, HEARTS, BUBBLES, FLAME, FLAMEC, DUST, HALO]) { L.g.setDrawRange(0, L.n); L.g.attributes.position.needsUpdate = L.g.attributes.color.needsUpdate = true; } GLINT.n = 0;
   sky.update(cam.position, now); renderer.render(scene, cam);
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } else if ((fAcc / fN) * 1000 > 24 && SRC[0].mat.uniforms.uN.value > 5) for (const src of SRC) src.mat.uniforms.uN.value = 5; fAcc = 0; fN = 0; } }
+  if (ready) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles}\n${exhibits.map((e) => e.state[0]).join('')} tree ${tree.state} win ${winPainted}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }
@@ -1136,7 +1148,7 @@ rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticCo
   scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; });   // 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
   scene.traverse((o) => { const m = o.material; if (!m || Array.isArray(m)) return; if (m.transparent && m.blending === THREE.AdditiveBlending && (o.isSprite || o.isMesh) && !o.isInstancedMesh) FADERS.push(m); if (o.userData.plaque) PLAQUES.push(o); });
   try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
-  LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; ready = true; window.__ok = true; clock.getDelta(); frame(); setTimeout(readMoon, 1200);
+  LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; liteApply(LITE.lv); ready = true; window.__ok = true; clock.getDelta(); frame(); setTimeout(readMoon, 1200);
 })();
 if (fpsEl) window.__dbg = { exhibits, tree, cam, scene, renderer,
   // 宙の宝石の当たりの検査：2つを正面からぶつかるコースに置く／いちばん重なっている量（負＝めり込み）／はじき合った回数。off＝当たりを切る（判定が効くかの確かめ用）

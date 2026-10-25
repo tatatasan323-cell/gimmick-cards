@@ -11,6 +11,7 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 .nav{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));font-family:inherit;font-size:15px;font-weight:800;line-height:1;padding:12px 16px;border-radius:999px;border:2px solid rgba(255,240,210,.55);background:rgba(30,20,50,.55);color:#f6eedc;letter-spacing:.06em}
 #prev{left:16px}#next{right:16px}#up{left:50%;transform:translateX(-50%)}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(68px + env(safe-area-inset-top));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font:800 11px/1.5 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 /* 読み込みの幕：窓を全部描いて、かけらに分け、絵の具を用意し終えるまで、部屋を見せない（作りかけで動かすと、最初の数秒がスローでカクついた 2026-10-25）。待つ間の粒は CSS だけで動かす */
 #veil{position:fixed;inset:0;background:#0c0912;transition:opacity .6s}
 #veil.off{opacity:0;pointer-events:none}
@@ -30,11 +31,13 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 <div class="tx" id="hint">ガラスを タップ・なぞると…？<br>◀ ▶ で となりの窓へ・てんじょうも 見てね ♪音あり</div>
 <button class="nav" id="prev">◀</button><button class="nav" id="up">てんじょう ▲</button><button class="nav" id="next">▶</button>
 <div id="fps" hidden></div>
+<div id="liteTag"></div>
 <script type="module">
 // 丸い礼拝堂に、クリスマスのステンドグラスが12枚と、天井の丸窓（月の前をサンタのそりが駆ける）。かけらをタップ、またはなぞる → そのかけらだけ外れて落ち、床でカシャーンと割れる
 // → しばらくして、窓ごとの姿（光の粒・星・ハート・雪・鈴・羽根）になって、跡を引いて窓へ戻り、穴を満たして元どおり（かけらごとに、時間差で）。抜けた穴の向こうは星空
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
+import { makeLite } from './lite.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone, gstat } from './gdone.js';
@@ -43,7 +46,12 @@ import * as SND from './glass_sound.js';
 import { makeSpace } from './space.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2;
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+// かるい表示（共通/lite.js・港町と同じ設定）：画質の段 100・70・50。重い時は自動で下げ、札に「画質 ○%」。港町のメニューの「画質」で100%に固定すると、ここも100%（本人 2026-10-26）
+//   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30まで（港町と同じ。60コマのままだと、CPU4倍遅くで主スレッドが6〜9割だった＝2026-10-26）、パソコンは60（100%）→30
+const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
+const LITE = makeLite({ page: 'glass', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 30 } },
+  baseGap: () => 1000 / (TOUCH_DEV ? 30 : 60), onChange: (lv) => liteApply(lv), tag: document.getElementById('liteTag') });
+let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#0c0912'); scene.fog = new THREE.Fog('#0c0912', 14, 34);
 scene.add(new THREE.HemisphereLight('#6a5a9a', '#1a1020', 0.6));
@@ -251,11 +259,14 @@ upBtn.addEventListener('click', () => { SND.audio(); hideHint(); lookUp(tPitch <
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let frames = 0, tf = performance.now(), fAcc = 0, fN = 0, fTot = 0;
+let frames = 0, tf = performance.now(), lastF = 0;
+function liteApply() { DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); }   // 段ごとのつまみは画素の倍率だけ
 const ease = (t) => t * t * (3 - 2 * t), bez = (a, b, c, d, t, out) => { const u = 1 - t; return out.set(0, 0, 0).addScaledVector(a, u * u * u).addScaledVector(b, 3 * u * u * t).addScaledVector(c, 3 * u * t * t).addScaledVector(d, t * t * t); };
 const WHITE = new THREE.Color('#fff4d0');
 function frame() {
-  const raw = clock.getDelta(), dt = Math.min(0.033, raw), now = performance.now() / 1000;
+  if (performance.now() - lastF < LITE.gap() - 4) { requestAnimationFrame(frame); return; }   // 決めたコマ数より早いコマは、何もしない（rAF は毎回受ける：港町と同じ）
+  const f0 = lastF = performance.now();
+  const raw = clock.getDelta(), dt = Math.min(0.05, raw), now = performance.now() / 1000;
   yaw += (tYaw - yaw) * Math.min(1, dt * 5); pitch += (tPitch - pitch) * Math.min(1, dt * 4); if (pitch > 1.0) gdone('glassSanta');   // 天井の丸窓（サンタのそり）を見上げた
   // 見上げるほど、広く見る（天井の丸窓が入るように）
   const fov = baseFov + Math.max(0, (pitch - 0.7) / 0.75) * (baseFov > 60 ? 18 : 10); if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
@@ -310,7 +321,7 @@ function frame() {
   const dpa = dg.attributes.position.array; for (let i = 0; i < ND; i++) { dpa[i * 3 + 1] += dt * 0.05; if (dpa[i * 3 + 1] > 4.5) dpa[i * 3 + 1] = 0; } dg.attributes.position.needsUpdate = true;
   renderer.render(scene, cam);
   // かけらに分けている間の重さは数えない
-  if (window.__prepared && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (window.__prepared) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} falling ${falling.length} shards ${shards.length} comets ${comets.length} pts ${fxN}`; frames = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }

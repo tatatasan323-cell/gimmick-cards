@@ -62,7 +62,7 @@ void main() {
 const FS = `
 #define MAXP ${MAXP}
 uniform samplerCube uEnv; uniform vec4 uPlanes[MAXP]; uniform int uN; uniform float uIor; uniform float uDisp; uniform float uDens; uniform float uBright;
-uniform vec3 uEmis; uniform vec3 uShift; uniform float uShiftK; uniform vec3 uEdge; uniform float uOpacity; uniform vec3 uLight;
+uniform vec3 uEmis; uniform vec3 uShift; uniform float uShiftK; uniform vec3 uEdge; uniform float uOpacity; uniform vec3 uLight; uniform float uBounce;
 varying vec3 vPos; varying vec3 vEye; varying vec3 vR0; varying vec3 vR1; varying vec3 vR2; varying vec3 vCol; varying float vAsm;
 vec3 env(vec3 d) { vec3 w = normalize(vR0 * d.x + vR1 * d.y + vR2 * d.z); return textureCube(uEnv, w).rgb * uBright * uLight; }
 float fres(float c, float f0) { return f0 + (1.0 - f0) * pow(1.0 - clamp(c, 0.0, 1.0), 5.0); }
@@ -73,6 +73,7 @@ void main() {
   vec3 col = env(reflect(V, N)) * F;
   vec3 T = refract(V, N, 1.0 / uIor), P = vPos, att = vec3(1.0 - F);
   for (int b = 0; b < 5; b++) {
+    if (float(b) >= uBounce) break;
     float tm = 1e9; vec3 ne = vec3(0.0);
     for (int i = 0; i < MAXP; i++) { if (i >= uN) break; vec4 pl = uPlanes[i]; float dn = dot(T, pl.xyz); if (dn > 1e-4) { float t = (pl.w - dot(P, pl.xyz)) / dn; if (t < tm) { tm = t; ne = pl.xyz; } } }
     if (tm > 1e8) break;
@@ -91,6 +92,9 @@ void main() {
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
+// 中で光が跳ね返る回数の上限（ふつうは5）。かるい表示の段で下げる（共通/lite.js）。全部の宝石で1つの値を共有し、写した材質（clone）にも引き継ぐ
+export const GEM_Q = { value: 5 };
+function shareQ(m) { m.uniforms.uBounce = GEM_Q; const cl = m.clone; m.clone = function () { return shareQ(cl.call(this)); }; return m; }
 // 1つの形と色から、宝石の絵の具を作る。disp＝色の分かれ方（ダイヤは大きい）、dens＝色の濃さ
 // uLight＝まわりの光の色と強さ（ふつうは白の1。暗いホールで、ろうそく・月明かりの色に染める）
 export function gemMaterial(geo, envTex, o = {}) {
@@ -101,5 +105,5 @@ export function gemMaterial(geo, envTex, o = {}) {
     uAsm: { value: 99 }, uLight: { value: new THREE.Color(1, 1, 1) }, uEdge: { value: new THREE.Color(o.color || '#ffffff').multiplyScalar(2.5) }, uOpacity: { value: 1 } } });
   if (o.transparent) { m.transparent = true; m.depthWrite = false; }
   if (geo.attributes.color) m.vertexColors = true;   // 2色の宝石（ウォーターメロン・トルマリン）は、頂点の色で
-  return m;
+  return shareQ(m);
 }

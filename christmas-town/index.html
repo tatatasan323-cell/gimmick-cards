@@ -77,6 +77,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #menuX{font:inherit;font-weight:800;border:0;border-radius:999px;padding:9px;background:#eadccb;color:#5a3a1a;cursor:pointer}
 #sheet .credit{margin:0;text-align:center;font-size:11.5px;letter-spacing:.08em}#sheet .credit a{color:#8a6a4a;text-decoration:none}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font-size:11px;font-weight:800;letter-spacing:.04em;line-height:1.5;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 #introSub{position:fixed;left:0;right:0;z-index:9;text-align:center;font-size:clamp(15px,4.2vw,21px);font-weight:900;letter-spacing:.12em;color:#fff6fb;text-shadow:0 0 6px #ff9ccb,0 0 14px #b9a6ff,0 2px 0 #d86aa0;pointer-events:none;transition:opacity .5s}
 #introTap{position:fixed;left:50%;z-index:12;transform:translateX(-50%);font:inherit;font-size:clamp(18px,5vw,24px);font-weight:900;letter-spacing:.14em;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);border:0;border-radius:999px;padding:12px 32px;box-shadow:0 4px 0 #d2407e,0 8px 20px rgba(0,0,0,.35);cursor:pointer;animation:tapIn .5s cubic-bezier(.3,1.8,.5,1) both,tapPulse 1.5s ease-in-out .5s infinite}
 #introTap[hidden]{display:none}
@@ -126,8 +127,9 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <button id="inviteBtn" type="button" hidden>✉ 招待状を見る</button>
 <div id="shopUI" hidden><button id="shopBack" type="button">‹ 港町へもどる</button></div>
 <div id="shopWait" hidden><i></i>いらっしゃいませ</div>
-<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="make">カードをつくる</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR・スマホへ</button><button type="button" data-t="rec">きろく</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button><p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p></div></div>
+<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="make">カードをつくる</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR・スマホへ</button><button type="button" data-t="rec">きろく</button><button type="button" data-t="lite">画質</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button><p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p></div></div>
 <div id="fps" hidden></div>
+<div id="liteTag"></div>
 <script type="module">
 // 冬の夜の、北欧の入り江の港町。湾を囲むハーバーに、お菓子の家（ジンジャーブレッドの壁・フロスティングの屋根・飴の窓）が坂の上まで段々に続く
 // 奥にはかき氷とソフトクリームの山、東の崖から炭酸の滝。湾には揺れるヨット、岬にキャンディケインの灯台、空にはオーロラとサンタのそり
@@ -156,6 +158,8 @@ import { QR_SVG, QR_URL } from './town_qr.js';
 import { Card } from './card_code.js';
 import { gstats, gcount } from './gdone.js';
 import { Batcher, HIDDEN, twin, compileVisible } from './batch.js';
+import { makeLite } from './lite.js';
+import { GEM_Q } from './gemshader.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
 const $ = (id) => document.getElementById(id);
@@ -168,7 +172,14 @@ const SIMPLE = { eat: q.has('simple'), sea: q.has('simple'), bt: q.has('simple')
 try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); GLDIAG.gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { /* 名前が取れない端末もある */ }
 renderer.debug.onShaderError = (gl, prog, vs, fs) => { const src = gl.getShaderSource(vs) || '', tag = /uEatTex/.test(src) ? '山・灯台・ケーキ' : /waveAt/.test(src) ? '海' : /uBt0/.test(src) ? '店の飴' : /batchingTexture/.test(src) ? '束ねた部品' : 'ほか';
   const m = tag + ': ' + ([gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs), gl.getProgramInfoLog(prog)].filter(Boolean).join(' | ').replace(/\s+/g, ' ').slice(0, 400) || 'link failed'); GLDIAG.err.push(m); console.error('shader error:', m); goSimple(tag); };
-let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+// かるい表示（共通/lite.js）：画質の段 100・70・50。重い時は自動で下げ、右下に「画質 ○%」。メニューの「画質」で100%に固定できる（本人 2026-10-26）
+//   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30（100%・70%）→20（50%）。降る飴・火の粉・雪の数と宝石の光の跳ね返りは LITE_K（applyLite）
+//   CPU4倍遅くした検査（2026-10-26・3回の中央値）：連続タップ＋花火で主スレッド 100%＝62%・70%＝63%・50%＝45%。1コマの大半は描く処理（描く回数 約130）で、
+//   30コマのまま画素や粒を減らしても主スレッドはほぼ減らない（70%は GPU の重さを減らす段）。6割を切るのは毎秒20コマにした時だけだった
+const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
+const LITE = makeLite({ page: 'town', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 20 } },
+  baseGap: () => (TOUCH_DEV || resting() ? 1000 / 30 : 1000 / 60), onChange: (lv) => applyLite(lv), tag: $('liteTag') });
+let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#04060f'); const FOG = new THREE.Color('#080d22'); scene.fog = new THREE.FogExp2(FOG, 0.0085);
 const sky = makeSky(scene, { aurora: 1.1 });
@@ -1156,6 +1167,8 @@ function gbBite(b) { if (b.state !== 'walk') return; SND.crunch('gb'); counts.cr
 // ゼリーの住人（ぷよ）
 const blobGeo = (() => { const g = new THREE.SphereGeometry(1, 26, 16), p = g.attributes.position; for (let i = 0; i < p.count; i++) { let y = p.getY(i); if (y < -0.62) y = -0.62 + (y + 0.62) * 0.18; p.setY(i, y); } g.computeVertexNormals(); return g; })();
 const darkMat = new THREE.MeshStandardMaterial({ color: '#3a1604', roughness: 0.25 }), blushMat = new THREE.MeshBasicMaterial({ color: '#ff4a4a', transparent: true, opacity: 0.5, depthWrite: false });
+// ほおは半透明でも束ねて1回で描く（最初の眺めで描く回数 138→129。2026-10-26 かるい表示）。体（renderOrder 2）・芯（1）より先に描く順は、束ねる前と同じ（0）
+blushMat.userData.batchT = true;
 const mergeGeos = (gs) => { const a = new SW.Acc(); for (const g of gs) a.add('x', g); return a.build({ x: null })[0].geometry; };
 const faceGeo = mergeGeos([...[-1, 1].map((sx) => new THREE.SphereGeometry(0.085, 12, 8).scale(0.85, 1.3, 0.55).translate(sx * 0.3, 0.12, 0.93)), new THREE.TorusGeometry(0.1, 0.026, 6, 12, Math.PI).rotateZ(Math.PI).scale(1, 0.9, 0.6).translate(0, -0.02, 0.985)]);
 const blushGeo = mergeGeos([-1, 1].map((sx) => new THREE.CircleGeometry(0.15, 14).translate(sx * 0.55, -0.05, 0.8)));
@@ -1404,8 +1417,8 @@ let wi = 0, aurBoost = 0, hueT = 0, fwEnergy = 0, lastShow = -99; const ROCKETS 
 // 火の粉は、型付きの配列に入れる。消えた所へは最後の1粒を移す（1粒ごとに物を作って捨て、配列を詰めなおしていた前の作りは、花火の間、CPU4倍遅くで1コマの2割を使い、スマホで画面と音が引っかかった 2026-10-25）
 // 呼ぶ側は今までどおり SPARKS.push({ p, v, t, L, c, tr, g })。位置の配列（P）は、そのまま描く点の位置に使う
 const SPARKS = (() => { const P = new Float32Array(FW_N * 3), V = new Float32Array(FW_N * 3), C = new Float32Array(FW_N * 3), T = new Float32Array(FW_N), L = new Float32Array(FW_N), G = new Float32Array(FW_N), PH = new Float32Array(FW_N), TR = new Uint8Array(FW_N);
-  const add = (px, py, pz, vx, vy, vz, t, life, r, g, b, tr, gr) => { if (S.n >= FW_N) return; const i = S.n++, k = i * 3; P[k] = px; P[k + 1] = py; P[k + 2] = pz; V[k] = vx; V[k + 1] = vy; V[k + 2] = vz; C[k] = r; C[k + 1] = g; C[k + 2] = b; T[i] = t; L[i] = life; G[i] = gr; TR[i] = tr ? 1 : 0; PH[i] = Math.random() * TAU; };
-  const S = { n: 0, P, V, C, T, L, G, PH, TR, add, get length() { return S.n; }, push: (o) => { add(o.p.x, o.p.y, o.p.z, o.v.x, o.v.y, o.v.z, o.t || 0, o.L, o.c.r, o.c.g, o.c.b, o.tr, o.g); return S.n; } };
+  const add = (px, py, pz, vx, vy, vz, t, life, r, g, b, tr, gr) => { if (S.n >= S.cap) return; const i = S.n++, k = i * 3; P[k] = px; P[k + 1] = py; P[k + 2] = pz; V[k] = vx; V[k + 1] = vy; V[k + 2] = vz; C[k] = r; C[k + 1] = g; C[k + 2] = b; T[i] = t; L[i] = life; G[i] = gr; TR[i] = tr ? 1 : 0; PH[i] = Math.random() * TAU; };
+  const S = { n: 0, cap: FW_N, P, V, C, T, L, G, PH, TR, add, get length() { return S.n; }, push: (o) => { add(o.p.x, o.p.y, o.p.z, o.v.x, o.v.y, o.v.z, o.t || 0, o.L, o.c.r, o.c.g, o.c.b, o.tr, o.g); return S.n; } };
   return S; })();
 const fwG = new THREE.BufferGeometry(); fwG.setAttribute('position', new THREE.BufferAttribute(SPARKS.P, 3).setUsage(THREE.DynamicDrawUsage)); fwG.setAttribute('color', new THREE.BufferAttribute(fwCol, 3).setUsage(THREE.DynamicDrawUsage)); fwG.setDrawRange(0, 0);
 const fw = new THREE.Points(fwG, new THREE.PointsMaterial({ map: glowTex, size: 0.75, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fw.frustumCulled = false; scene.add(fw);
@@ -1450,6 +1463,10 @@ const snowG = new THREE.BufferGeometry(); snowG.setAttribute('position', new THR
 const snowMat = new THREE.PointsMaterial({ map: glowTex, color: '#ffffff', size: 0.16, transparent: true, opacity: 0.85, depthWrite: false });
 snowMat.onBeforeCompile = (sh) => { sh.uniforms.uT = timeU; sh.vertexShader = 'attribute float aV; attribute float aPh; uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = vec3(cameraPosition.x - 30.0 + mod(position.x - cameraPosition.x + 30.0, 60.0) - 0.16 * cos(uT * 0.5 + aPh), cameraPosition.y + 12.0 - mod(cameraPosition.y + 12.0 - position.y + aV * 0.8 * uT, 26.0), cameraPosition.z - 30.0 + mod(position.z - cameraPosition.z + 30.0, 60.0));'); };
 const snow = new THREE.Points(snowG, snowMat); snow.frustumCulled = false; scene.add(snow);
+// かるい表示の段ごとのつまみ：rain＝飴が降る間隔の倍率（大きいほど少ない）・spark＝火の粉の上限の割合・snow＝雪の粒の割合・gem＝宝石の中で光が跳ね返る回数（共通/gemshader.js）
+const LITE_K = { 100: { rain: 1, spark: 1, snow: 1, gem: 5 }, 70: { rain: 1.6, spark: 0.7, snow: 0.75, gem: 4 }, 50: { rain: 2.6, spark: 0.45, snow: 0.5, gem: 3 } };
+function applyLite(lv) { const K = LITE_K[lv]; DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); SPARKS.cap = Math.round(FW_N * K.spark); snowG.setDrawRange(0, Math.round(SNOW_N * K.snow)); GEM_Q.value = K.gem;
+  if (!$('menu').hidden && menuTab === 'lite') drawMenu(); }
 
 // ---------- 世界の飴が降る（町の豆知識12をぜんぶ集めると、雪にまじって）。落ちた飴は町のあちこちに転がり、しばらくすると溶けて消える。さわると、はじける（はじくだけ） ----------
 // 屋根や建物の上には落とさない（すり抜けて見えるので）。海に落ちた飴は、ぷかぷか浮いて、早めに溶ける
@@ -1473,7 +1490,7 @@ function flickCandy(R, k) { const c = R.list[k]; if (!c || c.st === 'melt') retu
   if (away.lengthSq() < 1e-6) away.set(1, 0, 0); away.normalize(); const sp = B ? rnd(7, 9.5) : rnd(2.5, 4); c.fl = nowS();
   c.v.set(away.x * sp, B ? rnd(6, 7.5) : rnd(3, 4.5), away.z * sp); c.w.set(rnd(-14, 14), rnd(-14, 14), rnd(-14, 14)); c.st = 'fall'; c.t = 0; c.life = Math.max(c.life, 8); SND.candyFlick(); counts.flicks++; mark('flick'); }
 function stepRain(dt, t) {
-  if (OPEN.shop && !SHOP.on && !RAIN.paused) { rainT -= dt; if (rainT <= 0) { rainT = rnd(0.45, 0.9); spawnCandy(); } }
+  if (OPEN.shop && !SHOP.on && !RAIN.paused) { rainT -= dt; if (rainT <= 0) { rainT = rnd(0.45, 0.9) * LITE_K[LITE.lv].rain; spawnCandy(); } }
   for (const R of RAIN) { if (!R.list.length && !R.m.visible) continue;
     for (let i = R.list.length - 1; i >= 0; i--) { const c = R.list[i]; c.t += dt; const wl = c.w.length(); if (wl > 1e-4 && c.st === 'fall') c.q.premultiply(QQ2.setFromAxisAngle(V2.copy(c.w).multiplyScalar(1 / wl), wl * dt));
       const wet = inWater(c.p.x, c.p.z), g = (wet ? WATER_Y + waveH(c.p.x, c.p.z, t) : surfaceAt(c.p.x, c.p.z)) + c.s * R.half * (wet ? 0.3 : 1);
@@ -1900,6 +1917,8 @@ const TIPS = [
   { id: 'pull', q: 'テディの店のくまのグミ、ひっぱるとのびるよ。やってみた？', done: () => counts.pulls > 0, go: () => focusArea(AREAS.find((a) => a.id === 'teddy')) },
   { id: 'tree', q: '広場の大きなツリー、さわってみた？　ぷるんとゆれるよ', done: () => counts.treeTaps > 0, go: () => goPoint(BIGTREE.position.clone().setY(BIGTREE.position.y + 3), 11, 2) },
   { id: 'bgm', q: 'BGM、メニューの「音」で変えられるって知ってた？　クリスマスの曲がいろいろあるよ', done: () => ACH.has('bgm'), go: () => openMenu('sound') },
+  // 画質を自動で下げた時だけ（右下の札が変わったわけを、先に伝える）。メニューの「画質」を開いたら体験済み
+  { id: 'lite', first: 1, when: () => LITE.lv < 100 && !LITE.fixed, q: () => `右下の「画質 ${LITE.lv}%」は、重い時に自動で下げた画質だよ。メニューの「画質」で、100%に固定もできるって知ってた？`, done: () => ACH.has('lite'), go: () => openMenu('lite') },
   // 飴工房が開いたら
   { id: 'candyAll', when: () => OPEN.shop && USED.has('candy'), q: () => `世界の飴の豆知識、あと${CANDIES.filter((C) => !found.has(C.id)).length}つ。飴工房の飴、ぜんぶ食べてみよう`, done: () => CANDIES.every((C) => found.has(C.id)), go: () => enterShop() },
   { id: 'flick', when: () => OPEN.shop, q: '空から降ってきた世界の飴、落ちているのを はじいてみた？', done: () => ACH.has('flick'), go: () => {} },
@@ -1948,11 +1967,12 @@ function showTip(t) { tipOn = t; $('tipQ').textContent = tipQ(t); tipEl.classLis
 function hideTip() { tipEl.classList.remove('on'); tipOn = null; }
 $('tipYes').addEventListener('click', () => { hideTip(); SND.tap(); });
 $('tipNo').addEventListener('click', () => { const t = tipOn; hideTip(); if (t) { t.go(); SND.whoosh(); counts.tipGo++; } });
-// どれを出すか：一度も体験していない物で、このタブでまだ出していない物だけ。①ふつうのヒント ②見落としがちな物。全部体験したら（出しつくしたら）出さない
+// どれを出すか：一度も体験していない物で、このタブでまだ出していない物だけ。⓪先に出す物（画質の札のわけ）①ふつうのヒント ②見落としがちな物。全部体験したら（出しつくしたら）出さない
 //   出ている間に、そのことを体験したら、すぐ引っこめる
 function stepTips(dt) { if ((tipSweep -= dt) <= 0) { tipSweep = 1; sweepTips(); }
   if (tipOn) { if (TIP_DONE.has(tipOn.id) || (tipHide -= dt) <= 0) hideTip(); return; } if (SHOP.on || !card.hidden || COT.open || auto || INTRO.t >= 0) return; if (!$('menu').hidden || (tipT -= dt) > 0) return; tipT = rnd(35, 50);
-  const live = TIPS.filter((t) => (!t.when || t.when()) && !TIP_DONE.has(t.id) && !TIP_SHOWN.has(t.id) && !t.done() && tipQ(t)); let c = live.filter((t) => !t.deep);
+  const live = TIPS.filter((t) => (!t.when || t.when()) && !TIP_DONE.has(t.id) && !TIP_SHOWN.has(t.id) && !t.done() && tipQ(t)); let c = live.filter((t) => t.first);
+  if (!c.length) c = live.filter((t) => !t.deep);
   if (!c.length) c = live.filter((t) => t.deep);
   if (c.length) showTip(c[(Math.random() * c.length) | 0]); }
 // ---------- テディのグミ：つまんで引っぱると、そこだけのびる。はなすと、ぷるんぷるんと戻る（くまの足は台に固定） ----------
@@ -1966,7 +1986,7 @@ function planeHit(x, y, p0, n) { const r = cvs.getBoundingClientRect(); ndc.set(
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? $('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let frames = 0, tf = performance.now(), fAcc = 0, fN = 0, fTot = 0, ready = false;
+let frames = 0, tf = performance.now(), ready = false;
 function readKeys(now) { const h = lastKey && held.get(lastKey); if (h && repOK && now - h.t > (h.rep ? 0.5 : 1.0)) { held.clear(); lastKey = null; } }
 function stepDrone(dt, now) {
   readKeys(now);
@@ -1991,18 +2011,17 @@ function stepDrone(dt, now) {
 // 何もしない時も毎秒60コマで描き続け、遅いスマホでは CPU を使いっぱなしだった（本人 2026-10-19「無用な負荷がかからないように」）。さわっている間も60コマだと、CPU4倍遅くで主スレッドが9割を超え、波→花火で画面がカクつき、音が飛んだ（2026-10-25）
 // 間引き方：requestAnimationFrame は毎回受け、まだ早いコマは何もせずに返す（画面の切りかえの拍子にそろう）。setTimeout で待ってから頼む形も試したが、町を描きつづける間は
 //   時計の知らせが後回しにされ（CPU を遅くしない時でも、95%で61ms・最大95ms遅れた）、コマの間が80〜116ms空いてカクついた（2026-10-25）。劇場の中は町を描かないので、0.25秒おきに見るだけ
-const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
 let idleAt = 0, lastF = 0; for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(ev, () => { idleAt = performance.now(); }, { passive: true, capture: true });
 const resting = () => performance.now() - idleAt > 3000 && !auto && INTRO.t < 0 && joy.id == null && !ud.v && !held.size && !ptrs.size;
-const frameGap = () => (TOUCH_DEV || resting() ? 1000 / 30 : 1000 / 60);
+const frameGap = () => LITE.gap();   // かるい表示の段で、さらに下げる（50%は毎秒20コマ）
 function nextFrame() { if (TH.open) { setTimeout(() => requestAnimationFrame(frame), 250); return; } requestAnimationFrame(frame); }
 function frame() {
   if (performance.now() - lastF < frameGap() - 4) { requestAnimationFrame(frame); return; }   // まだ早いコマは、何もしない
-  lastF = performance.now();
-  // 1コマで進める時間は0.05秒まで（前は0.034秒。毎秒30コマで少し遅れたコマが、そのまま「スロー」になった）
-  const raw = clock.getDelta(), dt = Math.min(0.05, raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
+  const f0 = lastF = performance.now();
+  // 1コマで進める時間は0.05秒まで（前は0.034秒。毎秒30コマで少し遅れたコマが、そのまま「スロー」になった）。毎秒20コマの段では、決めた間隔の1.5倍まで
+  const raw = clock.getDelta(), dt = Math.min(Math.max(0.05, frameGap() * 0.0015), raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
   if (TH.open) { nextFrame(); return; }   // 劇場の中は町の絵を覆っているので、描かない
-  if (SHOP.on) { stepShop(dt, t); renderer.render(SHOP.sc, SHOP.cam); nextFrame(); return; }
+  if (SHOP.on) { stepShop(dt, t); renderer.render(SHOP.sc, SHOP.cam); LITE.frame(f0); nextFrame(); return; }
   stepDrone(dt, now); sky.update(cam.position, t);
   waterMat.uniforms.uT.value = t; sqMat.uniforms.uT.value = t; FALL.mat.uniforms.uT.value = t;
   // オーロラ：光の波のあとは明るく、色が流れる
@@ -2084,8 +2103,7 @@ function frame() {
     else { HALO_G.attributes.position.setXYZ(T.k, V1.x, V1.y - 0.4, V1.z); HALO_G.attributes.color.setXYZ(T.k, HALO_C.r * hk, HALO_C.g * hk, HALO_C.b * hk); HM.makeTranslation(gx, landH(gx, gz) + 0.07, gz); POOLS.setMatrixAt(T.k, HM); HALO_C.set(fd ? '#9fd0ff' : '#ffd890'); POOLS.setColorAt(T.k, HALO_C.multiplyScalar(pk)); } }
   HALO_G.attributes.position.needsUpdate = HALO_G.attributes.color.needsUpdate = true; POOLS.instanceMatrix.needsUpdate = true; if (POOLS.instanceColor) POOLS.instanceColor.needsUpdate = true;
   renderer.render(scene, cam); if (INTRO.t >= 0) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(INTRO.sc, cam); renderer.autoClear = true; }
-  // 決めたコマの間隔（60コマ＝16.7ms・30コマ＝33.3ms）を3割こえるコマが続く時だけ、画面の細かさを下げる
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > Math.max(21, frameGap() * 1.3) && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (ready) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}\n${GLDIAG.gpu.slice(0, 48)} VU${VU} D${DENT_N} shaderErr ${GLDIAG.err.length}${GLDIAG.err.length ? '\n' + GLDIAG.err[0].slice(0, 140) : ''}`; frames = 0; tf = performance.now(); }
   nextFrame();
 }
@@ -2202,9 +2220,14 @@ function drawMenu() {
   else if (menuTab === 'howto') { screenRows(P); P.append(mEl('div', 'hd', 'おかしな港町の、あそびかた'));
     for (const [a, b] of [['左の丸', '飛ぶ（上＝前・下＝うしろ・左右＝横へ）。上を向いて進むと上へ、下を向くと下へ'], ['空や町をなぞる', 'まわりを見まわす'], ['2本指をひろげる・せばめる', '近づく・はなれる'],
       ['家や住人をタップ', 'かじる（しばらくすると、もとどおり）'], ['遠くのかき氷・パフェの山をタップ', 'すくって食べる（たくさん食べると…？）'], ['岬の灯台', 'お菓子でできています。かじると…？'], ...(OPEN.shop ? [['空から降る世界の飴', 'さわると、はじけます'], ['世界の飴工房', 'お店に入って、飴をタップ＝かじる']] : []), ...(OPEN.cakes ? [['ケーキの山（山の奥・東の岬）', '食べられます。たくさん食べると…？']] : []), ['郵便局', 'クリスマスカード（招待状）をつくって、LINEで送れます'], ['海をなぞる', '光の波が広がる。何度も広げると…？'], ['名所の看板の建物をタップ', 'そばへ飛んで、「この場所へ」で中の仕掛けへ'], ['✦ の光', '豆知識。さわると読めます'],
-      ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b));
+      ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['右下の「画質 ○%」', '重い時は、自動で画質を下げて、動きと音を守ります。メニューの「画質」で100%に固定できます'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b));
     P.append(mEl('div', 'hd', 'ともだちに教える（QR コード）')); P.append(qrBox()); }
   else if (menuTab === 'rec') drawRecords(P);
+  else if (menuTab === 'lite') { mark('lite');   // 画質：自動か、100%で固定か（本人 2026-10-26。仕掛けの部屋も同じ設定＝共通/lite.js）
+    P.append(mEl('div', 'hd', `いまの画質　${LITE.lv}%（${LITE.fixed ? '固定' : '自動'}）`));
+    P.append(mRow('自動（おすすめ）', '重い時は、こまかさ・コマ数・降る飴や花火の粒を減らして、動きと音を守ります', mBtn(LITE.fixed ? 'これにする' : 'えらんでいる', () => { LITE.setFixed(false); drawMenu(); }, LITE.fixed ? null : 'on')));
+    P.append(mRow('100%で固定', 'いつも、いちばんきれいな画質で。重い端末では、カクついたり、音がとぎれたりします', mBtn(LITE.fixed ? 'えらんでいる' : 'これにする', () => { LITE.setFixed(true); drawMenu(); }, LITE.fixed ? 'on' : null)));
+    P.append(mEl('div', 'note', '右下の「画質 ○%」が、いまの画質です。70%・50%は、重い時に自動で下げた画質です。仕掛けの部屋も、同じ設定で動きます。')); }
   else if (menuTab === 'qr') { P.append(mEl('div', 'hd', 'ともだちに教える（スマホのカメラで読みとると、ここへ来られます）')); P.append(qrBox()); homeRows(P); }
   else if (menuTab === 'make') { P.append(mEl('div', 'hd', 'LINE で送れるカードを、2種類つくれます'));   // 本人 2026-10-18「招待状モードと、メリークリスマスを伝えるだけのグリーティングカードモード」
     const mk = (kind) => { const a = mEl('a', 'go', 'つくる ›'); a.href = (PAGES ? 'card.html' : ART.post) + '#make-' + kind; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } a.addEventListener('click', () => use('post')); return a; };
@@ -2356,7 +2379,7 @@ function closeInvite() { $('invite').classList.remove('on'); setTimeout(() => { 
 $('invGo').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
 $('invLater').addEventListener('click', () => { SND.tap(); closeInvite(); });
 $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
-(async () => { size(); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
+(async () => { applyLite(LITE.lv); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
   BATCH = new Batcher(scene, { meshes: renderer.capabilities.isWebGL2 }).add([...BOATS.map((b) => b.g), ...AREAS.map((A) => A.g), BAKERY.g, BIGTREE, BAUBLE.g, WR.g, REST.g, BOWL.parent, SHOE, LUCIA, ...PUYOS.filter((b) => b.grp.parent === scene).map((b) => b.grp)]).addSprites(SPR);   // 同じ材質の部品は、持ち主をまたいで1回で描く
   makeTools();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
   // 町のシェーダーを用意する間（GPU の待ちで、画面の処理は手が空く）に、題字だけ先に用意して降らせる。町の用意ができたら、町が現れる

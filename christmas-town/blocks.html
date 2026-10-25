@@ -11,6 +11,7 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 .btn{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom));font:800 15px/1 inherit;font-family:inherit;padding:12px 18px;border-radius:999px;border:2px solid rgba(255,255,255,.6);background:rgba(90,30,50,.45);color:#fff6ea;letter-spacing:.06em}
 #add{left:16px}#reset{right:16px}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
+#liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(12px + env(safe-area-inset-top));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font:800 11px/1.5 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
@@ -21,10 +22,12 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 <div class="tx" id="hint">ドラッグで もって つむ・タップで はじく<br>なにもない所を なぞると まわる・2本指で ちかく／とおく ♪音あり</div>
 <button class="btn" id="add">＋ ブロック</button><button class="btn" id="reset">もとにもどす</button>
 <div id="fps" hidden></div>
+<div id="liteTag"></div>
 <script type="module">
 // 重力のあるテーブルで、グミの積み木。当たりと重さは Rapier（物理の部品・同梱）、見た目は距離の式で起こしたグミ。ぶつかるとプルンと揺れる（見た目だけ）
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
+import { makeLite } from './lite.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone } from './gdone.js';
@@ -37,7 +40,12 @@ import { makeSky } from './space.js';
 import { makeFarTown } from './town_far.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, powerPreference: 'high-performance' });
-let DPR = Math.min(devicePixelRatio || 1, matchMedia('(pointer: coarse)').matches ? 1.5 : 2); renderer.setPixelRatio(DPR);   // スマホは1.5倍から（細かさより、なめらかさ）
+// かるい表示（共通/lite.js・港町と同じ設定）：画質の段 100・70・50。重い時は自動で下げ、札に「画質 ○%」。港町のメニューの「画質」で100%に固定すると、ここも100%（本人 2026-10-26）
+//   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30まで（港町と同じ。60コマのままだと、CPU4倍遅くで主スレッドが6〜9割だった＝2026-10-26）、パソコンは60（100%）→30
+const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
+const LITE = makeLite({ page: 'blocks', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 30 } },
+  baseGap: () => 1000 / (TOUCH_DEV ? 30 : 60), onChange: (lv) => liteApply(lv), tag: document.getElementById('liteTag') });
+let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene();
 // 町の上空に浮かぶテーブル。下に雪の夜の町、水平線の上にオーロラ（本人 2026-10-15）
@@ -182,10 +190,13 @@ cvs.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let acc = 0, frames = 0, tf = performance.now(), physMs = 0, ready = false, fAcc = 0, fN = 0, fTot = 0;
+let acc = 0, frames = 0, tf = performance.now(), physMs = 0, ready = false, lastF = 0;
+function liteApply() { DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); }   // 段ごとのつまみは画素の倍率だけ（物理の刻みは1/60秒のまま）
 const STEP = 1 / 60, UP = new THREE.Vector3(0, 1, 0), upV = new THREE.Vector3(), AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map((a) => new THREE.Vector3(...a));
 function topAt(x, z, exclude) { const hit = world.castRay(new RAPIER.Ray({ x, y: 12, z }, { x: 0, y: -1, z: 0 }), 20, true, undefined, undefined, undefined, exclude); return hit ? 12 - (hit.toi ?? hit.timeOfImpact) : 0; }   // その場所の上面の高さ
 function frame() {
+  if (performance.now() - lastF < LITE.gap() - 4) { requestAnimationFrame(frame); return; }   // 決めたコマ数より早いコマは、何もしない（rAF は毎回受ける：港町と同じ）
+  const f0 = lastF = performance.now();
   const raw = clock.getDelta(), dt = Math.min(0.05, raw);
   yaw += (tYaw - yaw) * Math.min(1, dt * 6); pitch += (tPitch - pitch) * Math.min(1, dt * 6); dist += (tDist - dist) * Math.min(1, dt * 6); placeCam();
   if (!towerSaid && ++frameN % 30 === 0 && blocks.some((b) => !b.held && b.body && b.body.translation().y > 2.4 && b.body.linvel().y ** 2 < 0.01)) { towerSaid = true; gdone('tower'); }   // 高く積めた（台から2.4m）
@@ -225,7 +236,7 @@ function frame() {
     stepMelts(dt);
   }
   sky.update(cam.position, performance.now() / 1000); renderer.render(scene, cam);
-  if (ready && ++fTot > 30 && raw < 1) { fAcc += raw; if (++fN >= 30) { if ((fAcc / fN) * 1000 > 21 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); renderer.setPixelRatio(DPR); size(); } fAcc = 0; fN = 0; } }
+  if (ready) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} phys ${(physMs / frames).toFixed(1)}ms blocks ${blocks.length} calls ${renderer.info.render.calls}`; frames = 0; physMs = 0; tf = performance.now(); }
   requestAnimationFrame(frame);
 }
