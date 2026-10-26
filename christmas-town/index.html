@@ -173,13 +173,13 @@ const SIMPLE = { eat: q.has('simple'), sea: q.has('simple'), bt: q.has('simple')
 try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); GLDIAG.gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { /* 名前が取れない端末もある */ }
 renderer.debug.onShaderError = (gl, prog, vs, fs) => { const src = gl.getShaderSource(vs) || '', tag = /uEatTex/.test(src) ? '山・灯台・ケーキ' : /waveAt/.test(src) ? '海' : /uBt0/.test(src) ? '店の飴' : /batchingTexture/.test(src) ? '束ねた部品' : 'ほか';
   const m = tag + ': ' + ([gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs), gl.getProgramInfoLog(prog)].filter(Boolean).join(' | ').replace(/\s+/g, ' ').slice(0, 400) || 'link failed'); GLDIAG.err.push(m); console.error('shader error:', m); goSimple(tag); };
-// かるい表示（共通/lite.js）：画質の段 100・70・50。重い時は自動で下げ、右下に「画質 ○%」。メニューの「画質」で100%に固定できる（本人 2026-10-26）
+// かるい表示（共通/lite.js）：画質の段 100・70・50。重い時は自動で下げ、右下に「画質 ○%」。札をタップすると、その場で自動・100%・70%・50%から選べる（メニューの「画質」も同じ。本人 2026-10-26）
 //   画素の倍率：スマホは1.5倍（100%）→1.25倍→1倍。1秒のコマ：スマホは30（100%・70%）→20（50%）。降る飴・火の粉・雪の数と宝石の光の跳ね返りは LITE_K（applyLite）
 //   CPU4倍遅くした検査（2026-10-26・3回の中央値）：連続タップ＋花火で主スレッド 100%＝62%・70%＝63%・50%＝45%。1コマの大半は描く処理（描く回数 約130）で、
 //   30コマのまま画素や粒を減らしても主スレッドはほぼ減らない（70%は GPU の重さを減らす段）。6割を切るのは毎秒20コマにした時だけだった
 const TOUCH_DEV = matchMedia('(pointer: coarse)').matches;
 const LITE = makeLite({ page: 'town', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2, fps: null }, 70: { dpr: TOUCH_DEV ? 1.25 : 1.5, fps: 30 }, 50: { dpr: 1, fps: 20 } },
-  baseGap: () => (TOUCH_DEV || resting() ? 1000 / 30 : 1000 / 60), onChange: (lv) => applyLite(lv), tag: $('liteTag') });
+  baseGap: () => (TOUCH_DEV || resting() ? 1000 / 30 : 1000 / 60), onChange: (lv) => applyLite(lv), tag: $('liteTag'), onPick: () => mark('lite') });   // 札をタップした・選んだ＝画質のヒントは体験済み
 let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#04060f'); const FOG = new THREE.Color('#080d22'); scene.fog = new THREE.FogExp2(FOG, 0.0085);
@@ -1919,8 +1919,8 @@ const TIPS = [
   { id: 'pull', q: 'テディの店のくまのグミ、ひっぱるとのびるよ。やってみた？', done: () => counts.pulls > 0, go: () => focusArea(AREAS.find((a) => a.id === 'teddy')) },
   { id: 'tree', q: '広場の大きなツリー、さわってみた？　ぷるんとゆれるよ', done: () => counts.treeTaps > 0, go: () => goPoint(BIGTREE.position.clone().setY(BIGTREE.position.y + 3), 11, 2) },
   { id: 'bgm', q: 'BGM、メニューの「音」で変えられるって知ってた？　クリスマスの曲がいろいろあるよ', done: () => ACH.has('bgm'), go: () => openMenu('sound') },
-  // 画質を自動で下げた時だけ（右下の札が変わったわけを、先に伝える）。メニューの「画質」を開いたら体験済み
-  { id: 'lite', first: 1, when: () => LITE.lv < 100 && !LITE.fixed, q: () => `右下の「画質 ${LITE.lv}%」は、重い時に自動で下げた画質だよ。メニューの「画質」で、100%に固定もできるって知ってた？`, done: () => ACH.has('lite'), go: () => openMenu('lite') },
+  // 画質を自動で下げた時だけ（右下の札が変わったわけを、先に伝える）。札をタップした・画質を選んだ・メニューの「画質」を開いたら体験済み
+  { id: 'lite', first: 1, when: () => LITE.lv < 100 && !LITE.fixed, q: () => `右下の「画質 ${LITE.lv}%」は、重い時に自動で下げた画質だよ。札をタップすると、自動・100%・70%・50%から自分で選べるって知ってた？`, done: () => ACH.has('lite'), go: () => openMenu('lite') },
   // 飴工房が開いたら
   { id: 'candyAll', when: () => OPEN.shop && USED.has('candy'), q: () => `世界の飴の豆知識、あと${CANDIES.filter((C) => !found.has(C.id)).length}つ。飴工房の飴、ぜんぶ食べてみよう`, done: () => CANDIES.every((C) => found.has(C.id)), go: () => enterShop() },
   { id: 'flick', when: () => OPEN.shop, q: '空から降ってきた世界の飴、落ちているのを はじいてみた？', done: () => ACH.has('flick'), go: () => {} },
@@ -2219,14 +2219,14 @@ function drawMenu() {
   else if (menuTab === 'howto') { screenRows(P); P.append(mEl('div', 'hd', 'おかしな港町の、あそびかた'));
     for (const [a, b] of [['左の丸', '飛ぶ（上＝前・下＝うしろ・左右＝横へ）。上を向いて進むと上へ、下を向くと下へ'], ['空や町をなぞる', 'まわりを見まわす'], ['2本指をひろげる・せばめる', '近づく・はなれる'],
       ['家や住人をタップ', 'かじる（しばらくすると、もとどおり）'], ['遠くのかき氷・パフェの山をタップ', 'すくって食べる（たくさん食べると…？）'], ['岬の灯台', 'お菓子でできています。かじると…？'], ...(OPEN.shop ? [['空から降る世界の飴', 'さわると、はじけます'], ['世界の飴工房', 'お店に入って、飴をタップ＝かじる']] : []), ...(OPEN.cakes ? [['ケーキの山（山の奥・東の岬）', '食べられます。たくさん食べると…？']] : []), ['郵便局', 'クリスマスカード（招待状）をつくって、LINEで送れます'], ['海をなぞる', '光の波が広がる。何度も広げると…？'], ['名所の看板の建物をタップ', 'そばへ飛んで、「この場所へ」で中の仕掛けへ'], ['✦ の光', '豆知識。さわると読めます'],
-      ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['右下の「画質 ○%」', '重い時は、自動で画質を下げて、動きと音を守ります。メニューの「画質」で100%に固定できます'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b));
+      ['ときどき出る吹き出し', 'まだ見ていない所を教えてくれます。「つれてって」でそこへ'], ['右下の「画質 ○%」', '重い時は、自動で画質を下げて、動きと音を守ります。札をタップすると、自動・100%・70%・50%から選べます（メニューの「画質」も同じ）'], ['キーボード', 'W A S D・矢印で飛ぶ／← →で向き／E・スペースで上へ／Q・Shiftで下へ']]) P.append(mRow(a, b));
     P.append(mEl('div', 'hd', 'ともだちに教える（QR コード）')); P.append(qrBox()); }
   else if (menuTab === 'rec') drawRecords(P);
-  else if (menuTab === 'lite') { mark('lite');   // 画質：自動か、100%で固定か（本人 2026-10-26。仕掛けの部屋も同じ設定＝共通/lite.js）
+  else if (menuTab === 'lite') { mark('lite');   // 画質：自動か、100%・70%・50%で固定か（本人 2026-10-26。右下の札をタップした時の選び窓と同じ4つ。仕掛けの部屋も同じ設定＝共通/lite.js）
     P.append(mEl('div', 'hd', `いまの画質　${LITE.lv}%（${LITE.fixed ? '固定' : '自動'}）`));
-    P.append(mRow('自動（おすすめ）', '重い時は、こまかさ・コマ数・降る飴や花火の粒を減らして、動きと音を守ります', mBtn(LITE.fixed ? 'これにする' : 'えらんでいる', () => { LITE.setFixed(false); drawMenu(); }, LITE.fixed ? null : 'on')));
-    P.append(mRow('100%で固定', 'いつも、いちばんきれいな画質で。重い端末では、カクついたり、音がとぎれたりします', mBtn(LITE.fixed ? 'えらんでいる' : 'これにする', () => { LITE.setFixed(true); drawMenu(); }, LITE.fixed ? 'on' : null)));
-    P.append(mEl('div', 'note', '右下の「画質 ○%」が、いまの画質です。70%・50%は、重い時に自動で下げた画質です。仕掛けの部屋も、同じ設定で動きます。')); }
+    const SUB = { auto: '重い時は、こまかさ・コマ数・降る飴や花火の粒を減らして、動きと音を守ります', 100: 'いつも、いちばんきれいな画質で。重い端末では、カクついたり、音がとぎれたりします', 70: '少し軽く。こまかさとコマ数を少し下げます', 50: 'いちばん軽く。カクつく・音がとぎれる時に' };
+    for (const [v, name] of [['auto', '自動（おすすめ）'], ['100', '100%'], ['70', '70%'], ['50', '50%']]) { const on = LITE.choice === v; P.append(mRow(name, SUB[v], mBtn(on ? 'えらんでいる' : 'これにする', () => { LITE.choose(v); drawMenu(); }, on ? 'on' : null))); }
+    P.append(mEl('div', 'note', '右下の「画質 ○%」が、いまの画質です。札をタップしても、ここと同じように選べます。仕掛けの部屋も、同じ設定で動きます。')); }
   else if (menuTab === 'qr') { P.append(mEl('div', 'hd', 'ともだちに教える（スマホのカメラで読みとると、ここへ来られます）')); P.append(qrBox()); homeRows(P); }
   else if (menuTab === 'make') { P.append(mEl('div', 'hd', 'LINE で送れるカードを、2種類つくれます'));   // 本人 2026-10-18「招待状モードと、メリークリスマスを伝えるだけのグリーティングカードモード」
     const mk = (kind) => { const a = mEl('a', 'go', 'つくる ›'); a.href = (PAGES ? 'card.html' : ART.post) + '#make-' + kind; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } a.addEventListener('click', () => use('post')); return a; };
