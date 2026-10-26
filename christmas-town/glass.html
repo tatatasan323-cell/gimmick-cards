@@ -256,7 +256,7 @@ cvs.addEventListener('pointermove', (e) => {
     if (!s.moved && Math.hypot(x - s.x, y - s.y) > 8) { s.moved = true; if (s.glass) breakAt(s.x, s.y); }
     if (!s.moved) continue;
     if (s.glass) { const n = Math.ceil(Math.hypot(x - s.lx, y - s.ly) / 6); for (let k = 1; k <= n; k++) breakAt(s.lx + ((x - s.lx) * k) / n, s.ly + ((y - s.ly) * k) / n); }
-    else { tYaw = s.yaw + (x - s.x) * 0.006; tPitch = clampP(s.pitch - (y - s.y) * 0.004); }   // なぞった方へ、カメラが向く（本人 2026-10-17。前は、景色をつかんで回す向き）
+    else { tYaw = s.yaw - (x - s.x) * 0.006; tPitch = clampP(s.pitch + (y - s.y) * 0.004); }   // その場から動けない視点なので、絵をつかんで引っぱる向き（指を右へ＝絵も右へ・上へ＝上へ。本人 2026-10-27。歩ける部屋は、なぞった方へカメラが向くまま）
     s.lx = x; s.ly = y; }
 });
 function up(e) { const s = ptrs.get(e.pointerId); if (!s) return; ptrs.delete(e.pointerId); if (s.glass && !s.moved && performance.now() - s.t < 600) breakAt(e.clientX, e.clientY); }
