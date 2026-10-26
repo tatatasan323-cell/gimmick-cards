@@ -38,6 +38,7 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
 import { makeLite } from './lite.js';
+import { startLoop, guardContext, ERRS } from './loop.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone, gstat } from './gdone.js';
@@ -259,13 +260,14 @@ upBtn.addEventListener('click', () => { SND.audio(); hideHint(); lookUp(tPitch <
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
-let frames = 0, tf = performance.now(), lastF = 0;
+let frames = 0, tf = performance.now();
 function liteApply() { DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); }   // 段ごとのつまみは画素の倍率だけ
 const ease = (t) => t * t * (3 - 2 * t), bez = (a, b, c, d, t, out) => { const u = 1 - t; return out.set(0, 0, 0).addScaledVector(a, u * u * u).addScaledVector(b, 3 * u * u * t).addScaledVector(c, 3 * u * t * t).addScaledVector(d, t * t * t); };
 const WHITE = new THREE.Color('#fff4d0');
-function frame() {
-  if (performance.now() - lastF < LITE.gap() - 4) { requestAnimationFrame(frame); return; }   // 決めたコマ数より早いコマは、何もしない（rAF は毎回受ける：港町と同じ）
-  const f0 = lastF = performance.now();
+// 1コマの中身。次のコマを先に頼む・早いコマは返す・1コマのエラーで止めない（つかんだ指を片付けて立て直す）は、共通/loop.js
+// 画面の描きこみ（WebGL）を取り上げられたら、指を片付け、2.5秒で戻らなければ「もう一度ひらく」を出す
+guardContext(cvs, { onLost: () => ptrs.clear() });
+function step(f0) {
   const raw = clock.getDelta(), dt = Math.min(0.05, raw), now = performance.now() / 1000;
   yaw += (tYaw - yaw) * Math.min(1, dt * 5); pitch += (tPitch - pitch) * Math.min(1, dt * 4); if (pitch > 1.0) gdone('glassSanta');   // 天井の丸窓（サンタのそり）を見上げた
   // 見上げるほど、広く見る（天井の丸窓が入るように）
@@ -324,9 +326,8 @@ function frame() {
   // かけらに分けている間の重さは数えない
   if (window.__prepared) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} falling ${falling.length} shards ${shards.length} comets ${comets.length} pts ${fxN}`; frames = 0; tf = performance.now(); }
-  requestAnimationFrame(frame);
 }
-if (fpsEl) window.__dbg = { panes, cam, breakAt, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, lookUp, kinds: () => [...seen].sort(),
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), panes, cam, breakAt, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, lookUp, kinds: () => [...seen].sort(),
   proj: (i, x, y) => { const w = panes[i]; w.g.updateMatrixWorld(); const v = w.g.localToWorld(new THREE.Vector3(x, y, 0)).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
   broken: () => panes.reduce((n, w) => n + (w.parts ? w.parts.filter((p) => p && p.state).length : 0), 0), counts: () => ({ falling: falling.length, shards: shards.length, comets: comets.length }), voices: SND.voices, level: SND.level, hissRate: SND.hissRate,
   programs: () => renderer.info.programs.length, ready: () => panes.every((w) => w.ready), veil: () => document.getElementById('veil').hidden };   // 確かめる時に使う：用意した絵の具の数・全部の窓がかけらに分かれたか・幕が開いたか
@@ -345,7 +346,7 @@ if (fpsEl) window.__dbg = { panes, cam, breakAt, look: (y, p) => { yaw = tYaw = 
   const culled = []; scene.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; culled.push(o); } }); renderer.render(scene, cam); for (const o of culled) o.frustumCulled = true;
   // この材質は捨てない（捨てると、同じ絵の具を使う物がない間に絵の具ごと消え、かけらが割れるたびに作り直していた）
   scene.remove(warm); g0.dispose(); window.__warmMat = warm.material;
-  sub.textContent = '12まいの窓と、天井の丸窓'; clock.getDelta(); frame(); window.__ok = true;
+  sub.textContent = '12まいの窓と、天井の丸窓'; clock.getDelta(); startLoop({ gap: () => LITE.gap(), step, onError: () => ptrs.clear() }); window.__ok = true;
   const veil = document.getElementById('veil'); veil.classList.add('off'); setTimeout(() => { veil.hidden = true; }, 700);
 })();
 </script><script src="./kobo_back.js"></script>

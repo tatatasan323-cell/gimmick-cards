@@ -159,6 +159,7 @@ import { Card } from './card_code.js';
 import { gstats, gcount } from './gdone.js';
 import { Batcher, HIDDEN, twin, compileVisible } from './batch.js';
 import { makeLite } from './lite.js';
+import { startLoop, guardContext, ERRS } from './loop.js';
 import { GEM_Q } from './gemshader.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
@@ -1739,6 +1740,7 @@ let repOK = false;
 addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k) return; e.preventDefault(); const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code; auto = null; hideHint(); });
 addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
 addEventListener('blur', () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); });
+guardContext(cvs, { onLost: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } });
 const keyOn = (k) => { for (const v of held.values()) if (v.k === k) return 1; return 0; };
 { const J = $('joy'), K = $('knob'), setK = (x, y) => { K.style.transform = `translate(${x * 39}px, ${y * 39}px)`; };
   const mv = (e) => { const r = J.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2), L = Math.hypot(dx, dy), k = L > 1 ? 1 / L : 1; joy.x = dx * k; joy.y = dy * k; setK(joy.x, joy.y); };
@@ -2011,17 +2013,15 @@ function stepDrone(dt, now) {
 // 何もしない時も毎秒60コマで描き続け、遅いスマホでは CPU を使いっぱなしだった（本人 2026-10-19「無用な負荷がかからないように」）。さわっている間も60コマだと、CPU4倍遅くで主スレッドが9割を超え、波→花火で画面がカクつき、音が飛んだ（2026-10-25）
 // 間引き方：requestAnimationFrame は毎回受け、まだ早いコマは何もせずに返す（画面の切りかえの拍子にそろう）。setTimeout で待ってから頼む形も試したが、町を描きつづける間は
 //   時計の知らせが後回しにされ（CPU を遅くしない時でも、95%で61ms・最大95ms遅れた）、コマの間が80〜116ms空いてカクついた（2026-10-25）。劇場の中は町を描かないので、0.25秒おきに見るだけ
-let idleAt = 0, lastF = 0; for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(ev, () => { idleAt = performance.now(); }, { passive: true, capture: true });
+let idleAt = 0; for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(ev, () => { idleAt = performance.now(); }, { passive: true, capture: true });
 const resting = () => performance.now() - idleAt > 3000 && !auto && INTRO.t < 0 && joy.id == null && !ud.v && !held.size && !ptrs.size;
 const frameGap = () => LITE.gap();   // かるい表示の段で、さらに下げる（50%は毎秒20コマ）
-function nextFrame() { if (TH.open) { setTimeout(() => requestAnimationFrame(frame), 250); return; } requestAnimationFrame(frame); }
-function frame() {
-  if (performance.now() - lastF < frameGap() - 4) { requestAnimationFrame(frame); return; }   // まだ早いコマは、何もしない
-  const f0 = lastF = performance.now();
+// 1コマの中身。次のコマを先に頼む・まだ早いコマは何もしない・1コマのエラーで止めない・劇場の中は0.25秒おきに見るだけ・GPU を取り上げられたら開き直しの案内は、共通/loop.js
+function step(f0) {
   // 1コマで進める時間は0.05秒まで（前は0.034秒。毎秒30コマで少し遅れたコマが、そのまま「スロー」になった）。毎秒20コマの段では、決めた間隔の1.5倍まで
   const raw = clock.getDelta(), dt = Math.min(Math.max(0.05, frameGap() * 0.0015), raw) * (window.__slow || 1), t = clock.elapsedTime, now = nowS(); timeU.value = t;
-  if (TH.open) { nextFrame(); return; }   // 劇場の中は町の絵を覆っているので、描かない
-  if (SHOP.on) { stepShop(dt, t); renderer.render(SHOP.sc, SHOP.cam); LITE.frame(f0); nextFrame(); return; }
+  if (TH.open) return;   // 劇場の中は町の絵を覆っているので、描かない
+  if (SHOP.on) { stepShop(dt, t); renderer.render(SHOP.sc, SHOP.cam); LITE.frame(f0); return; }
   stepDrone(dt, now); sky.update(cam.position, t);
   waterMat.uniforms.uT.value = t; sqMat.uniforms.uT.value = t; FALL.mat.uniforms.uT.value = t;
   // オーロラ：光の波のあとは明るく、色が流れる
@@ -2105,10 +2105,9 @@ function frame() {
   renderer.render(scene, cam); if (INTRO.t >= 0) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(INTRO.sc, cam); renderer.autoClear = true; }
   if (ready) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}\n${GLDIAG.gpu.slice(0, 48)} VU${VU} D${DENT_N} shaderErr ${GLDIAG.err.length}${GLDIAG.err.length ? '\n' + GLDIAG.err[0].slice(0, 140) : ''}`; frames = 0; tf = performance.now(); }
-  nextFrame();
 }
 let BATCH = null;
-if (fpsEl) window.__dbg = { scene, cam, drone, counts,
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), scene, cam, drone, counts,
   // キャラの当たりの検査：いちばん重なっている量（負＝めり込み。行列どうしは数えない）／当たりを切る／ぶつかった回数／行列の進み
   crowdGap: () => { const A = crowdAgents(); let m = 9, who = null; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { if (A[i].k === 'luc' && A[j].k === 'luc') continue; const g = Math.hypot(A[i].x - A[j].x, A[i].z - A[j].z) - A[i].r - A[j].r; if (g < m) { m = g; who = [A[i].k, A[j].k]; } } return [+m.toFixed(3), who]; },
   crowdOff: (v) => { CROWD.off = v; }, crowdBumps: () => CROWD.bumps, lucA: () => +LUC.a.toFixed(4), lucBy: () => { const q = LUC.by; if (!q) return null; const b = q.b; return q.k === 'gb' ? ['gb', GBS.indexOf(b), b.back, +(b.wait || 0).toFixed(2)] : ['puyo', PUYOS.indexOf(b), +b.hop.toFixed(2), b.hops, +b.next.toFixed(2), b.tgt.map((v) => +v.toFixed(1)), [+b.grp.position.x.toFixed(2), +b.grp.position.z.toFixed(2)], b.home]; },
@@ -2390,6 +2389,6 @@ $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'car
   if (!early) skyBack();
   else { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const t0 = pt; const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; sky.update(cam.position, (n - t0) / 1000); renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
   // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
-  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); frame(); if (q.has('diag')) setTimeout(showDiag, 3000); })();
+  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000); })();
 </script>
 </body></html>
