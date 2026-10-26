@@ -38,6 +38,7 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
 import { makeLite } from './lite.js';
+import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
@@ -225,8 +226,8 @@ const cam = new THREE.PerspectiveCamera(66, 1, 0.05, 500); let yaw = 0, tYaw = 0
 const clampP = (p) => Math.max(-0.2, Math.min(1.45, p));
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; baseFov = w / h < 0.8 ? 68 : 52; const v = new THREE.Vector2(); renderer.getDrawingBufferSize(v); fxMat.uniforms.uScale.value = v.y * 0.5; }
 addEventListener('resize', size); size(); watchOrientation(size);
-const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map();
-const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
+const ray = new THREE.Raycaster(), ptrs = new Map();
+const setRay = (x, y) => rayAt(ray, cvs, cam, x, y);
 const hitGlass = (x, y) => { setRay(x, y); return ray.intersectObjects(panes.map((w) => w.lead), false)[0] || null; };
 // 指の下のかけら（鉛の線の上なら、いちばん近いかけら）
 function pieceAt(x, y) {
@@ -251,7 +252,7 @@ cvs.addEventListener('pointermove', (e) => {
 });
 function up(e) { const s = ptrs.get(e.pointerId); if (!s) return; ptrs.delete(e.pointerId); if (s.glass && !s.moved && performance.now() - s.t < 600) breakAt(e.clientX, e.clientY); }
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, up));
-addEventListener('blur', () => ptrs.clear());
+guardPointers(cvs, ptrs, () => ptrs.clear());   // 離した知らせが来なかった指・画面が隠れた時の片付け（共通/pointers.js）
 const STEP = TAU / N, upBtn = document.getElementById('up');
 const lookUp = (on) => { tPitch = on ? 1.42 : 0.25; if (on) tYaw = Math.round(tYaw / TAU) * TAU; upBtn.textContent = on ? 'まど ▼' : 'てんじょう ▲'; };
 document.getElementById('prev').addEventListener('click', () => { SND.audio(); hideHint(); tYaw = Math.round(tYaw / STEP) * STEP - STEP; if (tPitch > 0.9) lookUp(false); });
@@ -327,7 +328,7 @@ function step(f0) {
   if (window.__prepared) LITE.frame(f0);   // このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} falling ${falling.length} shards ${shards.length} comets ${comets.length} pts ${fxN}`; frames = 0; tf = performance.now(); }
 }
-if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), panes, cam, breakAt, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, lookUp, kinds: () => [...seen].sort(),
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), ptrs: () => ptrs.size, panes, cam, breakAt, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, lookUp, kinds: () => [...seen].sort(),
   proj: (i, x, y) => { const w = panes[i]; w.g.updateMatrixWorld(); const v = w.g.localToWorld(new THREE.Vector3(x, y, 0)).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
   broken: () => panes.reduce((n, w) => n + (w.parts ? w.parts.filter((p) => p && p.state).length : 0), 0), counts: () => ({ falling: falling.length, shards: shards.length, comets: comets.length }), voices: SND.voices, level: SND.level, hissRate: SND.hissRate,
   programs: () => renderer.info.programs.length, ready: () => panes.every((w) => w.ready), veil: () => document.getElementById('veil').hidden };   // 確かめる時に使う：用意した絵の具の数・全部の窓がかけらに分かれたか・幕が開いたか

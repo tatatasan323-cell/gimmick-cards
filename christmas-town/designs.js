@@ -6,13 +6,6 @@ export const mkRand = (seed) => { let s = seed; return () => (s = (s * 16807) % 
 const TAU = Math.PI * 2;
 
 // ---------- 形の道具 ----------
-export const archPt = (t, r = 1, y0 = 0) => {   // 輪郭を0〜1でたどる（下の辺→右→半円→左）。内と外で同じ割合の点をとれる
-  t = ((t % 1) + 1) % 1;
-  if (t < 0.15) return [-r + (t / 0.15) * 2 * r, y0];
-  if (t < 0.32) return [r, y0 + ((t - 0.15) / 0.17) * (ACY - y0)];
-  if (t < 0.83) { const a = ((t - 0.32) / 0.51) * Math.PI; return [Math.cos(a) * r, ACY + Math.sin(a) * r]; }
-  return [-r, ACY - ((t - 0.83) / 0.17) * (ACY - y0)];
-};
 // 縁の帯用：長さに比例してたどる（宝石が等間隔に並ぶ）
 const LB = 2 / 9.94, LS = 2.4 / 9.94, LA = Math.PI / 9.94;
 const archPtL = (t, r = 1, y0 = 0) => {

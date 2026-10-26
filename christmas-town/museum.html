@@ -42,6 +42,7 @@ let RAPIER; const RAPIER_P = import('../vendor/rapier3d-compat@0.14.0/rapier.es.
 import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
 import { gemEnv, gemMaterial, GEM_Q } from './gemshader.js';
 import { makeLite } from './lite.js';
+import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import * as SND from './museum_sound.js';
 import { makeSky } from './space.js';
@@ -955,8 +956,8 @@ function walkable(v) {
   for (const b of BENCHES) { const ox = 0.62 - Math.abs(v.x - b.x), oz = 1.3 - Math.abs(v.z - b.z); if (ox > 0 && oz > 0) { if (ox < oz) v.x += Math.sign(v.x - b.x || 1) * ox; else v.z += Math.sign(v.z - b.z || 1) * oz; } }
   return v;
 }
-const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map(), keys = new Set(), held = new Map();
-const setRay = (x, y) => { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); };
+const ray = new THREE.Raycaster(), ptrs = new Map(), keys = new Set(), held = new Map();
+const setRay = (x, y) => rayAt(ray, cvs, cam, x, y);
 // 何に触れたか：床に落ちた宝石（丸ごとの球で当てる）→ 展示・ツリー・宙の飾り（いちばん手前）→ 床
 function hitAt(x, y) {
   setRay(x, y); let best = null, bt = 1e9;
@@ -977,7 +978,6 @@ function hitAt(x, y) {
 }
 const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
 cvs.addEventListener('pointerdown', (e) => {
-  if (e.isPrimary) ptrs.clear();   // 前の指の記録が残っていたら捨てる（離した知らせが来ない時がある）
   cvs.setPointerCapture(e.pointerId); SND.audio(); hideHint(); if (!ready) return;
   const base = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, yaw: tYaw, pitch: tPitch, t0: nowS() }, looks = [...ptrs.values()].filter((s) => s.mode === 'look');
   if (looks.length) { ptrs.set(e.pointerId, { ...base, mode: 'look' }); return; }   // 2本目の指＝拡大縮小
@@ -1001,7 +1001,8 @@ function endPtr(e) {
   const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (!s) return; const quick = nowS() - s.t0 < 0.4;
   if (s.mode === 'press' && quick) { if (s.tree) { if (!tree.pressing) treeTap(); } else if (s.bench) { if (!s.bench.pressing) benchTap(s.bench); } else if (s.crystal) { if (!CRY.pressing) crystalTap(); } else if (!s.ex.pressing) tapGem(s.ex); }
 }
-['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); addEventListener('blur', () => { ptrs.clear(); held.clear(); }); document.addEventListener('visibilitychange', () => held.clear());
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); addEventListener('blur', () => held.clear()); document.addEventListener('visibilitychange', () => held.clear());
+guardPointers(cvs, ptrs, () => ptrs.clear());   // 離した知らせが来なかった指・画面が隠れた時の片付け（共通/pointers.js）
 cvs.addEventListener('wheel', (e) => { fovZ = clamp(fovZ * (1 + Math.sign(e.deltaY) * 0.08), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); e.preventDefault(); }, { passive: false });
 // キー：文字ではなく「キーの場所」で受ける（日本語入力がオンだと、押した時の文字が届かない）。
 // 離した知らせが届かないことがある（本人「離しても止まらない」が2度）。押しっぱなしの間はくり返しの知らせが続くので、
@@ -1014,17 +1015,17 @@ const joy = { x: 0, y: 0, id: null };
   J.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) mv(e); });
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) J.addEventListener(t, (e) => { if (e.pointerId === joy.id) { joy.id = null; joy.x = joy.y = 0; setK(0, 0); } }); }
 const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', KeyQ: 'tl', KeyE: 'tr' };
-let lastKey = null, imeSaid = false;
+let lastKey = null, imeSaid = false, repOK = false;   // repOK＝この端末で、キーのくり返しの知らせを一度でも見た（港町と同じ）
 addEventListener('keydown', (e) => {
   const k = KEYMAP[e.code]; if (!k) return; e.preventDefault();
-  const h = held.get(e.code); held.set(e.code, { k, t: nowS(), rep: !!h }); lastKey = e.code;
+  const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code;
   if (!imeSaid && (e.key === 'Process' || e.isComposing || e.keyCode === 229)) { imeSaid = true; const el = document.getElementById('hint'); el.textContent = '日本語入力がオンです。「半角/全角」キーでオフにすると、キーの反応がよくなります'; el.style.opacity = 1; setTimeout(() => { el.style.opacity = 0; }, 5000); }
   else hideHint();
 });
 addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
 function readKeys(now) {
   const h = lastKey && held.get(lastKey);
-  if (h && now - h.t > (h.rep ? 0.45 : 0.8)) { held.clear(); lastKey = null; }   // くり返しが始まる前は長めに待つ（OSの設定で0.25〜1秒）
+  if (h && repOK && now - h.t > (h.rep ? 0.45 : 0.8)) { held.clear(); lastKey = null; }   // くり返しが始まる前は長めに待つ（OSの設定で0.25〜1秒）。くり返しを送らない端末では、離した知らせを信じる
   keys.clear(); for (const v of held.values()) keys.add(v.k);
 }
 
@@ -1152,7 +1153,7 @@ rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticCo
   try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
   LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; liteApply(LITE.lv); ready = true; window.__ok = true; clock.getDelta(); startLoop({ gap: () => LITE.gap(), step, onError: () => ptrs.clear() }); setTimeout(readMoon, 1200);
 })();
-if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), exhibits, tree, cam, scene, renderer,
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), ptrs: () => ptrs.size, exhibits, tree, cam, scene, renderer,
   // 宙の宝石の当たりの検査：2つを正面からぶつかるコースに置く／いちばん重なっている量（負＝めり込み）／はじき合った回数。off＝当たりを切る（判定が効くかの確かめ用）
   flyAim2: () => { const L = exhibits.filter((e) => e.fly && e.state === 'ok' && e.fly.p); const [a, b] = L; a.fly.p.set(-1.2, 3.2, 2); b.fly.p.set(1.2, 3.2, 2); a.fly.v.set(2.4, 0, 0); b.fly.v.set(-2.4, 0, 0); for (const F of [a.fly, b.fly]) { F.c.set(0, 3.2, 2); for (let k = 0; k < 3; k++) F.ph[k] = -flyT * F.w[k]; } return [a.spec.id, b.spec.id]; },   // 2つの行き先を真ん中の1点にそろえて、正面からぶつける
   flyGap: () => { const L = exhibits.filter((e) => e.fly && e.state === 'ok' && e.fly.p); let m = 9; for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) m = Math.min(m, L[i].fly.p.distanceTo(L[j].fly.p) - L[i].fly.r - L[j].fly.r); return +m.toFixed(3); },

@@ -194,7 +194,6 @@ function wave_() { const S = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 
 function ripple_(k) { const S = [1046.5, 1318.5, 1568, 2093, 2637], f = S[k]; tone(f, f, 0.014, 0, 0.6); tone(f * 1.5, f * 1.5, 0.007, 0.06, 0.45); }
 // 盛大な花火：低いドン（遠くの山にこだま）と、パチパチ
 function boom_(big = 1) { tone(110, 45, 0.12 * big, 0, 0.7, 'triangle'); tone(70, 40, 0.05 * big, 0.25, 0.6, 'triangle'); hiss(0.05 * big, 0, 0.6, 'lowpass', 600); for (let i = 0; i < 7; i++) hiss(r(0.012, 0.025), 0.2 + i * r(0.05, 0.12), r(0.02, 0.05), 'bandpass', r(2500, 6500), 1.2); }
-function pop_() { tone(180, 90, 0.08, 0, 0.25, 'triangle'); for (let i = 0; i < 6; i++) hiss(r(0.02, 0.04), 0.05 + i * r(0.03, 0.08), r(0.03, 0.06), 'bandpass', r(2500, 6000), 1.2); }
 // そりの鈴（サンタ）
 // 鈴：シャラ・ラ・ラン（小さな鈴を軽く振る）。高く澄んだ音に、鈴らしいずれた倍音をのせ、間をつめながら数回、最後に長く響く
 function suzu_() { const base = r(2600, 3000); for (let i = 0; i < 7; i++) { const tt = i * (0.07 - i * 0.004) + (i > 4 ? 0.12 : 0), f = base * (i % 2 ? 1.12 : 1) * r(0.98, 1.02), v = 0.022 * (i === 6 ? 1.6 : 1); tone(f, f, v, tt, i === 6 ? 1.4 : 0.5); tone(f * 2.76, f * 2.76, v * 0.35, tt, 0.35); tone(f * 5.4, f * 5.4, v * 0.15, tt, 0.2); } }
@@ -285,7 +284,7 @@ function prebake(keys) { let i = 0; const step = () => { if (!ac) return; while 
 for (let k = 0; k < 6; k++) { def('chime' + k, 1, () => chime_(k)); def('candle' + k, 1, () => candle_(k)); }
 for (let k = 0; k < 5; k++) def('ripple' + k, 1, () => ripple_(k));
 def('wave', 2, wave_); def('boom1', 4, () => boom_(1)); def('boom1.2', 2, () => boom_(1.2)); def('bell', 1, bell_, 2, 10.5); def('tap', 1, tap_); def('suzu', 3, suzu_); def('glassTink', 3, glassTink_); def('whoosh', 2, whoosh_);
-def('ascend', 1, ascend_, 1, 4); def('fall', 1, fall_); def('pop', 3, pop_); def('blow', 1, blow_); def('fanfare', 1, fanfare_);
+def('ascend', 1, ascend_, 1, 4); def('fall', 1, fall_); def('blow', 1, blow_); def('fanfare', 1, fanfare_);
 def('candyBend', 1, candyBend_); def('candyPop', 2, candyPop_); def('candySpring', 1, candySpring_); def('candyGrow', 2, candyGrow_); def('spoonDown', 1, spoonDown_); def('bigScoop', 3, bigScoop_); def('spoonUp', 1, spoonUp_, 1, 3.5);
 def('mtnRestore', 1, mtnRestore_, 1, 8); def('jingle', 3, jingle_); def('silverShine', 1, silverShine_); def('goldShine', 2, goldShine_); def('forkStab', 2, forkStab_); def('pickStab', 1, pickStab_); def('pickUp', 1, pickUp_, 1, 3); def('skyBite', 2, skyBite_);
 const PRE = ['wave', 'ripple0', 'ripple1', 'ripple2', 'ripple3', 'ripple4', 'boom1', 'boom1', 'boom1', 'boom1', 'boom1.2', 'boom1.2', 'tap', 'chime0', 'chime1', 'chime2', 'chime3', 'chime4', 'chime5', 'suzu', 'whoosh', 'glassTink', 'wave'];
@@ -294,9 +293,7 @@ export const chime = (k = 0) => play('chime' + (((k % 6) + 6) % 6));
 export const candle = (k = 0) => play('candle' + (((k % 6) + 6) % 6));
 export const ripple = () => play('ripple' + ((Math.random() * 5) | 0));
 export const boom = (big = 1) => { const key = 'boom' + big; if (!FX[key]) def(key, 2, () => boom_(big)); play(key); };   // 大きさごとに書き出す（パチパチは big で変わらない＝元の鳴り方のまま）
-export const bell = () => play('bell'), whoosh = () => play('whoosh'), ascend = () => play('ascend'), fall = () => play('fall'), tap = () => play('tap'), wave = () => play('wave'), pop = () => play('pop');
+export const bell = () => play('bell'), whoosh = () => play('whoosh'), ascend = () => play('ascend'), fall = () => play('fall'), tap = () => play('tap'), wave = () => play('wave');
 export const suzu = () => play('suzu'), glassTink = () => play('glassTink'), blow = () => play('blow'), candyBend = () => play('candyBend'), candyPop = () => play('candyPop'), candySpring = () => play('candySpring');
 export const candyGrow = () => play('candyGrow'), spoonDown = () => play('spoonDown'), bigScoop = () => play('bigScoop'), spoonUp = () => play('spoonUp'), mtnRestore = () => play('mtnRestore'), jingle = () => play('jingle');
 export const silverShine = () => play('silverShine'), goldShine = () => play('goldShine'), forkStab = () => play('forkStab'), pickStab = () => play('pickStab'), pickUp = () => play('pickUp'), skyBite = () => play('skyBite');
-// 確かめる時に使う：書き出しの済んだ音の数
-export const baked = () => Object.fromEntries(Object.entries(FX).filter(([, e]) => e.L.length).map(([k, e]) => [k, e.L.length]));

@@ -4,7 +4,7 @@
 // 祝いの灯り（ステーにそって色の電球）は Points で返す（光の波が通ると虹色にする）
 import * as THREE from 'three';
 
-const TAU = Math.PI * 2, SS = THREE.MathUtils.smoothstep;
+const SS = THREE.MathUtils.smoothstep;
 let MAT = null;
 function mats(env) {
   if (MAT) return MAT;

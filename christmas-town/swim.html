@@ -34,6 +34,7 @@ html,body{margin:0;height:100%;background:#03050f;overflow:hidden;font-family:"H
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
 import { makeLite } from './lite.js';
+import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
@@ -163,9 +164,8 @@ function runJobs(budget) {
   for (const [it, j] of jobs) { let r; do { r = j.gen.next(); } while (!r.done && performance.now() - t < budget); if (r.done) { jobs.delete(it); swapType(it, r.value); j.thens.forEach((f) => f()); } if (performance.now() - t >= budget) break; }
 }
 // 作り直した直後、その所の格子を少しずらして始める。amount＞0＝外へ伸びた所から縮む、＜0＝へこんだ所から膨らむ
-// ねっとり（ooze）＝揺れずに、ゆっくり元の形へ。はずむ（wobbleIn）＝表面張力で引きこんで、少し行きすぎてプルンと揺れる
+// はずむ（wobbleIn）＝表面張力で引きこんで、少し行きすぎてプルンと揺れる
 function displace(L, p, n, amount, radius) { for (let i = 0; i < L.N; i++) { const dx = L.r[i * 3] - p.x, dy = L.r[i * 3 + 1] - p.y, dz = L.r[i * 3 + 2] - p.z, w = Math.exp(-(dx * dx + dy * dy + dz * dz) / (radius * radius)); if (w < 0.03) continue; L.x[i * 3] += n.x * amount * w; L.x[i * 3 + 1] += n.y * amount * w; L.x[i * 3 + 2] += n.z * amount * w; } }
-function ooze(it, p, n, amount, radius = 0.55) { const L = activate(it).lat; Object.assign(L.P, { kg: 1.2, c: 3.4, cd: 2, xs: 0.12 }); it.oozeUntil = performance.now() / 1000 + 2.2; displace(L, p, n, amount, radius); }
 const WOBBLE = { ks: 18, kg: 2.0, c: 1.1, cd: 1.2, xs: 0.1 };
 function wobbleIn(it, p, n, amount, radius = 0.6) { const L = activate(it).lat; Object.assign(L.P, WOBBLE); it.oozeUntil = performance.now() / 1000 + 3.5; displace(L, p, n, amount, radius); return L; }
 const drops = [], DROP_GEO = new THREE.IcosahedronGeometry(1, 4), dropMats = new Map();
@@ -221,8 +221,8 @@ function shatterBody(h) {
 }
 
 // ---------- 指 ----------
-const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), holds = new Map();
-function setRay(e) { const r = cvs.getBoundingClientRect(); ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, cam); }
+const ray = new THREE.Raycaster(), holds = new Map();
+function setRay(e) { rayAt(ray, cvs, cam, e.clientX, e.clientY); }
 cvs.addEventListener('pointerdown', (e) => {
   cvs.setPointerCapture(e.pointerId); hideHint(); setRay(e);
   for (const it of actives) for (const g of it.act.geos) g.computeBoundingSphere();
@@ -256,7 +256,7 @@ function release(e) {
 }
 const releaseAll = () => { for (const id of [...holds.keys()]) release({ pointerId: id }); };
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, release));
-addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', releaseAll);
+guardPointers(cvs, holds, releaseAll);   // 離した知らせが来なかった指・画面が隠れた時の片付け（共通/pointers.js）
 cvs.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------- 毎コマ ----------
@@ -332,7 +332,7 @@ function step() {
 }
 const volOf = (it) => { let V = 0; for (const mm of it.g.userData.meshes) { if (mm.kind !== 'o' || mm.q.p.solid) continue; const g = mm.geo0, P = g.attributes.position.array, I = g.index.array; for (let k = 0; k < I.length; k += 3) { const a = I[k] * 3, b = I[k + 1] * 3, c = I[k + 2] * 3; V += (P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c])) / 6; } } return V; };
 const jag = (it, rend) => { if (!it.act) return 0; const L = it.act.lat, X = rend ? L.xr : L.x, lap = new Float32Array(L.N * 3), qs = []; for (let e = 0; e < L.E; e++) { const a = L.sa[e] * 3, b = L.sb[e] * 3; for (let k = 0; k < 3; k++) { lap[a + k] += X[b + k] - L.r[b + k]; lap[b + k] += X[a + k] - L.r[a + k]; } } for (let i = 0; i < L.N; i++) { let q = 0; for (let k = 0; k < 3; k++) { const d = X[i * 3 + k] - L.r[i * 3 + k] - lap[i * 3 + k] / L.deg[i]; q += d * d; } qs.push(Math.sqrt(q)); } qs.sort((a, b) => a - b); return qs[Math.floor(qs.length * 0.97)] / L.h; };   // 細かい凹凸＝となりの平均からのずれ（上位3%の値・格子の間隔で割る）
-if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), mem: () => [renderer.info.memory.geometries, renderer.info.memory.textures, renderer.info.programs.length, Math.round((performance.memory ? performance.memory.usedJSHeapSize : 0) / 1e6)], yaw: () => yaw, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, water: (o) => Object.assign(MODES.water, o), bring: (name, d) => { const it = insts.find((x) => x.type0.spec.name === name && !x.frags && !x.cuts.length); it.base.copy(pos).addScaledVector(fwd, d); it.g.position.copy(it.base); it.vel.set(0, 0, 0); it.spin = 0; it.g.rotation.set(0, 0, 0); return insts.indexOf(it); }, count: () => insts.length, frags: () => drops.filter((d) => d.cell).length, volAll: (i) => { const it = insts[i]; return volOf(it) + drops.filter((d) => d.it === it).reduce((v, d) => v + d.vol, 0); }, insts, cam, pos, actives, drops, holds, joy, jobs: () => jobs.size, vol: (i) => volOf(insts[i]), jag: (i, rend) => jag(insts[i], rend), screenOf: (i) => { const v = insts[i].g.position.clone().project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, vel: (i) => insts[i].vel.length(), dist: (i) => insts[i].g.position.distanceTo(cam.position), base: (i) => insts[i].base.toArray(), setP: (o) => { Object.assign(MODES[mode].P, o); for (const it of actives) Object.assign(it.act.lat.P, o); }, setMode: (m) => document.querySelector(`#modes [data-m=${m}]`).click(), pickAt: (x, y) => { setRay({ clientX: x, clientY: y }); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.inst.type.spec.name : null; } };
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), ptrs: () => holds.size, mem: () => [renderer.info.memory.geometries, renderer.info.memory.textures, renderer.info.programs.length, Math.round((performance.memory ? performance.memory.usedJSHeapSize : 0) / 1e6)], yaw: () => yaw, look: (y, p) => { yaw = tYaw = y; pitch = tPitch = p; }, water: (o) => Object.assign(MODES.water, o), bring: (name, d) => { const it = insts.find((x) => x.type0.spec.name === name && !x.frags && !x.cuts.length); it.base.copy(pos).addScaledVector(fwd, d); it.g.position.copy(it.base); it.vel.set(0, 0, 0); it.spin = 0; it.g.rotation.set(0, 0, 0); return insts.indexOf(it); }, count: () => insts.length, frags: () => drops.filter((d) => d.cell).length, volAll: (i) => { const it = insts[i]; return volOf(it) + drops.filter((d) => d.it === it).reduce((v, d) => v + d.vol, 0); }, insts, cam, pos, actives, drops, holds, joy, jobs: () => jobs.size, vol: (i) => volOf(insts[i]), jag: (i, rend) => jag(insts[i], rend), screenOf: (i) => { const v = insts[i].g.position.clone().project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, vel: (i) => insts[i].vel.length(), dist: (i) => insts[i].g.position.distanceTo(cam.position), base: (i) => insts[i].base.toArray(), setP: (o) => { Object.assign(MODES[mode].P, o); for (const it of actives) Object.assign(it.act.lat.P, o); }, setMode: (m) => document.querySelector(`#modes [data-m=${m}]`).click(), pickAt: (x, y) => { setRay({ clientX: x, clientY: y }); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.inst.type.spec.name : null; } };
 startLoop({ gap: () => LITE.gap(), step: (f0) => { step(); if (ready) LITE.frame(f0); }, onError: () => { try { releaseAll(); } catch (e2) { holds.clear(); } } });   // LITE.frame＝このコマの手間と間隔で、画質の段を上げ下げ（共通/lite.js）
 buildAll().then(() => { ready = true; window.__ok = true; });
 </script><script src="./kobo_back.js"></script>

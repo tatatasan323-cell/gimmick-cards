@@ -145,4 +145,3 @@ export function makeFork(renderer, env0) {
   const zs = END - 0.5, zr = 1.75, O = ornaments(tilt, env, zs, forkY(0, zs) + thick(zs) / 2 + 0.01, zr, forkY(0, zr) + thick(zr) / 2 + 0.06);
   const S = { g, tilt, env }; addMetal(S, body, M, O); return S;
 }
-export const SPOON_SHAPE = { A, B, END };
