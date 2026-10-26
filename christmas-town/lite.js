@@ -85,8 +85,9 @@ export function makeLite({ page, levels, baseGap, onChange, tag, onPick }) {
       b.textContent = name; if (sub) { const s = document.createElement('small'); s.textContent = sub; b.append(s); }
       b.addEventListener('click', (e) => { e.stopPropagation(); choose(v); closeMenu(); }); menu.append(b); }
   }
-  function place() { const r = tag.getBoundingClientRect(), below = r.top + r.height / 2 < innerHeight / 2; menu.style.right = Math.max(8, innerWidth - r.right) + 'px';
-    if (below) { menu.style.top = r.bottom + 6 + 'px'; menu.style.bottom = ''; } else { menu.style.bottom = innerHeight - r.top + 6 + 'px'; menu.style.top = ''; } }
+  function place() { const r = tag.getBoundingClientRect(), Z = parseFloat(getComputedStyle(document.body).zoom) || 1, below = r.top + r.height / 2 < innerHeight / 2;   // 画面の点を、部品の伸び縮み（共通/uiscale.js の zoom）で割って入れる
+    menu.style.right = Math.max(8, (innerWidth - r.right) / Z) + 'px';
+    if (below) { menu.style.top = (r.bottom / Z + 6) + 'px'; menu.style.bottom = ''; } else { menu.style.bottom = ((innerHeight - r.top) / Z + 6) + 'px'; menu.style.top = ''; } }
   const outside = (e) => { if (menu && !menu.hidden && !menu.contains(e.target) && e.target !== tag) closeMenu(); };   // 外をさわったら閉じる（その指は、そのまま遊びに使われる）
   function openMenu() {
     if (!menu) { if (!document.getElementById('liteMenuCss')) { const s = document.createElement('style'); s.id = 'liteMenuCss'; s.textContent = CSS; document.head.append(s); }
@@ -99,6 +100,11 @@ export function makeLite({ page, levels, baseGap, onChange, tag, onPick }) {
     tag.addEventListener('pointerdown', (e) => e.stopPropagation());   // 札の上の指は、遊び（なぞる・さわる）に渡さない
     tag.addEventListener('click', (e) => { e.stopPropagation(); if (menu && !menu.hidden) closeMenu(); else openMenu(); });
     tag.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMenu(); } }); }
+  // ブラウザの拡大・縮小（パソコン）や、画面の違う窓へ移した時は devicePixelRatio が変わる。その時は画素の倍率を作り直す（本人 2026-10-27：拡大すると窓の絵が荒くなった）
+  let lastDpr = devicePixelRatio || 1;
+  const dprCheck = () => { const d = devicePixelRatio || 1; if (Math.abs(d - lastDpr) > 1e-3) { lastDpr = d; onChange(lv, 'dpr'); } };
+  addEventListener('resize', dprCheck);
+  (function watch() { try { matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`).addEventListener('change', () => { dprCheck(); watch(); }, { once: true }); } catch (e) { /* 古い端末は resize だけ */ } })();
   show();
   const api = { get lv() { return lv; }, get fixed() { return fixedNow(); }, get choice() { return fixedLv ? String(fixedLv) : 'auto'; }, gap, dpr, frame, choose, setFixed, show, openMenu, closeMenu,
     state: () => ({ lv, fixed: fixedNow(), forced: !!forced, choice: fixedLv ? String(fixedLv) : 'auto', dpr: dpr(), gap: +gap().toFixed(1), load: +stat.load.toFixed(3), late: +stat.late.toFixed(3), upBlocked, quiet: performance.now() < settle, menu: !!(menu && !menu.hidden), log: log.slice() }) };

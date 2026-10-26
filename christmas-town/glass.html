@@ -38,6 +38,8 @@ html,body{margin:0;height:100%;background:#0c0912;overflow:hidden;font-family:"H
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
 import { makeLite } from './lite.js';
+import { scaleUI } from './uiscale.js';
+scaleUI();   // パソコンでは、画面の上の部品を窓の大きさに合わせて伸び縮み（ブラウザの拡大・縮小でも 3D と同じ釣り合い）
 import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { guardLeave } from './stay.js';

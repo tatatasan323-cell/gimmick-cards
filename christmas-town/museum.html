@@ -39,6 +39,8 @@ let RAPIER; const RAPIER_P = import('../vendor/rapier3d-compat@0.14.0/rapier.es.
 import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
 import { gemEnv, gemMaterial, GEM_Q } from './gemshader.js';
 import { makeLite } from './lite.js';
+import { scaleUI } from './uiscale.js';
+scaleUI();   // パソコンでは、画面の上の部品を窓の大きさに合わせて伸び縮み（ブラウザの拡大・縮小でも 3D と同じ釣り合い）
 import { makeWalkpad } from './walkpad.js';
 import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';

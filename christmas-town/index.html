@@ -67,7 +67,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 .th .t{margin:10px 2px 0;min-width:0}.th .t b{display:block;font-size:15.5px;overflow-wrap:anywhere}.th .t small{display:block;font-size:12px;color:#f3c98a;margin-top:3px;line-height:1.55}
 .th .full{display:block;margin:10px 2px 0;text-align:center;font:inherit;font-size:14px;font-weight:800;border-radius:999px;padding:9px 12px;background:#c8732e;color:#fff;text-decoration:none}.th .full[aria-disabled="true"]{background:#4a1a22;color:#d8b8a8;cursor:default}
 #menu{position:fixed;inset:0;z-index:25;background:rgba(10,6,20,.45);display:flex;align-items:flex-end;justify-content:center}#menu[hidden]{display:none}
-#sheet{width:min(100%,520px);max-height:82vh;box-sizing:border-box;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:#fff8ee;color:#2a1a10;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(0,0,0,.4)}
+#sheet{width:min(100%,520px);max-height:calc(82vh / var(--uiz, 1));box-sizing:border-box;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;background:#fff8ee;color:#2a1a10;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(0,0,0,.4)}
 #tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}#tabs button{font:inherit;font-size:12.5px;line-height:1.2;font-weight:800;border:0;border-radius:999px;padding:7px 2px;background:#eadccb;color:#5a3a1a;cursor:pointer}#tabs button.on{background:#c8732e;color:#fff}
 #pane{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
 .it{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #ecdcc8}.it .mtx{flex:1;min-width:0;text-align:left}.it b{display:block;font-size:14.5px}.it small{display:block;font-size:12px;color:#8a5a2a;margin-top:2px;line-height:1.5}
@@ -159,6 +159,8 @@ import { Card } from './card_code.js';
 import { gstats, gcount } from './gdone.js';
 import { Batcher, HIDDEN, twin, compileVisible } from './batch.js';
 import { makeLite } from './lite.js';
+import { scaleUI, uiZoom } from './uiscale.js';
+scaleUI();   // パソコンでは、画面の上の部品を窓の大きさに合わせて伸び縮み（ブラウザの拡大・縮小でも 3D と同じ釣り合い）
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { GEM_Q } from './gemshader.js';
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
@@ -1773,10 +1775,10 @@ const COT = { el: $('cotton'), cv: $('cotC'), inn: $('cotIn'), puffs: [], B: nul
 const COT_COL = [['#ffd2e8', '240,150,196'], ['#d2e9ff', '140,188,238'], ['#e8dcff', '176,154,236'], ['#ffe0ef', '240,168,204']];   // 綿あめの色と、そのかげ
 const SLOW = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function cotLayout() {
-  const dpr = Math.min(2, devicePixelRatio || 1); COT.cv.width = innerWidth * dpr; COT.cv.height = innerHeight * dpr;
+  const dpr = Math.min(2, devicePixelRatio || 1); COT.cv.width = innerWidth * dpr; COT.cv.height = innerHeight * dpr;   // 雲の位置は部品の中の大きさで測るので、描く倍率に部品の伸び縮み（zoom）を掛ける
   const I = COT.inn, cx = I.offsetLeft + I.offsetWidth / 2, cy = I.offsetTop + I.offsetHeight / 2, hw = I.offsetWidth / 2 + 14, hh = I.offsetHeight / 2 + 12, n = Math.round((hw + hh) / 15);   // 文の枠は、ふわっと出る動き（縮めて下げた形）を除いた大きさで測る
   const edge = (a, ex, ey) => { const c = Math.cos(a), s = Math.sin(a); return [cx + Math.sign(c) * Math.sqrt(Math.abs(c)) * ex, cy + Math.sign(s) * Math.sqrt(Math.abs(s)) * ey]; };   // 角の丸い四角に沿う形（超楕円）
-  COT.B = { cx, cy, hw, hh, dpr }; COT.puffs = [];
+  COT.B = { cx, cy, hw, hh, dpr: dpr * uiZoom() }; COT.puffs = [];
   const fib = (k) => Array.from({ length: k }, () => [rnd(0, TAU), rnd(0.4, 0.95), rnd(0.4, 1.3), Math.random() < 0.35]), hair = (k) => Array.from({ length: k }, () => [rnd(0, TAU), rnd(1.04, 1.16), Math.random() < 0.3]);
   for (let i = 0; i < n; i++) { const [x, y] = edge((i / n) * TAU + rnd(-0.08, 0.08), hw, hh); COT.puffs.push({ x, y, R: rnd(26, 42), col: COT_COL[(i + (i >> 2)) % 4], d: (i % 5) * 0.035 + rnd(0, 0.05), w: fib(10), h: hair(14) }); }
   for (let i = 0; i < n; i++) { const [x, y] = edge(((i + 0.5) / n) * TAU, hw - 8, hh - 6); COT.puffs.push({ x, y, R: rnd(18, 28), col: COT_COL[(i + 2) % 4], d: 0.06 + (i % 4) * 0.03, w: fib(5), h: [] }); }   // 内がわの、もう一重
@@ -2344,11 +2346,11 @@ function startIntro() { const q2 = new URLSearchParams(location.search); if ((lo
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion); INTRO.g.position.copy(cam.position).addScaledVector(fwd, D).addScaledVector(new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), vh * (two ? 0.1 : 0.14)); INTRO.g.quaternion.copy(cam.quaternion); INTRO.g.scale.setScalar(S);
   // 副題：題字のいちばん下の段の、すぐ下に（画面の座標へ写して置く）
   INTRO.g.updateMatrixWorld(true); cam.updateMatrixWorld(); const low = Math.min(...rows.map((r, ri) => ((rows.length - 1) / 2 - ri) * 1.15 - 0.5)), P = new THREE.Vector3(0, low - 0.12, 0).applyMatrix4(INTRO.g.matrixWorld).project(cam);
-  const sub = $('introSub'); sub.style.top = ((-P.y * 0.5 + 0.5) * innerHeight).toFixed(0) + 'px'; sub.textContent = ''; [...'はじいて、こわして、とろける。'].forEach((ch, i) => { const e = document.createElement('span'); e.textContent = ch; e.style.animationDelay = (1.15 + i * 0.06).toFixed(2) + 's'; sub.appendChild(e); }); sub.hidden = false; sub.classList.remove('bye');
+  const Z = uiZoom(), sub = $('introSub'); sub.style.top = ((-P.y * 0.5 + 0.5) * innerHeight / Z).toFixed(0) + 'px'; sub.textContent = ''; [...'はじいて、こわして、とろける。'].forEach((ch, i) => { const e = document.createElement('span'); e.textContent = ch; e.style.animationDelay = (1.15 + i * 0.06).toFixed(2) + 's'; sub.appendChild(e); }); sub.hidden = false; sub.classList.remove('bye');
   // URLだけで開いた時は、副題の下に案内の一文（何のアプリか）。届いたカードがある時は、お知らせが出るので出さない。下に入りきらない画面（横向きのスマホなど）は、上の題の下へ
-  const subTop = (-P.y * 0.5 + 0.5) * innerHeight, lead = $('introLead'); lead.hidden = !!INVITE; lead.classList.remove('bye'); let tapTop = subTop + 54;
-  if (!INVITE) { lead.style.top = (subTop + 40).toFixed(0) + 'px'; const lh = lead.offsetHeight; if (subTop + 40 + lh + 16 + 58 < innerHeight - 8) tapTop = subTop + 40 + lh + 16; else lead.style.top = ($('top').getBoundingClientRect().bottom + 6).toFixed(0) + 'px'; }
-  $('introTap').style.top = tapTop.toFixed(0) + 'px';
+  const subTop = (-P.y * 0.5 + 0.5) * innerHeight, lead = $('introLead'); lead.hidden = !!INVITE; lead.classList.remove('bye'); let tapTop = subTop + 54 * Z;
+  if (!INVITE) { lead.style.top = (subTop / Z + 40).toFixed(0) + 'px'; const lh = lead.offsetHeight * Z; if (subTop + (40 + 16 + 58) * Z + lh < innerHeight - 8) tapTop = subTop + 56 * Z + lh; else lead.style.top = ($('top').getBoundingClientRect().bottom / Z + 6).toFixed(0) + 'px'; }
+  $('introTap').style.top = (tapTop / Z).toFixed(0) + 'px';
   INTRO.g.visible = true; INTRO.t = 0; $('hint').style.opacity = 0; }
 function introEnd() { INTRO.t = -1; INTRO.sc.remove(INTRO.g); for (const L of INTRO.L) { L.m.geometry.dispose(); L.m.material.dispose(); } INTRO.L.length = 0; $('introSub').hidden = true; $('introLead').hidden = true; $('introTap').hidden = true; $('hint').style.opacity = '';
   if (CARD_GOT && !INVITE) $('inviteBtn').hidden = false; }   // このタブで前にもらったカード（カードを見てから戻った時など）は、お知らせなしで封筒のボタンだけ
