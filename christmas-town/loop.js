@@ -26,8 +26,8 @@ export function guardContext(canvas, { onLost, onRestored } = {}) {
   let el = null, T = 0;
   const show = () => {
     if (!el) {
-      el = document.createElement('div'); el.setAttribute('role', 'alert');
-      el.style.cssText = 'position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(3,5,15,.6);padding:16px;color:#eef6ff;text-align:center;font:800 15px/1.8 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif';
+      el = document.createElement('div'); el.setAttribute('role', 'alert');   // 下の字（港町の開幕の副題など）が透けて案内と混ざらないよう、幕は濃いめ（.6 だと「はじい［ボタン］ける。」と読めた）
+      el.style.cssText = 'position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(3,5,15,.88);padding:16px;color:#eef6ff;text-align:center;font:800 15px/1.8 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif';
       el.innerHTML = '<div>画面の描きこみが止まりました<br><small>スマホの空きメモリが足りなくなったようです</small><br><button type="button" style="margin-top:12px;font:inherit;padding:11px 22px;border-radius:999px;border:0;background:#ffe27a;color:#3a2a00">もう一度ひらく</button></div>';
       el.querySelector('button').addEventListener('click', () => location.reload()); document.body.append(el);
     }
