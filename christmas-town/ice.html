@@ -46,6 +46,7 @@ import { STATUES } from './statues.js';
 import { GEMS, makeGem, gemLabel } from './gems.js';
 import { gemEnv, GEM_Q } from './gemshader.js';
 import { makeLite } from './lite.js';
+import { makeWalkpad } from './walkpad.js';
 import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import * as SND from './ice_sound.js';
@@ -319,6 +320,12 @@ function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, 
 addEventListener('resize', size); size(); watchOrientation(size);
 const nearestAngle = (cur, a) => cur + ((((a - cur) % TAU) + TAU * 1.5) % TAU) - TAU / 2;
 function overview() { focus = -1; tTGT.set(0, 1.0, 0); tDist = portrait() ? 12.5 : 9; tPitch = 0.42; markButtons(); }   // 最初の位置は、彫像に近め（本人 2026-10-16）
+// 広場の中だけ：注目点は広場の端から内側へ。氷像の中には入らない（押し出す）。カメラも氷像の中に入れない
+const STAT_R = (S) => Math.max(Math.abs(S.B0[0]), Math.abs(S.B1[0]), Math.abs(S.B0[2]), Math.abs(S.B1[2])), WALK_R = PLAZA - 0.6;
+function keepIn(p, pad) { const r = Math.hypot(p.x, p.z); if (r > WALK_R) { p.x *= WALK_R / r; p.z *= WALK_R / r; }
+  for (const st of statues) { const dx = p.x - st.grp.position.x, dz = p.z - st.grp.position.z, d = Math.hypot(dx, dz), m = STAT_R(st.S) + pad; if (d < m && d > 1e-6) { p.x = st.grp.position.x + (dx / d) * m; p.z = st.grp.position.z + (dz / d) * m; } } }
+function keepCam() { for (const st of statues) { if (cam.position.y > st.top + 0.4) continue; const dx = cam.position.x - st.grp.position.x, dz = cam.position.z - st.grp.position.z, d = Math.hypot(dx, dz), m = STAT_R(st.S) + 0.45;
+    if (d < m && d > 1e-6) { cam.position.x = st.grp.position.x + (dx / d) * m; cam.position.z = st.grp.position.z + (dz / d) * m; cam.lookAt(TGT); } } }
 function focusOn(i) { const st = statues[i]; focus = i; tTGT.copy(st.grp.position).setY(st.top * 0.45); tYaw = nearestAngle(tYaw, st.a); tDist = portrait() ? 6.8 : 5.6; tPitch = 0.22; markButtons(); }
 const ray = new THREE.Raycaster(), ptrs = new Map(), INV = new THREE.Matrix4(), O = new THREE.Vector3(), D = new THREE.Vector3();
 const setRay = (x, y) => rayAt(ray, cvs, cam, x, y);
@@ -348,6 +355,10 @@ function grindAt(st, h) {
   return rem;
 }
 const hideHint = () => { document.getElementById('hint').style.opacity = 0; };
+// 左の丸とキーで歩く（共通/walkpad.js。美術館と同じ見た目と操作。丸の上の指は、削る・まわすに渡らない）
+const WALK = makeWalkpad({ onStart: () => { SND.audio(); hideHint(); }, onIme: () => { const el = document.getElementById('hint'); el.textContent = '日本語入力がオンです。「半角/全角」キーでオフにすると、キーの反応がよくなります'; el.style.opacity = 1; setTimeout(() => { el.style.opacity = 0; }, 5000); } });
+// 置き場：氷像のボタンの列（折り返すと2段）の上、左下。説明の字は、丸の上へ
+function placeWalk() { const r = stEl.getBoundingClientRect(), b = innerHeight - r.top + 10; WALK.el.style.bottom = b + 'px'; document.getElementById('hint').style.bottom = (b + WALK.el.offsetHeight + 10) + 'px'; }
 let ready = false, grindAmt = 0, lastGrind = 0;
 cvs.addEventListener('pointerdown', (e) => {
   cvs.setPointerCapture(e.pointerId); SND.audio(); hideHint(); if (!ready) return;
@@ -362,9 +373,11 @@ cvs.addEventListener('pointermove', (e) => {
   const s = ptrs.get(e.pointerId); if (!s) return; if (e.pointerType === 'mouse' && e.buttons === 0) { endPtr(e); return; }
   if (s.mode === 'carve') {
     if (!s.machine && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) > 10) s.machine = true;
-    if (!s.machine) return; if (!SND.grinding()) SND.grindStart(); let rem = 0; const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    if (!s.machine) return; let rem = 0; const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
     for (const ev of evs.length ? evs : [e]) { const n = Math.ceil(Math.hypot(ev.clientX - s.lx, ev.clientY - s.ly) / 7); for (let k = 1; k <= n; k++) { const h = iceHit(s.lx + ((ev.clientX - s.lx) * k) / n, s.ly + ((ev.clientY - s.ly) * k) / n); if (h) rem += grindAt(h.st, h.h); } s.lx = ev.clientX; s.ly = ev.clientY; }
-    grindAmt = Math.min(1, grindAmt * 0.6 + rem * 0.25); lastGrind = nowS(); SND.grindLevel(grindAmt); return;
+    // 機械の音は、氷を本当に削った時だけ鳴らす（前は指が少しでも動けば鳴らしつづけ、崩れて氷の無くなった所で長押しすると、エンジン音が止まらなかった 本人 2026-10-26）
+    if (rem > 0) { if (!SND.grinding()) SND.grindStart(); grindAmt = Math.min(1, grindAmt * 0.6 + rem * 0.25); lastGrind = nowS(); SND.grindLevel(grindAmt); }
+    return;
   }
   if (s.mode !== 'look') return; const looks = [...ptrs.entries()].filter(([, v]) => v.mode === 'look');
   if (looks.length === 2) { const [a, b] = looks.map(([id, v]) => (id === e.pointerId ? { x: e.clientX, y: e.clientY, v } : { x: v.cx ?? v.x, y: v.cy ?? v.y, v })); s.cx = e.clientX; s.cy = e.clientY; const d = Math.hypot(a.x - b.x, a.y - b.y); if (!s.pd) { s.pd = d; s.pdist = tDist; } tDist = Math.max(3, Math.min(18, s.pdist * (s.pd / d))); return; }
@@ -393,6 +406,7 @@ const stEl = document.getElementById('statues');
 function markButtons() { [...stEl.children].forEach((b, k) => b.classList.toggle('on', k === focus + 1)); }
 ['ぜんぶ', ...STATUES.map((S) => S.name)].forEach((nm, k) => { const b = document.createElement('button'); b.textContent = nm; b.addEventListener('click', () => { SND.audio(); hideHint(); if (!statues.length) return; k ? focusOn(k - 1) : overview(); }); stEl.appendChild(b); });
 overview(); yaw = tYaw; pitch = tPitch; dist = tDist;
+placeWalk(); addEventListener('resize', placeWalk); watchOrientation(placeWalk);
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
@@ -406,9 +420,13 @@ function step(f0) {
   const raw = clock.getDelta(), dt = Math.min(0.05, raw) * (window.__slow || 1), now = nowS(); timeU.value = now;
   yaw += (tYaw - yaw) * Math.min(1, dt * 6); pitch += (tPitch - pitch) * Math.min(1, dt * 6); dist += (tDist - dist) * Math.min(1, dt * 6); TGT.lerp(tTGT, Math.min(1, dt * 4));
   shake *= Math.exp(-dt * 7); SHK.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(shake);
+  { const A = WALK.axes(now); if (A.turn) tYaw += A.turn * dt * 1.7;
+    if (A.f || A.x) { if (focus !== -1) { focus = -1; markButtons(); } const sy = Math.sin(yaw), cy = Math.cos(yaw), sp = 2.4 * dt; tTGT.x += (-sy * A.f + cy * A.x) * sp; tTGT.z += (-cy * A.f - sy * A.x) * sp; keepIn(tTGT, 0.35); } }
   cam.position.set(TGT.x + Math.sin(yaw) * Math.cos(pitch) * dist, TGT.y + Math.sin(pitch) * dist, TGT.z + Math.cos(yaw) * Math.cos(pitch) * dist).add(SHK); cam.lookAt(TGT);
+  keepCam();   // カメラが氷像の中に入らない
   if (grindAmt > 0 && now - lastGrind > 0.12) { grindAmt *= Math.exp(-dt * 8); SND.grindLevel(grindAmt); }
-  if (SND.grinding() && now - lastGrind > 0.5) SND.grindStop();   // 指が止まって0.5秒で、機械も止める（離した知らせが来なくても、鳴りっぱなしにならない）
+  if (SND.grinding() && now - lastGrind > 0.5) SND.grindStop();   // 削らなくなって0.5秒で、機械も止める（離した知らせが来なくても、鳴りっぱなしにならない）
+  if (SND.grinding() && ![...ptrs.values()].some((s) => s.machine)) SND.grindStop();   // 見張り：機械で削っている指が1本も無いのに鳴っていたら、ふっと消す
   // 彫像ごと：面の起こし直し・崩れの確かめ・宝石が外れたか・ひとまわり終わったか・雪
   const checking = (checkT += dt) > 0.15; if (checking) checkT = 0;
   // 面の起こし直しは、1コマに1体まで（いちばん待たせている彫像から。2体が同時に戻る時に、1コマが重くならない）
@@ -503,7 +521,7 @@ let initBreaks = -1;
   try { await RAPIER_P; await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; }
   world = new RAPIER.World({ x: 0, y: -11, z: 0 }); world.createCollider(RAPIER.ColliderDesc.cuboid(30, 0.1, 30).setTranslation(0, -0.1, 0).setFriction(0.6).setRestitution(0.2).setCollisionGroups(FLOOR));
 })();
-if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), ptrs: () => ptrs.size, statues, trees, cam, get chunks() { return chunks; }, initBreaks: () => initBreaks,
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), ptrs: () => ptrs.size, tgt: () => tTGT.toArray(), statues, trees, cam, get chunks() { return chunks; }, initBreaks: () => initBreaks,
   look: (y, p, d) => { yaw = tYaw = y; pitch = tPitch = p; if (d) dist = tDist = d; },
   focus: (i) => { focusOn(i); yaw = tYaw; pitch = tPitch; dist = tDist; TGT.copy(tTGT); },
   aim: (v) => { TGT.set(...v); tTGT.copy(TGT); },

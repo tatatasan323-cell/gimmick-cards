@@ -11,8 +11,6 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 #card{position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top));transform:translateX(-50%);min-width:220px;max-width:min(86vw,340px);padding:12px 16px;border-radius:16px;background:rgba(255,250,240,.95);color:#2a1a10;box-shadow:0 8px 30px rgba(0,0,0,.4);text-align:center;pointer-events:none;transition:opacity .4s}
 #card b{display:block;font-size:20px;letter-spacing:.08em}#card small{display:block;font-size:12px;font-weight:700;color:#7a5a3a;margin-top:2px}#card p{margin:8px 0 0;font-size:12.5px;line-height:1.6;text-align:left}
 #card i{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-right:6px;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.2)}
-#joy{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom));width:118px;height:118px;border-radius:50%;background:rgba(255,240,220,.12);border:2px solid rgba(255,230,190,.35);touch-action:none;z-index:5}
-#knob{position:absolute;left:39px;top:39px;width:40px;height:40px;border-radius:50%;background:rgba(255,236,200,.75);box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
 #liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(12px + env(safe-area-inset-top));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font:800 11px/1.5 "Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;letter-spacing:.04em;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
 #toTown{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:30;padding:6px 13px;border-radius:999px;background:rgba(30,18,8,.55);color:#ffe7c0;font:800 13px "Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;text-decoration:none;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.35)}
@@ -22,7 +20,6 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 <!-- 港町（町の全景）へもどる -->
 <a id="toTown" href="./#museum">‹ 港町へもどる</a>
 <div class="tx" id="top">宝石の美術館<small id="sub">じゅんびちゅう…</small></div>
-<div id="joy"><div id="knob"></div></div>
 <div class="tx" id="hint">左の丸＝歩く・なぞる＝見まわす<br>宝石は そっと タップ（つよく たたいたり、ながく おすと…？）♪音あり</div>
 <div id="card" hidden><b id="cardName"></b><small id="cardSub"></small><p id="cardFact" hidden></p></div>
 <div id="fps" hidden></div>
@@ -42,6 +39,7 @@ let RAPIER; const RAPIER_P = import('../vendor/rapier3d-compat@0.14.0/rapier.es.
 import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
 import { gemEnv, gemMaterial, GEM_Q } from './gemshader.js';
 import { makeLite } from './lite.js';
+import { makeWalkpad } from './walkpad.js';
 import { setRay as rayAt, guardPointers } from './pointers.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import * as SND from './museum_sound.js';
@@ -956,7 +954,7 @@ function walkable(v) {
   for (const b of BENCHES) { const ox = 0.62 - Math.abs(v.x - b.x), oz = 1.3 - Math.abs(v.z - b.z); if (ox > 0 && oz > 0) { if (ox < oz) v.x += Math.sign(v.x - b.x || 1) * ox; else v.z += Math.sign(v.z - b.z || 1) * oz; } }
   return v;
 }
-const ray = new THREE.Raycaster(), ptrs = new Map(), keys = new Set(), held = new Map();
+const ray = new THREE.Raycaster(), ptrs = new Map();
 const setRay = (x, y) => rayAt(ray, cvs, cam, x, y);
 // 何に触れたか：床に落ちた宝石（丸ごとの球で当てる）→ 展示・ツリー・宙の飾り（いちばん手前）→ 床
 function hitAt(x, y) {
@@ -1001,33 +999,12 @@ function endPtr(e) {
   const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (!s) return; const quick = nowS() - s.t0 < 0.4;
   if (s.mode === 'press' && quick) { if (s.tree) { if (!tree.pressing) treeTap(); } else if (s.bench) { if (!s.bench.pressing) benchTap(s.bench); } else if (s.crystal) { if (!CRY.pressing) crystalTap(); } else if (!s.ex.pressing) tapGem(s.ex); }
 }
-['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); addEventListener('blur', () => held.clear()); document.addEventListener('visibilitychange', () => held.clear());
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr));
 guardPointers(cvs, ptrs, () => ptrs.clear());   // 離した知らせが来なかった指・画面が隠れた時の片付け（共通/pointers.js）
 cvs.addEventListener('wheel', (e) => { fovZ = clamp(fovZ * (1 + Math.sign(e.deltaY) * 0.08), 0.3, 1.25); cam.fov = fov0 * fovZ; cam.updateProjectionMatrix(); e.preventDefault(); }, { passive: false });
-// キー：文字ではなく「キーの場所」で受ける（日本語入力がオンだと、押した時の文字が届かない）。
-// 離した知らせが届かないことがある（本人「離しても止まらない」が2度）。押しっぱなしの間はくり返しの知らせが続くので、
-// 最後に押したキーの知らせが途切れたら、離したとみなす。前に押したキー（くり返しが止まる）は、離した知らせを信じる
-// 左の丸：上下＝前・後ろ、左右＝横へ（港町と同じ）
-const joy = { x: 0, y: 0, id: null };
-{ const J = document.getElementById('joy'), K = document.getElementById('knob'), setK = (x, y) => { K.style.transform = `translate(${x * 39}px, ${y * 39}px)`; };
-  const mv = (e) => { const r = J.getBoundingClientRect(), dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2), L = Math.hypot(dx, dy), k = L > 1 ? 1 / L : 1; joy.x = dx * k; joy.y = dy * k; setK(joy.x, joy.y); };
-  J.addEventListener('pointerdown', (e) => { J.setPointerCapture(e.pointerId); joy.id = e.pointerId; SND.audio(); mv(e); });
-  J.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) mv(e); });
-  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) J.addEventListener(t, (e) => { if (e.pointerId === joy.id) { joy.id = null; joy.x = joy.y = 0; setK(0, 0); } }); }
-const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr', KeyQ: 'tl', KeyE: 'tr' };
-let lastKey = null, imeSaid = false, repOK = false;   // repOK＝この端末で、キーのくり返しの知らせを一度でも見た（港町と同じ）
-addEventListener('keydown', (e) => {
-  const k = KEYMAP[e.code]; if (!k) return; e.preventDefault();
-  const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code;
-  if (!imeSaid && (e.key === 'Process' || e.isComposing || e.keyCode === 229)) { imeSaid = true; const el = document.getElementById('hint'); el.textContent = '日本語入力がオンです。「半角/全角」キーでオフにすると、キーの反応がよくなります'; el.style.opacity = 1; setTimeout(() => { el.style.opacity = 0; }, 5000); }
-  else hideHint();
-});
-addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
-function readKeys(now) {
-  const h = lastKey && held.get(lastKey);
-  if (h && repOK && now - h.t > (h.rep ? 0.45 : 0.8)) { held.clear(); lastKey = null; }   // くり返しが始まる前は長めに待つ（OSの設定で0.25〜1秒）。くり返しを送らない端末では、離した知らせを信じる
-  keys.clear(); for (const v of held.values()) keys.add(v.k);
-}
+// 左の丸とキーで歩く（共通/walkpad.js。氷の彫像と同じ。キーは「キーの場所」で受け、離した知らせが届かない時は、くり返しの途切れで離したとみなす）
+const WALK = makeWalkpad({ onStart: () => { SND.audio(); hideHint(); }, onIme: () => { const el = document.getElementById('hint'); el.textContent = '日本語入力がオンです。「半角/全角」キーでオフにすると、キーの反応がよくなります'; el.style.opacity = 1; setTimeout(() => { el.style.opacity = 0; }, 5000); } });
+const joy = WALK.joy, keys = WALK.keys, readKeys = WALK.readKeys;
 
 // ---------- 毎コマ ----------
 const clock = new THREE.Clock(), fpsEl = q.has('fps') ? document.getElementById('fps') : null; if (fpsEl) fpsEl.hidden = false;
