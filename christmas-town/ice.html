@@ -39,7 +39,8 @@ import { watchOrientation } from './orient.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone, gstat } from './gdone.js';
-import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
+// 物理の部品（約750KB）は、彫像の用意と並べて後から読む（前は、これが届くまで用意が始まらなかった 2026-10-26）
+let RAPIER; const RAPIER_P = import('../vendor/rapier3d-compat@0.14.0/rapier.es.js').then((m) => (RAPIER = m.default)); RAPIER_P.catch(() => {});
 import { IceGrid, Mesher } from './icegrid.js';
 import { STATUES } from './statues.js';
 import { GEMS, makeGem, gemLabel } from './gems.js';
@@ -64,7 +65,7 @@ const GEM_ENV = gemEnv(renderer);   // 宝石は、美術館と同じ「光の�
 { const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#141c38', side: THREE.BackSide })));
   const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
   box(12, 6, 0, 16, 3, '#ffffff', 6); box(4, 4, -12, 6, 8, '#cfe6ff', 6); box(3, 6, 13, 4, -4, '#ffd6a0', 5); box(2, 2, 6, 3, 13, '#ffffff', 9); box(2, 2, -8, 2, -12, '#a0c8ff', 7); box(6, 2, 0, -10, 8, '#6080c0', 2);
-  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.02).texture; }
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.02).texture; pm.dispose(); }   // 作る道具は片付ける（残すと作業用の絵が GPU に残った）
 scene.add(new THREE.HemisphereLight('#9fb8e8', '#141428', 0.55));
 const moon = new THREE.DirectionalLight('#dbe8ff', 1.4); moon.position.set(-3, 8, 4); scene.add(moon);
 
@@ -411,7 +412,7 @@ function frame() {
   let due = null; for (const st of statues) if (st.grid.dirty && !st.view.busy && performance.now() - st.view.last > (st.phase === 'snow' ? 100 : 70) && (!due || st.view.last < due.view.last)) due = st;
   if (due) remeshStatue(due);
   for (const st of statues) {
-    if (st.phase === 'play' && st.checkDue && now - st.lastCheck > 0.25) { st.checkDue = false; st.lastCheck = now; runBreaks(st); }
+    if (st.phase === 'play' && st.checkDue && world && now - st.lastCheck > 0.25) { st.checkDue = false; st.lastCheck = now; runBreaks(st); }
     if (st.phase === 'play' && checking && world) {
       for (const g of st.gems) if (g.state === 'in') { const ex = exposure(st, g); if (ex.n >= 7) freeGem(g, ex.open.applyQuaternion(st.grp.quaternion)); }
       if (st.gems.length && st.gems.every((g) => g.state === 'fall' || g.state === 'floor' || g.state === 'picked')) { const allPicked = st.gems.every((g) => g.state === 'picked'); if ((allPicked && now - st.lastPick > 1.8) || now - Math.max(st.lastFree, st.lastPick) > 10) startSnow(st); }
@@ -495,10 +496,10 @@ let initBreaks = -1;
     document.getElementById('sub').textContent = `じゅんびちゅう… ${i + 1}/${STATUES.length}`; await new Promise((r) => setTimeout(r, 0));
   }
   initBreaks = statues.reduce((s, st) => s + st.grid.findBreaks().length, 0);
-  try { await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; }
-  world = new RAPIER.World({ x: 0, y: -11, z: 0 }); world.createCollider(RAPIER.ColliderDesc.cuboid(30, 0.1, 30).setTranslation(0, -0.1, 0).setFriction(0.6).setRestitution(0.2).setCollisionGroups(FLOOR));
   for (const st of statues) { st.gems = drawSpecs(3).map((s) => newGem(st, s)); findHomes(st, st.gems); for (const g of st.gems) seatGem(st, g); }
   document.getElementById('sub').textContent = 'けずると、中から宝石が…'; liteApply(LITE.lv); ready = true; window.__ok = true;
+  try { await RAPIER_P; await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; }
+  world = new RAPIER.World({ x: 0, y: -11, z: 0 }); world.createCollider(RAPIER.ColliderDesc.cuboid(30, 0.1, 30).setTranslation(0, -0.1, 0).setFriction(0.6).setRestitution(0.2).setCollisionGroups(FLOOR));
 })();
 if (fpsEl) window.__dbg = { statues, trees, cam, get chunks() { return chunks; }, initBreaks: () => initBreaks,
   look: (y, p, d) => { yaw = tYaw = y; pitch = tPitch = p; if (d) dist = tDist = d; },

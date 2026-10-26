@@ -37,7 +37,8 @@ import { watchOrientation } from './orient.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone, gstat } from './gdone.js';
-import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
+// 物理の部品（約750KB）は、ほかの用意と並べて後から読む（前は、これが届くまで部屋の用意が始まらなかった 2026-10-26）
+let RAPIER; const RAPIER_P = import('../vendor/rapier3d-compat@0.14.0/rapier.es.js').then((m) => (RAPIER = m.default)); RAPIER_P.catch(() => {});
 import { GEMS, MORE_GEMS, makeGem, gemLabel } from './gems.js';
 import { gemEnv, gemMaterial, GEM_Q } from './gemshader.js';
 import { makeLite } from './lite.js';
@@ -60,7 +61,7 @@ const GEM_ENV = gemEnv(renderer);   // きらめき用の環境（宝石・ガ�
 { const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#1a1424', side: THREE.BackSide })));
   const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s * 0.13), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
   box(10, 4, 0, 16, 0, '#fff4e0', 7); box(3, 3, -12, 6, 8, '#ffe2b0', 6); box(3, 5, 13, 4, -4, '#ffffff', 6); box(2, 2, 6, 3, 13, '#ffffff', 9); box(2, 2, -8, 2, -12, '#a0c8ff', 6); box(2, 2, 10, 8, 10, '#ffd0f0', 5); box(8, 2, 0, -10, 8, '#604030', 2);
-  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.02).texture; }
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.02).texture; pm.dispose(); }   // 作る道具は片付ける（残すと作業用の絵が GPU に残った）
 scene.add(new THREE.HemisphereLight('#c8c4ff', '#2a1e18', 0.07));
 
 // ---------- 大ホール：大理石の床に赤い敷物・腰板・紺の壁・丸い柱・展示の後ろのアーチのくぼみ・ステンドグラス・梁のある格天井に丸い天窓3つ ----------
@@ -1134,7 +1135,7 @@ function frame() {
 let winPainted = 0, flyT = 0, FREEZE = false;
 // 物理の部品（宝石が落ちる時だけ使う）は、いちばん先に読みはじめ、ほかの用意と並べて進める（待つと3.5秒かかっていた）
 // 最初の1コマで全部の絵の具を一度に用意すると、3秒以上画面が止まった。読み込み中に裏で用意してから、描きはじめる
-const LOADT = [["start", performance.now()]], rapierP = RAPIER.init(); buildExhibits(); buildLights(); LOADT.push(["gems", performance.now()]);
+const LOADT = [["start", performance.now()]], rapierP = RAPIER_P.then(() => RAPIER.init()); buildExhibits(); buildLights(); LOADT.push(["gems", performance.now()]);
 rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticColliders(); LOADT.push(["rapier", performance.now()]); window.__phys = true; }).catch(() => { document.getElementById('sub').textContent = 'この画面では、宝石が落ちる仕掛けが動きませんでした'; });
 (async () => {
   // 壁の窓（ステンドグラス21枚＝左右の壁に8枚ずつ・奥のバラ窓と窓2枚・入口側に2枚）は、読み込みの間に貼っておく（開いた後に1枚ずつ描くと、そのたびに画面が引っかかった）

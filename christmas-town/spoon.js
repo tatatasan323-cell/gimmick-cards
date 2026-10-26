@@ -70,7 +70,7 @@ function brightEnv(renderer) {
   box(3, 12, -12, 3, 4, '#fff1dc', 5); box(3, 12, 12, 2, -3, '#dfeeff', 5); box(40, 1.2, 0, 0.5, -16, '#ffe2c0', 3.5); box(40, 1.2, 0, 0.5, 16, '#d8e8ff', 3); box(2.5, 2.5, 4, 5, 13, '#ffffff', 7); box(10, 4, 0, -12, 3, '#3a3040', 1);
   // 下にも明るい敷き布（裏から見上げても光る。無いと、金の裏が茶色に沈んだ）。真ん中だけ暗く抜いて、鏡らしい明暗を残す
   box(16, 34, -11, -13, 0, '#e8dfcc', 0.95); box(16, 34, 11, -13, 0, '#dfe4ee', 0.85);
-  return new THREE.PMREMGenerator(renderer).fromScene(s, 0.03).texture;
+  const pm = new THREE.PMREMGenerator(renderer), t = pm.fromScene(s, 0.03).texture; pm.dispose(); return t;   // 作る道具は片付ける
 }
 // 唐草の彫り（柄の上の面だけ）：うず巻きと葉の線を高さの絵に描き、その傾きを法線の絵にする
 function engraving(from) {

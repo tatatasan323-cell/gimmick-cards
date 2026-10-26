@@ -31,7 +31,8 @@ import { makeLite } from './lite.js';
 import { guardLeave } from './stay.js';
 guardLeave('ここから出ますか？', '港町へは、左上の「‹ 港町へもどる」から');
 import { gdone } from './gdone.js';
-import RAPIER from '../vendor/rapier3d-compat@0.14.0/rapier.es.js';
+// 物理の部品（約750KB）は、ほかの用意と並べて後から読む（前は、これが届くまで部屋の用意が始まらなかった 2026-10-26）
+let RAPIER; const RAPIER_P = import('../vendor/rapier3d-compat@0.14.0/rapier.es.js').then((m) => (RAPIER = m.default)); RAPIER_P.catch(() => {});
 import { BLOCKS } from './blocks.js';
 import { buildType, instantiate } from './gummy.js';
 import { glowTex } from './mat.js';
@@ -54,7 +55,7 @@ const sky = makeSky(scene, { aurora: 1 }); makeFarTown(scene, -90, 80, 330);
 { const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#4a2a3a', side: THREE.BackSide })));
   const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
   box(14, 8, -10, 12, 8, '#fff2dc', 5); box(8, 8, 12, 6, 6, '#ffc8e0', 3); box(10, 4, 0, 14, -10, '#fff6e8', 3); box(6, 6, 2, 3, 14, '#ffffff', 2);
-  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.03).texture; }
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.03).texture; pm.dispose(); }   // 作る道具は片付ける（残すと作業用の絵が GPU に残った）
 scene.add(new THREE.HemisphereLight('#fff0e0', '#6a3a40', 0.9));
 const sun = new THREE.DirectionalLight('#fff2e0', 2.0); sun.position.set(-4, 9, 5); scene.add(sun);
 // 遠くの、ぼんやりした飾りの灯り
@@ -242,10 +243,10 @@ function frame() {
 }
 frame();
 (async () => {
-  try { await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; } world = new RAPIER.World({ x: 0, y: G, z: 0 });
+  for (const b of BLOCKS) { types.push(buildType(b, 0.04)); await new Promise((r) => setTimeout(r, 0)); }   // 形づくりは、物理の部品が届くのを待たずに先に（1種ごとに画面へ手を返す）
+  try { await RAPIER_P; await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; } world = new RAPIER.World({ x: 0, y: G, z: 0 });
   world.createCollider(RAPIER.ColliderDesc.cylinder(0.15, TR).setTranslation(0, -0.15, 0).setFriction(0.9));
   for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; world.createCollider(RAPIER.ColliderDesc.cuboid((TR * Math.PI) / 40 + 0.05, 0.35, 0.12).setTranslation(Math.cos(a) * TR, 0.2, Math.sin(a) * TR).setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -a + Math.PI / 2)).setFriction(0.6)); }   // ふちの当たり（低い。ゆっくり転がっただけでは落ちない）
-  for (const b of BLOCKS) types.push(buildType(b, 0.04));
   startPile(); document.getElementById('sub').textContent = '12しゅるいの グミブロック'; ready = true; window.__ok = true;
 })();
 if (fpsEl) window.__dbg = { meltEdge: (i) => { const b = blocks[i], a = 0.6; b.body.setTranslation({ x: Math.cos(a) * (TR - 0.35), y: 0.5, z: Math.sin(a) * (TR - 0.35) }, true); b.body.setLinvel({ x: 0, y: 0, z: 0 }, true); setTimeout(() => meltBlock(b), 1200); return [Math.cos(a) * TR, 0, Math.sin(a) * TR]; }, strand: () => (MELTS[0] && MELTS[0].strand ? +MELTS[0].strand.scale.y.toFixed(2) : null), melts: () => melts, melting: () => MELTS.length, puddle: () => (MELTS[0] ? +MELTS[0].pm.opacity.toFixed(2) : null), meltAt: () => (MELTS[0] ? MELTS[0].M.position.toArray() : null), drops: () => DROP.length, add: () => document.getElementById('add').click(), look: (y, p, d) => { yaw = tYaw = y; pitch = tPitch = p; if (d) dist = tDist = d; }, project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, carry: () => { const h = [...holds.values()].find((v) => !v.bg); return h ? h.carryY : null; }, pickIndex: (x, y) => { setRay(x, y); const h = ray.intersectObjects(pickables, false)[0]; return h ? blocks.indexOf(h.object.userData.block) : -1; }, heldIndex: () => { const h = [...holds.values()].find((v) => !v.bg); return h ? blocks.indexOf(h.bl) : -1; }, blocks, cam, holds, screenOf: (i) => { const t = blocks[i].body.translation(), v = new THREE.Vector3(t.x, t.y, t.z).project(cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; }, pos: (i) => { const t = blocks[i].body.translation(); return [t.x, t.y, t.z]; }, speed: (i) => { const v = blocks[i].body.linvel(); return Math.hypot(v.x, v.y, v.z); }, sleeping: () => blocks.filter((b) => b.body.isSleeping()).length, bonks: () => bonkN, tower: () => { for (const bl of [...blocks]) removeBlock(bl); const q0 = new THREE.Quaternion(); for (let i = 0; i < 7; i++) spawn(0, 0, 0.37 + i * 0.74, 0, q0); }, svMax: () => Math.max(...blocks.map((b) => Math.abs(b.sv))), pushOff: (i) => { blocks[i].body.setTranslation({ x: TR + 1.2, y: 1, z: 0 }, true); blocks[i].body.setLinvel({ x: 2, y: 0, z: 0 }, true); }, respawns: (i) => blocks[i].respawns || 0, restsOn: (i, j) => { let on = false; const A = blocks[i], B = blocks[j]; for (let k = 0; k < A.body.numColliders(); k++) world.contactPairsWith(A.body.collider(k), (c2) => { if (byCollider.get(c2.handle) === B) on = true; }); return on && A.body.translation().y > B.body.translation().y + 0.1; }, count: () => blocks.length, name: (i) => blocks[i].b.name, flatTop: (i) => { const r = blocks[i].body.rotation(), q = new THREE.Quaternion(r.x, r.y, r.z, r.w), ys = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map((a) => Math.abs(new THREE.Vector3(...a).applyQuaternion(q).y)); return blocks[i].b.name === 'えんちゅう' ? ys[1] > 0.95 : Math.max(...ys) > 0.95; } };
