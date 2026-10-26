@@ -106,8 +106,17 @@ function addPane(d, i, F, place) {
 DESIGNS.forEach((d, i) => { const th = (i / N) * TAU; addPane(d, i, ARCH, (g) => { g.position.set(Math.sin(th) * R, Y0, -Math.cos(th) * R); g.rotation.y = -th; g.scale.setScalar(S); }); });
 // 天井：絵の上（y）が、正面を向いたまま見上げた時の画面の上になる向き
 addPane(CEILING, N, ROSE, (g) => { g.position.set(0, HC - 0.02, 0); g.rotation.x = Math.PI / 2; g.scale.set(RC, RC, S); });
+// 窓の絵は、映る大きさに合わせて GPU へ（本人 2026-10-26「礼拝堂の窓も推奨通り入れてOK」。GPU の窓の絵 169.5MB→74.1MB・スマホでは見分けられない）
+const TEXK = 0.75;   // 窓の絵を GPU へ送る大きさ（描くのは元の大きさのまま。かけらの形と色の見本は元の絵から取る）
+const shrink = (cv, k) => { const c = document.createElement('canvas'); c.width = Math.round(cv.width * k); c.height = Math.round(cv.height * k); const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, c.width, c.height); return c; };
+// 鉛の線：明るさ＋透明さの2つだけの画像（RG8＝1画素2バイト。前は色4つで4バイト。LUMINANCE_ALPHA は WebGL2 の three では作れなかった）。明るさは青の値を、画面の明るさ（線形）にしてから入れる
+const leadTex = (cv, k) => { const c = shrink(cv, k), W = c.width, H = c.height, d = c.getContext('2d').getImageData(0, 0, W, H).data, out = new Uint8Array(W * H * 2), lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  for (let y = 0; y < H; y++) { const sy = (H - 1 - y) * W, dy = y * W; for (let x = 0; x < W; x++) { const s = (sy + x) * 4, o = (dy + x) * 2; out[o] = Math.round(lin(d[s + 2]) * 255); out[o + 1] = d[s + 3]; } }
+  const t = new THREE.DataTexture(out, W, H, THREE.RGFormat); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true; return t; };
 function paintPane(w) {
-  if (w.painted) return; const P = paint(w.d, 101 + w.i * 7), tex = new THREE.CanvasTexture(P.color), ltex = new THREE.CanvasTexture(P.lead); tex.colorSpace = ltex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = ltex.anisotropy = 4;
+  if (w.painted) return; const P = paint(w.d, 101 + w.i * 7), tex = new THREE.CanvasTexture(shrink(P.color, TEXK)), ltex = leadTex(P.lead, TEXK); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = ltex.anisotropy = 4;
+  w.lead.material.color.setRGB(0.777, 0.641, 1.0);   // 鉛の線の色味（明るさ1つに縮めた分を、材質の色で戻す。暗い線と、つやの線の色）
+  w.lead.material.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', 'vec4 sampledDiffuseColor = texture2D( map, vMapUv ); diffuseColor *= vec4( vec3( sampledDiffuseColor.r ), sampledDiffuseColor.g );'); }; w.lead.material.customProgramCacheKey = () => 'leadRG';
   w.P = P; w.tex = tex; w.sample = sampler(P.color, w.F); w.whole.material.map = tex; w.whole.material.needsUpdate = true; w.whole.visible = true; w.lead.material.map = ltex; w.lead.material.visible = true; w.lead.material.needsUpdate = true; w.painted = true;
   // 窓の光：床に落ちる色・光の帯・にじみ
   if (w.F.kind === 'arch') {
