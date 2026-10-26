@@ -1,22 +1,17 @@
 // 宝石の美術館の音：宝石ごとの音色（鐘・チェレスタ・グラスハーモニカ・オルゴール・マリンバ・ハープ・カリンバ・ビブラフォン・歌う器）
 // どの宝石も同じ音階（ハ長調の五音）の上にあるので、続けて触っても曲になる。壊れる音（ピキッ・ガシャーン・パリン・ゴトン）と、戻る時の上っていく音
-let ac = null, out = null, noise = null;
-export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.85; const lim = ac.createDynamicsCompressor(); lim.threshold.value = -8; lim.ratio.value = 8; lim.attack.value = 0.003; lim.release.value = 0.25; out.connect(lim); lim.connect(ac.destination); }   // 大きな音（クリスタルが砕ける）でも割れないよう、出口で抑える
-  if (ac.state !== 'running') ac.resume();
-  return ac;
-}
-const r = (a, b) => a + Math.random() * (b - a), live = () => ac && ac.state === 'running';
-const safe = (fn) => (...a) => { if (!live()) return; try { fn(...a); } catch (e) { /* 音が出なくても遊べる */ } };
+import { makeSound, r } from './sound_core.js';
+// 音の部屋・出口・音割れを抑える部品・同時に鳴る数・雑音・澄んだ1音・短い雑音は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.85・出口で抑える（-8dB・8:1。大きな音＝クリスタルが砕けるでも割れない）・15kHz より高い音は鳴らさない
 // 同時に鳴っている音の数を数え、多すぎる時は新しい音を省く（大クリスタルが倒れると、崩れた展示が一斉に戻って700近く重なり、スマホでは途中から無音になった）
 // ふだんの音は CAP まで。大クリスタルの音（軋む・砕ける・よみがえる・旋律）は優先して、その倍まで鳴らす
-let act = 0, HI = 0; const CAP = 150;
-const room = () => act < (HI ? CAP * 2 : CAP), go = (o) => { act++; o.onended = () => { act--; }; };
+let HI = 0; const CAP = 150;
+const SC = makeSound({ gain: 0.85, limiter: { threshold: -8, ratio: 8, attack: 0.003, release: 0.25 }, cap: () => (HI ? CAP * 2 : CAP), maxF: 15000 });
+let ac = null, out = null;
+export function audio() { ac = SC.audio(); out = SC.out; return ac; }
+const live = SC.running, room = SC.room, go = SC.track, partial = SC.partial, hiss = SC.hissAt;
+const safe = (fn) => (...a) => { if (!live()) return; try { fn(...a); } catch (e) { /* 音が出なくても遊べる */ } };
 const hi = (fn) => safe((...a) => { HI++; try { fn(...a); } finally { HI--; } });
-export const voices = () => act;
-function partial(f, vol, t, dur, atk = 0.002, type = 'sine') { if (f > 15000 || f < 20 || !room()) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); go(o); }
-const noiseBuf = () => { if (!noise) { noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return noise; };
-function hiss(vol, t, dur, type, freq, q = 0.8) { if (!room()) return; const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02); go(s); }
+export const voices = SC.voices;
 function glide(f0, f1, vol, t, dur, type = 'sine') { if (!room()) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); go(o); }
 function wobble(f, vol, t, dur, atk, rate, depth, type = 'sine') { if (!room()) return; const o = ac.createOscillator(), g = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain(); o.type = type; o.frequency.value = f; l.frequency.value = rate; lg.gain.value = f * depth; l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02); go(o); }
 function tremolo(f, vol, t, dur, rate) { if (!room()) return; const o = ac.createOscillator(), g = ac.createGain(), am = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain(); o.frequency.value = f; l.frequency.value = rate; lg.gain.value = 0.45; am.gain.value = 0.55; l.connect(lg); lg.connect(am.gain); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(am); am.connect(g); g.connect(out); o.start(t); l.start(t); o.stop(t + dur + 0.02); l.stop(t + dur + 0.02); go(o); }

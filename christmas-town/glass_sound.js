@@ -2,20 +2,15 @@
 // どれも短い音を合成し、鳴りっぱなしにしない。なぞって一度にたくさん割れた時は、間引いて鳴らす
 // 同時に鳴っている音の部品の数（act）。鈴は1回で部品が多く、一度に何十枚も戻ると数百個になって、途中で音が出なくなった（本人）。上限をこえる時は、着いた音を省き、戻った音を軽くする
 // 重なった音の合計が大きすぎると、音が割れて「ぶつぶつ」と鳴った（本人）。最後に音量をならす部品（リミッター）を通し、重なるほど1つ1つを小さくする
-let ac = null, out = null, lim = null, mPre = null, mPost = null, noise = null, lastK = 0, lastA = 0, lastC = 0, lastD = 0, act = 0;
-const track = (n) => { act++; n.onended = () => { act--; }; };
-export const voices = () => act;
-const dens = () => 1 / (1 + act / 60);
-// 検査用：いちばん大きな振れ幅（ならす前・後）
-const peakOf = (a) => { if (!a) return 0; const d = new Float32Array(a.fftSize); a.getFloatTimeDomainData(d); let m = 0; for (const v of d) m = Math.max(m, Math.abs(v)); return m; };
-export const level = () => [peakOf(mPre), peakOf(mPost)];
-export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.85; lim = ac.createDynamicsCompressor(); lim.threshold.value = -14; lim.knee.value = 8; lim.ratio.value = 12; lim.attack.value = 0.002; lim.release.value = 0.25; out.connect(lim); lim.connect(ac.destination);
-    mPre = ac.createAnalyser(); mPre.fftSize = 2048; out.connect(mPre); mPost = ac.createAnalyser(); mPost.fftSize = 2048; lim.connect(mPost); }
-  if (ac.state !== 'running') ac.resume();
-  return ac;
-}
-const r = (a, b) => a + Math.random() * (b - a), live = () => ac && ac.state === 'running';
+import { makeSound, r } from './sound_core.js';
+// 音の部屋・出口・音割れを抑える部品・同時に鳴る数・雑音は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.85・抑える部品（-14dB・12:1）・上限は下の arrive／done が数で間引く
+const SC = makeSound({ gain: 0.85, limiter: { threshold: -14, knee: 8, ratio: 12, attack: 0.002, release: 0.25 }, meter: true });
+let ac = null, out = null, lastK = 0, lastA = 0, lastC = 0, lastD = 0;
+const track = SC.track, live = SC.running;
+export const voices = SC.voices;
+const dens = () => 1 / (1 + SC.voices() / 60);
+export const level = SC.level;   // 検査用：いちばん大きな振れ幅（ならす前・後）
+export function audio() { ac = SC.audio(); out = SC.out; return ac; }
 // ガラスのひびき：基音と、ずれた倍音（2.76倍・5.4倍）が、それぞれ減衰する。atk＝立ち上がり
 function tinkle(f, vol, delay = 0, dur = 0.5, atk = 0.003, partials = [[1, 1, 1], [2.76, 0.45, 0.6], [5.4, 0.2, 0.35]]) {
   if (!live()) return;
@@ -36,8 +31,7 @@ function hiss(vol, delay, dur, type, freq, q = 0.8, atk = 0.002) {   // 短い�
   if (!live()) return; hissT.push(performance.now() + delay * 1000);
   try {
     const t = ac.currentTime + delay;
-    if (!noise) { noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noise; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = SC.noise(); f.type = type; f.frequency.value = freq; f.Q.value = q;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol * dens()), t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(out); track(s); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   } catch (e) { /* 同上 */ }
@@ -83,7 +77,7 @@ function harp(f, vol, delay) {
 }
 // 光が1つ窓に着いた時（続けて着く時は、45ミリ秒あける）
 export function arrive(kind, k) {
-  const now = performance.now(); if (now - lastA < 45 || act > 70) return; lastA = now;
+  const now = performance.now(); if (now - lastA < 45 || SC.voices() > 70) return; lastA = now;
   if (kind === 'star') tinkle(HI[k % HI.length], 0.02, 0, 0.45, 0.004);
   else if (kind === 'heart') tone(r(440, 560), r(620, 760), 0.035, 0, 0.22, 0.02);
   else if (kind === 'snow') mbox(PENTA[k % PENTA.length], 0.028, 0);
@@ -93,7 +87,7 @@ export function arrive(kind, k) {
 }
 // かけらが元どおりになった時
 export function done(kind) {
-  const now = performance.now(), busy = act > 110 || now - lastD < 90; if (busy && act > 170) return; lastD = now;
+  const now = performance.now(), busy = SC.voices() > 110 || now - lastD < 90; if (busy && SC.voices() > 170) return; lastD = now;
   if (busy || (kind === 'bell' && now - lastShan < 700)) { if (kind === 'bell') ping(0.016); else twinkle((Math.random() * 9) | 0); return; }   // 続けて戻る時は、ひと鳴りだけ
   if (kind === 'star') [2093, 2637, 3136, 4186].forEach((f, i) => tinkle(f, 0.03, i * 0.07, 0.9, 0.004));   // キラリン
   else if (kind === 'heart') { tone(523.3, 523.3, 0.04, 0, 1.0, 0.06, 4); tone(659.3, 659.3, 0.03, 0.08, 0.95, 0.06, 4); tone(784, 784, 0.02, 0.16, 0.9, 0.06, 4); }   // ぽわん

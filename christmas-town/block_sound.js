@@ -1,19 +1,18 @@
 // グミの積み木の音：ぶつかる「ぽよん」・はじく「ぷるっ」・持つ「とぷ」・出てくる「ぽんっ」。どれも短い音を合成し、鳴りっぱなしにしない
+import { makeSound, r } from './sound_core.js';
+// 音の部屋・出口・同時に鳴る数は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.9・抑える部品なし（前のまま）・同時に鳴る部品は160まで（港町と同じ）
+const SC = makeSound({ gain: 0.9, cap: 160 });
 let ac = null, out = null, last = 0;
-export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.9; out.connect(ac.destination); }
-  if (ac.state !== 'running') ac.resume();
-  return ac;
-}
-const r = (a, b) => a + Math.random() * (b - a);
+export function audio() { ac = SC.audio(); out = SC.out; return ac; }
+export const voices = SC.voices;
 function tone(f0, f1, dur, vol, delay = 0, vib = 0) {
   try {
-    if (!ac || ac.state !== 'running') return;
+    if (!SC.live()) return;
     const a = ac, t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain(), lp = a.createBiquadFilter();
     o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.85);
     if (vib) { const l = a.createOscillator(), lg = a.createGain(); l.frequency.value = 16; lg.gain.value = vib; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.02); }
     lp.type = 'lowpass'; lp.frequency.value = 2400; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.03);
+    o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.03); SC.track(o);
   } catch (e) { /* 音が出なくても遊べる */ }
 }
 // 音は、最初に画面に触れてから（触る前に AudioContext を作ると、ブラウザに止められる）

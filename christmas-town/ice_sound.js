@@ -1,20 +1,15 @@
 // 氷の彫像の音：ノミの「コンッ」・機械の「ギュイーン」・宝石が外れる「ポロッ」・大理石に落ちる「ドスン＋カツーン」（硬い宝石ほど高く澄む。やわらかい石は「コトッ」）
 // 氷が折れる「ピキッ」・砕ける「ガシャーン」・拾う「キラン」・雪で下から組み上がる時の鈴・ゼリーの木の「ぷるん」
 // どれも短い音を、その場で合成する（機械の音だけは、なぞっている間だけ鳴り続ける）。続けて鳴る時は間引く
-let ac = null, out = null, noise = null, lastChisel = 0, lastCarve = 0;
-export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.9; out.connect(ac.destination); }
-  if (ac.state !== 'running') ac.resume();
-  return ac;
-}
-const r = (a, b) => a + Math.random() * (b - a), live = () => ac && ac.state === 'running';
-function partial(f, vol, t, dur, atk = 0.002, type = 'sine') { if (f > 16000) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); }
-const noiseBuf = () => { if (!noise) { noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return noise; };
-function hiss(vol, t, dur, type, freq, q = 0.8) {
-  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = type; f.frequency.value = freq; f.Q.value = q;
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
-}
-function glide(f0, f1, vol, t, dur) { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); }
+import { makeSound, r } from './sound_core.js';
+// 音の部屋・出口・同時に鳴る数・雑音・澄んだ1音・短い雑音は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.9・抑える部品なし（前のまま）
+// 同時に鳴る部品は160まで（港町と同じ。前はこの部屋だけ数えておらず、美術館・ステンドグラスで起きた「途中から無音」の守りが無かった）
+const SC = makeSound({ gain: 0.9, cap: 160 });
+let ac = null, out = null, lastChisel = 0, lastCarve = 0;
+export function audio() { ac = SC.audio(); out = SC.out; return ac; }
+export const voices = SC.voices;
+const live = SC.running, partial = SC.partial, noiseBuf = SC.noise, hiss = SC.hissAt;
+function glide(f0, f1, vol, t, dur) { if (!SC.room()) return; const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); SC.track(o); }
 const safe = (fn) => (...a) => { if (!live()) return; try { fn(...a); } catch (e) { /* 音が出なくても遊べる */ } };
 
 // ノミ：木づちで打つ「コンッ」＋鋼の小さな響き＋氷のかけらが散る「チリッ」

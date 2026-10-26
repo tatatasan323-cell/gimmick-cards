@@ -1,33 +1,32 @@
 // ゼリーの音：ぽよ～ん（はじく）・ぷる～ん（のばして離す）＝高さが跳ね上がってから下がり、揺れがだんだん遅く・小さくなって消える（本人 2026-10-15「ぽよ～ん ぷる～ん、高さもちょっと変化」）
 // 水の音：ぴちゃん・とぷん・ぷく（泡）は、みずの時と、ちぎれる・戻る時に。鳴りっぱなしの音（ざわめき・ごぼごぼ）は使わない
 // どれも短い音を、その場で合成する。音源ファイルなし
+import { makeSound, r } from './sound_core.js';
+// 音の部屋・出口・同時に鳴る数は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.9・抑える部品なし（前のまま）・同時に鳴る部品は160まで（港町と同じ）
+const SC = makeSound({ gain: 0.9, cap: 160 });
 let ac = null, out = null, nextBubble = 0;
 
-export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.9; out.connect(ac.destination); }
-  if (ac.state !== 'running') ac.resume();
-  return ac;
-}
-const r = (a, b) => a + Math.random() * (b - a);
+export function audio() { ac = SC.audio(); out = SC.out; return ac; }
+export const voices = SC.voices;
 // 泡ひとつ：高さが一気に上がる短い音（水の中の泡がはじける時の音の形）
 function bloop(f0, f1, dur, vol, delay = 0) {
   try {
-    const a = audio(), t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain(), lp = a.createBiquadFilter();
+    if (!SC.room()) return; const a = audio(), t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain(), lp = a.createBiquadFilter();
     o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
     lp.type = 'lowpass'; lp.frequency.value = 3200; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.03);
+    o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.03); SC.track(o);
   } catch (e) { /* 音が出なくても遊べる */ }
 }
 // ぽよ～ん：f0 から up 倍へ跳ねて、f0 へ落ち、down 倍まで下がっていく。揺れ（rate 回/秒・深さ depth）は、だんだん遅く・小さく
 function boing(f0, dur, vol, o = {}) {
   try {
-    const a = audio(), t = a.currentTime + (o.delay || 0), osc = a.createOscillator(), g = a.createGain(), lp = a.createBiquadFilter(), lfo = a.createOscillator(), lg = a.createGain(), rate = o.rate ?? 9;
+    if (!SC.room()) return; const a = audio(), t = a.currentTime + (o.delay || 0), osc = a.createOscillator(), g = a.createGain(), lp = a.createBiquadFilter(), lfo = a.createOscillator(), lg = a.createGain(), rate = o.rate ?? 9;
     osc.type = 'sine'; osc.frequency.setValueAtTime(f0 * (o.up ?? 1.6), t); osc.frequency.exponentialRampToValueAtTime(f0, t + 0.07); osc.frequency.exponentialRampToValueAtTime(f0 * (o.down ?? 0.82), t + dur);
     lfo.frequency.setValueAtTime(rate, t); lfo.frequency.linearRampToValueAtTime(rate * 0.45, t + dur);
     lg.gain.setValueAtTime(f0 * (o.depth ?? 0.08), t); lg.gain.exponentialRampToValueAtTime(f0 * 0.004, t + dur); lfo.connect(lg); lg.connect(osc.frequency);
     lp.type = 'lowpass'; lp.frequency.value = 2600;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.setValueAtTime(vol, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(lp); lp.connect(g); g.connect(out); osc.start(t); lfo.start(t); osc.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
+    osc.connect(lp); lp.connect(g); g.connect(out); osc.start(t); lfo.start(t); osc.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); SC.track(osc);
   } catch (e) { /* 同上 */ }
 }
 const tapun = (k = 1, d = 0) => { bloop(r(140, 170) * k, r(400, 450) * k, 0.22, 0.22, d); bloop(r(280, 320) * k, r(650, 750) * k, 0.08, 0.06, d + 0.04); };

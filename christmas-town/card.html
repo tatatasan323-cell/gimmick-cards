@@ -269,6 +269,7 @@ import { watchOrientation } from './orient.js';
 import { guardLeave } from './stay.js';
 guardLeave('カードを閉じますか？', '');
 import { Card, clean, KEYS } from './card_code.js';
+import { makeSound } from './sound_core.js';
 (() => {
   'use strict';
   // GitHub の公開版をまとめる時に true になる（港町と同じフォルダ）。false＝claude.ai の非公開の試作（#c= を運べないので、送るリンクは公開版のアドレスで作る）
@@ -279,11 +280,11 @@ import { Card, clean, KEYS } from './card_code.js';
   const $ = (s) => document.querySelector(s);
   const state = { card: null, sample: true, mine: false };
 
-  // ---------- 音（さわった時だけ。最初に画面にふれてから鳴らす） ----------
-  const Snd = (() => { let ac = null, out = null;
+  // ---------- 音（さわった時だけ。最初に画面にふれてから鳴らす）。音の部屋・出口・港町のメニューの「音」（効果音のオン・オフと大きさ）は、共通の土台（共通/sound_core.js） ----------
+  const Snd = (() => { const SC = makeSound({ gain: 0.8 }); let ac = null, out = null;
     const tone = (f0, f1, vol, delay, dur, type = 'sine') => { if (!ac || ac.state !== 'running') return; try { const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); } catch (e) { /* 音が出なくても使える */ } };
     return {
-      unlock() { try { if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = 0.8; out.connect(ac.destination); } if (ac.state !== 'running') ac.resume(); } catch (e) { /* 同上 */ } },
+      unlock() { try { ac = SC.audio(); out = SC.out; } catch (e) { /* 同上 */ } },
       boing(k) { const f = [392, 330, 440, 294][k % 4] * (0.95 + Math.random() * 0.1); tone(f * 1.5, f, 0.12, 0, 0.34); tone(f * 0.75, f * 0.55, 0.06, 0.02, 0.42, 'triangle'); },
       tap() { tone(1400, 1100, 0.03, 0, 0.06); },
       jingle(k) { const f = [1568, 1760, 1976, 2093, 2349, 2637][k % 6]; tone(f, f, 0.06, 0, 0.9); tone(f * 2.76, f * 2.76, 0.018, 0, 0.45); tone(f * 1.5, f * 1.5, 0.03, 0.07, 0.6); },   // 鈴：高い音に、ずれた倍音を少し

@@ -2,21 +2,17 @@
 // どれも短い音を合成する。同時に鳴る部品の数を数え、多すぎる時は省く（ステンドグラスで、多すぎて途中から音が出なくなった）
 // 押した時の音は、先に波形へ書き出しておき、鳴らす時は1つ流すだけ（音源1つ＋音量1つ）。押すたびに発振器を何十も組むと（光の波＝31個・花火＝1発28個×21発）、
 //   その瞬間に曲が途切れ、画面もカクついた（本人 2026-10-25「波のタップ→花火など連続で…BGMの音飛び」）。書き出しは OfflineAudioContext（画面の処理とは別の所で計算する）
-let ac = null, out = null, noise = null, act = 0;
-export function audio() {
-  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = muted ? 0 : 0.9 * seVol; out.connect(ac.destination); setTimeout(() => prebake(PRE), 4000); }
-  if (ac.state !== 'running') ac.resume();
-  return ac;
-}
-export const voices = () => act;
-// 効果音のオン・オフ（メニューの「音」）。BGM は別の部品で、ここには入らない
-let muted = false, seVol = 1;
-export function setMute(m) { muted = !!m; if (out) out.gain.value = muted ? 0 : 0.9 * seVol; }
-// 効果音の大きさ（メニューの「音」）
-export function setVolume(v) { seVol = Math.max(0, Math.min(1.5, v)); if (out) out.gain.value = muted ? 0 : 0.9 * seVol; }
+import { makeSound, r } from './sound_core.js';
+// 音の部屋・出口・効果音のオン・オフと大きさ・同時に鳴る数・雑音は共通の土台（共通/sound_core.js。部屋とカードも同じ設定を読む）。港町は：大きさ0.9・同時に鳴る部品は160まで
+const SC = makeSound({ gain: 0.9, cap: 160 });
+let ac = null, out = null;
+export function audio() { const first = !SC.ac; ac = SC.audio(); out = SC.out; if (first) setTimeout(() => prebake(PRE), 4000); return ac; }
+export const voices = SC.voices;
+// 効果音のオン・オフと大きさ（メニューの「音」）。BGM は別の部品で、ここには入らない
+export const setMute = SC.setMute, setVolume = SC.setVolume;
 let BAKING = false;   // 書き出し中（ac と out が、書き出し用の音の部屋を指している間）
-const r = (a, b) => a + Math.random() * (b - a), live = () => BAKING || (ac && ac.state === 'running' && act < 160);
-const track = (n) => { if (BAKING) return; act++; n.onended = () => { act--; }; };
+const live = () => BAKING || SC.live();
+const track = (n) => { if (!BAKING) SC.track(n); };
 function tone(f0, f1, vol, delay, dur, type = 'sine', atk = 0.005) {
   if (!live()) return;
   try {
@@ -29,8 +25,7 @@ function hiss(vol, delay, dur, type, freq, q = 0.8) {
   if (!live()) return;
   try {
     const t = ac.currentTime + delay;
-    if (!noise) { noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noise; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = SC.noise(); f.type = type; f.frequency.value = freq; f.Q.value = q;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(out); track(s); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
   } catch (e) { /* 同上 */ }
