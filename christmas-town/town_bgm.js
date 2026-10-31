@@ -16,6 +16,9 @@ const TRACKS = {   // round＝1回しの秒（小節の数×拍の数×1拍の�
 const medleySec = (id) => TRACKS[id].round * Math.max(1, Math.round(40 / TRACKS[id].round));
 const fileSec = (id) => TRACKS[id].round * 2;
 const VOL_OK = (() => { try { const a = document.createElement('audio'); a.volume = 0.5; return Math.abs(a.volume - 0.5) < 0.01; } catch (e) { return true; } })();   // iPhone・iPad は false（音量は本体のボタンだけ）
+// ほかのページ（港町・カード）へ行って戻ったら・音を止めて入れ直したら、止めた曲と位置から（ページをまたぐ分は、このタブの間だけ覚える＝sessionStorage。曲を選び直した時だけ頭から）
+const KEEP = 'xmas-bgm-at'; let resume = null;
+try { const v = JSON.parse(sessionStorage.getItem(KEEP) || 'null'); if (v && TRACKS[v.id]) resume = v; } catch (e) { /* 覚えておけない画面では、頭から */ }
 let ctx = null, el = null, gain = null, wanted = false, live = false, cur = 'jingle', medley = false, vol = 0.7, env = 0, fade = null, watch = null, loops = 0, lastT = 0, switching = false, gen = 0;
 const level = () => { const v = Math.max(0, Math.min(1, env * vol)); if (gain) gain.gain.value = v; else if (el) el.volume = v; };
 // 音量をなめらかに動かす（0.03秒ごと）。then＝終わったら
@@ -30,18 +33,20 @@ function player() {
   return el; }
 const play = () => { if (!el || !wanted) return; const p = el.play(); if (p && p.catch) p.catch(() => { /* さわった時に、もう一度 */ }); };
 // 曲を頭から鳴らす（0.3秒で大きくなる＝合成の版と同じ入り方）
-function begin(id) { player(); cur = id; gen++; loops = 0; lastT = 0; switching = false; const src = `bgm_${id}.m4a`;
-  if (!el.src.endsWith(src)) el.src = src; else el.currentTime = 0;
+function begin(id, at = 0, n = 0) { player(); cur = id; gen++; loops = n; lastT = at; switching = false; const src = `bgm_${id}.m4a`;
+  if (!el.src.endsWith(src)) el.src = src; el.currentTime = at;   // 読みこむ前に入れても、読みこんだ所から
   el.loop = !medley; env = 0; level(); play(); ramp(1, 0.3); }
 // メドレーの見回り：決めた長さの0.3秒前から消して、0.6秒あけて次の曲へ
 function check() { if (!wanted || !medley || switching || !el || el.paused) return; if (loops * fileSec(cur) + el.currentTime >= medleySec(cur) - 0.3) next(); }
 function next() { if (switching) return; switching = true; const g = gen, ids = Object.keys(TRACKS).filter((k) => k !== cur), id = ids[Math.floor(Math.random() * ids.length)];
   ramp(0, 0.28, () => { if (g !== gen) return; el.pause(); setTimeout(() => { if (g !== gen || !wanted) return; begin(id); if (BGM.onChange) BGM.onChange(cur); }, 600); }); }
-function start() { if (live) return; live = true; begin(cur); if (!watch) watch = setInterval(check, 100); }
-function stop() { live = false; gen++; switching = false; if (watch) { clearInterval(watch); watch = null; } if (!el) return; const g = gen; ramp(0, 0.45, () => { if (g === gen && !wanted) el.pause(); }); }
+function start() { if (live) return; live = true; const r = resume; resume = null; if (r && (medley || r.id === cur)) begin(r.id, r.t, r.loops); else begin(cur); if (!watch) watch = setInterval(check, 100); }
+function stop() { if (el && live) resume = { id: cur, t: el.currentTime, loops };   // 止めて入れ直した時（♪・メニュー・シアターの動画の間）も、続きから
+  live = false; gen++; switching = false; if (watch) { clearInterval(watch); watch = null; } if (!el) return; const g = gen; ramp(0, 0.45, () => { if (g === gen && !wanted) el.pause(); }); }
 // 音の部屋（AudioContext）が止まった時（見えていない・ほかの港町の画面が鳴りはじめた）は、BGM も止める。動きだしたら続きから
 function follow() { if (!ctx || !el) return; if (ctx.state === 'running') { if (wanted && el.paused && !switching) play(); } else if (!el.paused) el.pause(); }
 // 一度止められた再生（スマホの自動再生の決まり）は、次にさわった時に、もう一度
+addEventListener('pagehide', () => { if (!el || !live) return; try { sessionStorage.setItem(KEEP, JSON.stringify({ id: cur, t: +el.currentTime.toFixed(2), loops })); } catch (e) { /* 同上 */ } });
 addEventListener('pointerup', () => { if (wanted && el && el.paused && !switching && (!ctx || ctx.state === 'running')) play(); }, { capture: true });
 export const BGM = {
   tracks: Object.keys(TRACKS).map((id) => ({ id, name: TRACKS[id].name, desc: TRACKS[id].desc })),

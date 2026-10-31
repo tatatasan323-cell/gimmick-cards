@@ -2,10 +2,12 @@
 // 画面には textContent でしか出さない。長さの上限・見えない文字の除去・日付と時刻の形の検査は、ここ1か所で
 export const NS = 'x1.';
 export const MAX = { t: 28, to: 24, vn: 40, va: 60, c: 60, m: 200, f: 24, dc: 40 };
-// k＝カードの種類：'g'＝グリーティングカード（あて名・ひとこと・差出人だけ）。ないもの＝招待状（前に送ったリンクも、そのまま招待状として開く）
-export const KEYS = ['k', 't', 'to', 'd', 's', 'e', 'vn', 'va', 'c', 'm', 'f', 'dc', 'rp'];
+// k＝カードの種類：'g'＝グリーティングカード（あて名・ひとこと・差出人・絵）。ないもの＝招待状（前に送ったリンクも、そのまま招待状として開く）
+// dz＝グリーティングカードの絵（共通/greet_cards.js の neon・sew・cello）。ないもの＝開くたびにランダム（前に送ったグリーティングのリンクも）
+export const KEYS = ['k', 't', 'to', 'd', 's', 'e', 'vn', 'va', 'c', 'm', 'f', 'dc', 'rp', 'dz'];
+export const DZ = ['neon', 'sew', 'cello'];
 // グリーティングカードで使う項目（ほかの項目は、入っていても捨てる）
-export const GREET_KEYS = ['k', 't', 'to', 'm', 'f'];
+export const GREET_KEYS = ['k', 't', 'to', 'm', 'f', 'dz'];
 const str = (v, n, keepNl) => {
   if (typeof v !== 'string') return '';
   let s = v.replace(keepNl ? /[\u0000-\u0009\u000b-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g : /[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '');
@@ -20,12 +22,13 @@ export function clean(o) {
     let v = o[k];
     if (k === 'rp') v = v === '1' ? '1' : '';
     else if (k === 'k') v = v === 'g' ? 'g' : '';
+    else if (k === 'dz') v = DZ.includes(v) ? v : '';
     else if (k === 'd') v = (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && validDate(v)) ? v : '';
     else if (k === 's' || k === 'e') v = (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)) ? v : '';
     else v = str(v, MAX[k], k === 'm');
     if (v) r[k] = v;
   }
-  if (r.k === 'g') for (const k of Object.keys(r)) if (!GREET_KEYS.includes(k)) delete r[k];
+  if (r.k === 'g') { for (const k of Object.keys(r)) if (!GREET_KEYS.includes(k)) delete r[k]; } else delete r.dz;   // 絵はグリーティングカードだけ
   return r;
 }
 const b64u = {

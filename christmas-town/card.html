@@ -72,6 +72,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 .credit a{color:inherit;text-decoration:none}
 .town{position:relative;z-index:1;display:block;width:100%;height:auto;margin-top:6px}
 .back{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));z-index:5;padding:6px 13px;border-radius:999px;background:rgba(10,10,40,.6);color:#ffe7c0;font-size:13px;font-weight:800;text-decoration:none}
+.help.bgm{right:calc(52px + env(safe-area-inset-right));font-size:16px}.help.bgm.off{opacity:.5;text-decoration:line-through}
 .help{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));z-index:5;width:34px;height:34px;border-radius:50%;border:0;background:rgba(10,10,40,.6);color:#ffe7c0;font-size:17px;font-weight:900;cursor:pointer}
 .back2{position:fixed;inset:0;z-index:20;background:rgba(4,6,20,.55)}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:560px;margin:0 auto;max-height:90vh;overflow:auto;padding:18px 18px calc(22px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:#fffaf2;color:#3a2414;box-shadow:0 -10px 40px rgba(0,0,0,.45);transform:translateY(102%);transition:transform .36s cubic-bezier(.2,.9,.25,1.1)}
@@ -85,7 +86,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 .note.keep{background:#eaf7ff;border:1px solid #bfe3f7;margin:12px 0 0}
 #help .steps li{margin-bottom:4px}
 #editor label{display:block;margin:10px 0 0;font-size:12.5px;font-weight:800;color:#7a4a28}
-#editor input:not([type=checkbox]),#editor textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:2px solid #ecd8c0;border-radius:12px;background:#fff;color:#3a2414;font-size:16px}
+#editor input:not([type=checkbox]):not([type=radio]),#editor textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:2px solid #ecd8c0;border-radius:12px;background:#fff;color:#3a2414;font-size:16px}
 #editor textarea{resize:vertical;line-height:1.6}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .two>*{min-width:0}
@@ -114,7 +115,21 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 .pump.g{background:linear-gradient(180deg,#5ad89a,#1f9a5a);box-shadow:inset 0 -4px 0 rgba(0,0,0,.16),inset 0 3px 0 rgba(255,255,255,.4),0 8px 20px rgba(40,200,120,.3)}
 .kinds{display:flex;gap:8px;margin:4px 0 2px}.kinds button{flex:1;padding:9px 6px;border-radius:999px;border:2px solid #ecd8c0;background:#fff;color:#7a4a28;font-size:13.5px;font-weight:900;cursor:pointer}
 .kinds button[aria-pressed=true]{background:#b8203a;border-color:#b8203a;color:#fff}.kinds button.g[aria-pressed=true]{background:#1f9a5a;border-color:#1f9a5a}
-#editor.g .inv{display:none!important}
+#editor.g .inv{display:none!important}#editor:not(.g) .gonly{display:none!important}
+.dzs{border:0;margin:10px 0 2px;padding:0;min-width:0}.dzs legend{padding:0;font-size:12.5px;font-weight:800;color:#7a4a28}.dzs .opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+#editor .dzs label{display:flex;align-items:center;gap:6px;margin:0;padding:9px 10px;border:2px solid #ecd8c0;border-radius:12px;background:#fff;color:#5a3a1a;font-size:13.5px;cursor:pointer}#editor .dzs input{width:18px;height:18px;margin:0;accent-color:#1f9a5a}#editor .dzs label:has(input:checked){border-color:#1f9a5a;background:#effaf3}
+/* グリーティングカードの絵（共通/greet_cards.js）と、絵ごとのカードの色 */
+.gstage{position:relative;margin:0 0 12px}.gstage .gcv{display:block;width:100%;border-radius:14px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.gstage .ghint{position:absolute;left:0;right:0;bottom:8px;margin:0;text-align:center;font-size:12.5px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);pointer-events:none;animation:ghint 1.6s ease-in-out infinite;transition:opacity .4s}.gstage .ghint.bye{opacity:0;animation:none}
+@keyframes ghint{50%{transform:translateY(-3px)}}
+.card.greet.dz-neon{background:#1d1218;color:#ffeefa;border-color:#3a1e2c}.card.greet.dz-neon .ttl{color:#41e2ff}.card.greet.dz-neon .row.to dd{color:#ff9ad6}.card.greet.dz-neon .row.msg dd{border-color:rgba(255,120,200,.35)}
+.card.greet.dz-sew{background:#f6ecd8;color:#4a2a14;border-color:#2f8a52}.card.greet.dz-sew .ttl{color:#d0263e}
+.card.greet.dz-cello{background:#fff3dc;color:#5a2a0a;border-color:#c9842a}.card.greet.dz-cello .ttl{color:#9a3a1a}
+.acts .song{border-color:#f0c96a;background:#fff8e6}.acts .song b,.acts .song small{display:block}.acts .song small{margin-top:2px;font-size:12px;font-weight:700;opacity:.8}
+#editor{color-scheme:light}   /* 作る画面は明るい紙。ページの夜の色のままだと、選んでいない丸が黒く塗られて、選んだ印に見えた */.card.greet.dz-neon .acts .song{background:#2a1a24;color:#ffe9f6;border-color:#6a3a5a}
+.sg-name{margin:4px 0 0;font-size:16px;font-weight:900;color:#7a2a1a}.sg-stage{position:relative;margin-top:10px;aspect-ratio:16/9;max-width:100%;border-radius:12px;overflow:hidden;background:#100a0c}.sg-stage video{display:block;width:100%;height:100%;object-fit:cover}
+.sg-play{position:absolute;inset:0;margin:auto;width:max-content;height:max-content;padding:12px 22px;border:0;border-radius:999px;background:rgba(255,210,90,.95);color:#4a2a0a;font-size:16px;font-weight:900;cursor:pointer}.sg-play[hidden]{display:none}
+.sg-full{display:block;margin-top:12px;padding:12px;border-radius:999px;background:#c8732e;color:#fff;text-align:center;font-size:15px;font-weight:900;text-decoration:none}
 .inline{margin:14px auto 0;max-width:30em;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.08);font-size:12.5px;line-height:1.75;color:var(--sub);text-align:left}
 .inline button{display:block;margin:8px auto 0;padding:9px 18px;border:0;border-radius:999px;background:#06c755;color:#fff;font-size:14px;font-weight:900;cursor:pointer}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;transform:translate(-50%,20px);opacity:0;max-width:86vw;padding:10px 16px;border-radius:14px;background:rgba(20,16,40,.92);color:#fff;font-size:13.5px;font-weight:800;white-space:pre-line;text-align:center;pointer-events:none;transition:.25s}
@@ -126,6 +141,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 <div class="aurora" aria-hidden="true"></div>
 <a id="back" class="back" href="./#post" hidden>‹ 港町へもどる</a>
 <button id="btnHelp" class="help" type="button" aria-label="つかいかた・ルール">？</button>
+<button id="btnBgm" class="help bgm" type="button" aria-label="BGM を止める" aria-pressed="true" hidden>♪</button>
 <main>
   <div class="garland" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header class="hero">
@@ -142,6 +158,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 
   <article class="card" id="card" aria-labelledby="ttl">
     <p class="sample" id="sampleTag" hidden>見本</p>
+    <div class="gstage" id="gstage" hidden></div>
     <h2 class="ttl" id="ttl">Christmas Party</h2>
     <p class="count" id="count" hidden></p>
     <dl class="rows" id="rows"></dl>
@@ -167,7 +184,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
     <details class="terms">
       <summary>ご利用にあたって</summary>
-      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
+      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録、音の設定と聞いていた曲の位置（曲の位置はタブを閉じると消えます）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
     </details>
     <p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
   </footer>
@@ -183,6 +200,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
   <div class="shead"><h3 id="edH">カードをつくる</h3><button type="button" id="edX" class="chip">とじる</button></div>
   <div class="kinds" role="group" aria-label="カードの種類"><button type="button" id="kindI" aria-pressed="true">招待状</button><button type="button" id="kindG" class="g" aria-pressed="false">グリーティングカード</button></div>
   <p class="tiny" id="kindNote">日にち・場所・お返事つき。クリスマス会のお誘いに。</p>
+  <fieldset class="dzs gonly"><legend>カードの絵（さわると動きます）</legend><div class="opts"><label><input type="radio" name="dz" value="rnd" checked><span>開くたびにランダム</span></label><label><input type="radio" name="dz" value="neon"><span>ネオン</span></label><label><input type="radio" name="dz" value="sew"><span>ソーイング</span></label><label><input type="radio" name="dz" value="cello"><span>セロハン</span></label></div></fieldset>
   <p class="note copy" id="edCopyNote" hidden>もらったカードの内容を、<b>コピー</b>しました。<b>もらったカードは、そのまま残ります</b>（リンクも変わりません）。差出人とあて名は空にしたので、あなたの名前で書いてね。</p>
   <p class="note">空欄の項目は、カードに出ません。入力した内容は、リンクの中に入ります（サーバーには保存されません）。LINEなどで送った相手には見えるので、見せたくない情報は入れないでください。</p>
   <label>タイトル<input name="t" maxlength="28" placeholder="Christmas Party"></label>
@@ -212,6 +230,15 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
   </div>
 </form>
 
+<!-- このカードの曲：押した人だけ、サビ15秒と MV の全編へ（本人 2026-10-31「曲はさらに聞きたいときに開く感じ」） -->
+<div id="songBack" class="back2" hidden></div>
+<section id="song" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sgH">
+  <div class="shead"><h3 id="sgH">このカードの曲</h3><button type="button" id="sgX" class="chip">とじる</button></div>
+  <p class="sg-name" id="sgName"></p><p class="tiny" id="sgNote"></p>
+  <div class="sg-stage" id="sgStage"><video id="sgV" playsinline preload="none" controlslist="nodownload" disablepictureinpicture></video><button type="button" id="sgPlay" class="sg-play">▶ サビ 15秒</button></div>
+  <a id="sgFull" class="sg-full" target="_blank" rel="noopener noreferrer">MVを一曲ぜんぶ見る ›</a>
+</section>
+
 <!-- つかいかた・ルール -->
 <div id="helpBack" class="back2" hidden></div>
 <section id="help" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="hpH">
@@ -225,6 +252,8 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <ul>
       <li><b>「おかしな港町へ」</b>を押すと、町に入れます。宝石をはじいたり、ステンドグラスを割ったり、氷をけずったり。こわしても、ちゃんと戻ります</li>
       <li>町の中の使い方は、左上の<b>「メニュー」</b>の「あそびかた」に書いてあります</li>
+      <li>グリーティングカードの絵は、さわるたびに動きが進みます。最後まで進めてみてね。<b>「♪ この曲を聞く」</b>で、カードの絵と同じ MV のサビ（15秒）と、全編へのリンクが開きます</li>
+      <li>画面にさわると、港町と同じ BGM が流れます。右上の<b>「♪」</b>で止める・鳴らすを切りかえられます（港町にも同じ設定が残ります）</li>
       <li>日にちが入っていれば、「あと◯日」と、カレンダーに入れるボタンが出ます</li>
       <li>「参加する／欠席する」があれば、押すとLINEが開いて、返事を送れます（送る相手は、自分でえらびます）</li>
       <li>自分もカードを送りたい時は、<b>「自分もカードをつくる」</b>。もらったカードは、そのまま残ります</li>
@@ -234,7 +263,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <h4>つくりかた・おくりかた</h4>
     <ol class="steps">
       <li><b>「招待状をつくる」</b>か<b>「グリーティングカードをつくる」</b>を押します（はじめの画面の「カードをつくって送る」・港町のメニュー・郵便局からも来られます）。招待状は日にち・場所・お返事つき、グリーティングカードは「メリークリスマス」のひとことを送るカードです</li>
-      <li>タイトル・日にち・ひとこと などを書きます。<b>空欄は、カードに出ません</b></li>
+      <li>タイトル・日にち・ひとこと などを書きます。<b>空欄は、カードに出ません</b>。グリーティングカードは、<b>カードの絵</b>（ネオン・ソーイング・セロハン・開くたびにランダム）も選べます。どの絵も、さわると動きます</li>
       <li><b>「リンクをつくる」</b>→<b>「LINEで送る」</b>。送り先は、まず<b>「Keepメモ」</b>（自分だけが見られるトーク）をえらびます</li>
       <li>Keepメモに届いたメッセージを開いて、<b>カードの見た目と中身を確かめます。</b>まちがいがあれば、書きなおして新しいリンクをつくります</li>
       <li>よければ、Keepメモのそのメッセージを<b>長押し →「転送」</b>で、送りたい人をえらんで送ります。<b>確かめたものと同じカードが、まちがいなく届きます</b></li>
@@ -270,8 +299,11 @@ import { titleSvg } from './title_svg.js';
 import { watchOrientation } from './orient.js';
 import { guardLeave } from './stay.js';
 guardLeave('カードを閉じますか？', '');
-import { Card, clean, KEYS } from './card_code.js';
+import { Card, clean, KEYS, DZ } from './card_code.js';
 import { makeSound } from './sound_core.js';
+import { BGM } from './town_bgm.js';
+import { DESIGNS, pickDesign, mountGreet } from './greet_cards.js';
+import { SHOWS } from './theater.js';
 (() => {
   'use strict';
   // GitHub の公開版をまとめる時に true になる（港町と同じフォルダ）。false＝claude.ai の非公開の試作（#c= を運べないので、送るリンクは公開版のアドレスで作る）
@@ -287,11 +319,33 @@ import { makeSound } from './sound_core.js';
     const tone = (f0, f1, vol, delay, dur, type = 'sine') => { if (!ac || ac.state !== 'running') return; try { const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); } catch (e) { /* 音が出なくても使える */ } };
     return {
       unlock() { try { ac = SC.audio(); out = SC.out; } catch (e) { /* 同上 */ } },
+      ctx: () => SC.audio(), raw: () => SC.ac,   // BGM と同じ音の部屋（止める・動かすを合わせる）
+      buzz() { tone(118, 118, 0.05, 0, 0.14, 'sawtooth'); tone(236, 230, 0.025, 0.03, 0.09, 'square'); tone(118, 118, 0.04, 0.12, 0.08, 'sawtooth'); },   // ネオンが灯る「ジジッ」
+      stitch() { tone(3100, 2300, 0.035, 0, 0.035); tone(2700, 2000, 0.03, 0.09, 0.035); },   // 針の「ちく、ちく」
+      choir(k) { const f = [262, 294, 330, 349, 392][k % 5]; [1, 1.25, 1.5].forEach((m, i) => tone(f * m, f * m, 0.045, i * 0.02, 1.3, 'triangle')); },   // 聖歌隊の、やわらかい和音
+      bell() { tone(523, 523, 0.12, 0, 2.4); tone(1443, 1443, 0.04, 0, 1.2); tone(2824, 2824, 0.02, 0, 0.5); },   // 鐘（ずれた倍音を少し）
       boing(k) { const f = [392, 330, 440, 294][k % 4] * (0.95 + Math.random() * 0.1); tone(f * 1.5, f, 0.12, 0, 0.34); tone(f * 0.75, f * 0.55, 0.06, 0.02, 0.42, 'triangle'); },
       tap() { tone(1400, 1100, 0.03, 0, 0.06); },
       jingle(k) { const f = [1568, 1760, 1976, 2093, 2349, 2637][k % 6]; tone(f, f, 0.06, 0, 0.9); tone(f * 2.76, f * 2.76, 0.018, 0, 0.45); tone(f * 1.5, f * 1.5, 0.03, 0.07, 0.6); },   // 鈴：高い音に、ずれた倍音を少し
       chime() { [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, f, 0.05, i * 0.09, 0.9)); },
     }; })();
+
+  // ---------- BGM：港町と同じ曲と設定（港町のメニューの「音」＝localStorage xmas-town-sound の bgm・track・medley・bgmVol）。本人 2026-10-31「カードを作っている間に音楽が鳴らない」 ----------
+  // 最初に画面にさわった時から（スマホは、さわる前に音を出せない）。右上の ♪ で止める・鳴らす（港町にも引き継ぐ）。見えていない間は止める。港町と行き来しても、曲は続きから（共通/town_bgm.js）
+  // 曲のファイルは公開版のフォルダにだけある（試作の非公開ページでは鳴らさない）
+  let bgmDuck = () => {};   // このカードの曲（サビ15秒）が流れる間は、BGM を止める
+  if (PAGES) {
+    const KEY = 'xmas-town-sound', P = (() => { const d = { bgm: true, track: 'jingle', medley: false, bgmVol: 70 }; try { return Object.assign(d, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return d; } })();
+    BGM.setTrack(P.track); BGM.setMedley(!!P.medley); BGM.setVolume((Number.isFinite(Number(P.bgmVol)) ? Number(P.bgmVol) : 70) / 100);
+    const btn = $('#btnBgm'), show = () => { btn.hidden = false; btn.classList.toggle('off', !P.bgm); btn.setAttribute('aria-pressed', String(!!P.bgm)); btn.setAttribute('aria-label', P.bgm ? 'BGM を止める' : 'BGM を鳴らす'); };
+    let started = false; const go = (e) => { if (started || (e && e.target && e.target.closest && e.target.closest('#btnBgm'))) return; started = true; BGM.set(Snd.ctx(), P.bgm); };
+    addEventListener('pointerdown', go, { capture: true }); addEventListener('keydown', go, { capture: true });
+    btn.addEventListener('click', () => { P.bgm = !P.bgm; try { const all = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; all.bgm = P.bgm; localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) { /* その場かぎり */ } started = true; BGM.set(Snd.ctx(), P.bgm); show(); });
+    const hush = () => { const ac = Snd.raw(); if (!ac) return; try { if (document.hidden) ac.suspend(); else ac.resume(); } catch (e) { /* 音が出なくても使える */ } };
+    bgmDuck = (on) => { if (started && P.bgm) BGM.set(Snd.ctx(), !on); };
+    document.addEventListener('visibilitychange', hush); addEventListener('pagehide', () => { const ac = Snd.raw(); if (ac) { try { ac.suspend(); } catch (e) { /* 同上 */ } } });
+    show();
+  }
 
   // ---------- 0. 題字：ぷるぷるのグミ文字（共通/title_svg.js。港町のはじめの画面と同じ）。さわった字は、ぽよんと弾んで鳴る ----------
   { const h = document.getElementById('brand'); h.textContent = ''; h.appendChild(titleSvg((k) => { Snd.unlock(); Snd.boing(k); })); }
@@ -335,10 +389,16 @@ import { makeSound } from './sound_core.js';
     return 'https://calendar.google.com/calendar/render?action=TEMPLATE&' + q('text', c.t || TTL0) + '&dates=' + dates + '&' + q('location', [c.vn, c.va].filter(Boolean).join(' ')) + '&' + q('details', c.m || '');
   }
   const ext = (a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; };
+  // グリーティングカードの絵：dz が無い（開くたびにランダム）は、このページを開いている間は同じ絵に（書いている間に絵が変わらないように）
+  let RND = null, G = null; const SFX = { buzz: () => Snd.buzz(), jingle: () => [0, 2, 4, 5].forEach((k, i) => setTimeout(() => Snd.jingle(k), i * 120)), stitch: () => Snd.stitch(), chime: () => Snd.chime(), choir: (k) => Snd.choir(k), bell: () => Snd.bell() };
+  const designOf = (c) => (DZ.includes(c.dz) ? c.dz : RND || (RND = pickDesign('')));
+  function stage(c) { const host = $('#gstage'), card = $('#card'); for (const k of DZ) card.classList.remove('dz-' + k);
+    if (!isG(c)) { if (G) { G.destroy(); G = null; } host.hidden = true; return null; }
+    const id = designOf(c); card.classList.add('dz-' + id); host.hidden = false; if (!G || G.id !== id) { if (G) G.destroy(); G = mountGreet(host, id, SFX); } return id; }
   function renderCard(c, sample) {
-    state.card = c; state.sample = sample;
+    state.card = c; state.sample = sample; const gid = stage(c);
     const g = isG(c), title = c.t || (g ? TTL_G : TTL0), len = Array.from(title).length;
-    $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : '');
+    $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : ''); $('#ttl').hidden = g && title === TTL_G;   // 「Merry Christmas」は絵の中にある
     $('#card').classList.toggle('greet', g);
     document.title = sample ? "とろけて聖夜｜X'masグリーティングカード" : title + ' ─ とろけて聖夜';
     $('#sampleTag').hidden = !sample;
@@ -347,7 +407,8 @@ import { makeSound } from './sound_core.js';
       if (c.to) rows.appendChild(row('TO', c.to + ' へ', 'to'));
       rows.appendChild(row('ひとこと', c.m || 'メリークリスマス！', 'msg'));
       if (c.f) rows.appendChild(row('FROM', c.f + ' より', 'from'));
-      $('#count').hidden = true; $('#acts').textContent = ''; makeButtons(sample); return;
+      $('#count').hidden = true; const acts = $('#acts'); acts.textContent = ''; const S = SHOWS.find((x) => x.id === DESIGNS[gid].song);
+      const b = el('button', 'song'); b.append(el('b', null, '♪ この曲を聞く'), el('small', null, S.ja)); b.type = 'button'; b.addEventListener('click', () => { Snd.unlock(); Snd.tap(); openSong(S); }); acts.appendChild(b); makeButtons(sample); return;
     }
     if (c.to) rows.appendChild(row('TO', c.to + ' へ'));
     if (c.d) rows.appendChild(row('日時', dateText(c)));
@@ -416,7 +477,7 @@ import { makeSound } from './sound_core.js';
   function setKind(k) { edKind = k === 'g' ? 'g' : ''; const g = edKind === 'g'; editor.classList.toggle('g', g); $('#kindI').setAttribute('aria-pressed', String(!g)); $('#kindG').setAttribute('aria-pressed', String(g));
     $('#edH').textContent = g ? 'グリーティングカードをつくる' : '招待状をつくる'; $('#kindNote').textContent = g ? '「メリークリスマス」のひとことを送るカード。あて名・ひとこと・差出人だけ。' : '日にち・場所・お返事つき。クリスマス会のお誘いに。';
     editor.elements.t.placeholder = g ? TTL_G : TTL0; editor.elements.m.placeholder = g ? '例：今年もありがとう。すてきなクリスマスを！' : '例：ケーキを用意して待ってるよ。プレゼント交換もしようね！'; }
-  function fillForm(c) { setKind(c.k); KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || ''; }); }
+  function fillForm(c) { setKind(c.k); KEYS.forEach((k) => { const f = editor.elements[k]; if (!f) return; if (k === 'rp') f.checked = c[k] === '1'; else f.value = c[k] || (k === 'dz' ? 'rnd' : ''); }); }
   function readForm() { const o = { k: edKind }; KEYS.forEach((k) => { const f = editor.elements[k]; if (f) o[k] = k === 'rp' ? (f.checked ? '1' : '') : f.value; }); return clean(o); }
   let edKeep = false, lastCard = null;
   function openSheet(sh, back) { back.hidden = false; sh.hidden = false; void sh.offsetWidth; sh.classList.add('open'); }
@@ -467,6 +528,16 @@ import { makeSound } from './sound_core.js';
   if (/Line\//i.test(navigator.userAgent) && PAGES) { $('#lineBox').hidden = false; $('#btnReopen').addEventListener('click', () => { Snd.unlock(); Snd.tap(); const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.href = u.href; }); }
   if (PAGES && /[?&]openExternalBrowser=1/.test(location.search)) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // 開きなおした後は、アドレスを元に
 
+  // ---------- このカードの曲：押した人だけ。動画は押すまで読みこまない。流れる間は BGM を止める ----------
+  const song = $('#song'), songBack = $('#songBack'), sgV = $('#sgV'); let SONG = null;
+  function songReset() { sgV.pause(); sgV.removeAttribute('src'); sgV.removeAttribute('controls'); try { sgV.load(); } catch (e) { /* 読みこむものが無い */ } $('#sgPlay').hidden = !PAGES; bgmDuck(false); }
+  function openSong(S) { SONG = S; $('#sgName').textContent = S.name + '｜' + S.ja; $('#sgNote').textContent = S.note; $('#sgFull').href = S.yt; songReset();
+    if (PAGES) sgV.poster = S.poster; else sgV.removeAttribute('poster'); $('#sgStage').hidden = !PAGES; openSheet(song, songBack); }   // 試作の非公開ページには動画のファイルが無いので、全編のリンクだけ
+  $('#sgPlay').addEventListener('click', () => { if (!SONG) return; Snd.unlock(); $('#sgPlay').hidden = true; sgV.src = SONG.clip; sgV.setAttribute('controls', ''); bgmDuck(true); const pr = sgV.play(); if (pr && pr.catch) pr.catch(() => { /* 操作の枠から押せる */ }); });
+  sgV.addEventListener('ended', () => bgmDuck(false));
+  const closeSong = () => { songReset(); closeSheet(song, songBack); };
+  $('#sgX').addEventListener('click', () => { Snd.tap(); closeSong(); }); songBack.addEventListener('click', closeSong);
+
   // ---------- 5. つかいかた・ルール・リセット ----------
   const help = $('#help'), helpBack = $('#helpBack');
   const helpTab = (t) => [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([a, p]) => { const on = a === t; $('#' + a).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; });
@@ -498,7 +569,7 @@ import { makeSound } from './sound_core.js';
 
   loadFromHash();
   window.__ok = true;
-  if (/[?&]t=1(&|$)/.test(location.search)) window.__card = { Card, clean, sampleCard, shareUrl, state: () => ({ sample: state.sample, mine: state.mine, card: state.card }) };
+  if (/[?&]t=1(&|$)/.test(location.search)) window.__card = { Card, clean, sampleCard, shareUrl, state: () => ({ sample: state.sample, mine: state.mine, card: state.card }), bgm: () => BGM.state(), greet: () => (G ? G.state() : null), greetTap: () => G && G.tap() };
 })();
 </script>
 </body></html>
