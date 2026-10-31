@@ -17,6 +17,15 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #hint{bottom:calc(150px + env(safe-area-inset-bottom));font-size:13px;font-weight:800;line-height:1.7;transition:opacity .8s}
 #found{position:fixed;right:12px;top:calc(56px + env(safe-area-inset-top));padding:5px 11px;border-radius:999px;background:rgba(40,22,8,.55);color:#ffe7b0;font-size:12.5px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #card{position:fixed;left:50%;top:calc(92px + env(safe-area-inset-top));transform:translateX(-50%);width:min(92vw,390px);box-sizing:border-box;padding:14px 16px 12px;border-radius:18px;background:rgba(255,248,236,.97);color:#2a1a10;box-shadow:0 10px 34px rgba(0,0,0,.45)}
+#tour{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:12;width:min(94vw,440px);box-sizing:border-box;padding:10px 14px;border-radius:18px;background:rgba(255,248,236,.97);color:#2a1a10;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#tour[hidden]{display:none}#tour .tg{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;font-weight:800;color:#8a5a2a}#trFly,#trStop{display:none}#tour.fly:not(.paused) #trFly,#tour.paused #trStop{display:inline}
+#tour b{display:block;font-size:17px;letter-spacing:.04em;margin-top:2px}#tour small{display:block;font-size:11.5px;font-weight:700;color:#8a5a2a}
+#trText{margin:6px 0 0;font-size:13.5px;line-height:1.7;height:6.8em;overflow-y:auto}#tour.end #trText{height:auto}
+#trBar{height:3px;border-radius:2px;background:rgba(138,90,42,.18);margin-top:6px;overflow:hidden}#trBar i{display:block;height:100%;background:#e8a04a;transform-origin:0 50%;transform:scaleX(0)}
+#tour .row{display:flex;gap:6px;margin-top:8px}#tour button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:9px 8px;min-height:38px;cursor:pointer;background:#f2e2c8;color:#4a2a10;flex:1 1 0;white-space:nowrap}
+#trX{flex:0 0 40px!important}#tour button.pri{background:linear-gradient(#ffb36b,#f08a3a);color:#fff}#tour .endr{display:none}#tour.end .run{display:none}#tour.end .endr{display:flex}#tour.end #trBar{display:none}
+body.touring #joy,body.touring .ud,body.touring #hint,body.touring #liteTag{display:none!important}
+@media (orientation:landscape) and (max-height:520px){#tour{width:min(56vw,440px);left:auto;right:calc(10px + env(safe-area-inset-right));transform:none;padding:8px 12px}#trText{height:3.4em}#tour .row{margin-top:6px}}
 #card b{display:block;font-size:19px;letter-spacing:.05em}
 #card small{display:block;font-size:12px;font-weight:700;color:#8a5a2a;margin-top:2px}
 #card p{margin:8px 0 0;font-size:13.5px;line-height:1.7}
@@ -135,7 +144,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 .st-b .two button:first-child{background:#e0476e;box-shadow:0 3px 0 #a3264a}
 .st-b .howto{display:block;margin-top:6px;min-height:36px;padding:8px 0;font:inherit;font-size:12.5px;font-weight:800;color:#2f7ad0;background:none;border:0;cursor:pointer;text-align:left}
 .st-mk{cursor:default}.st-mk:active{transform:none}.st-b[hidden]{display:none}
-.ic-town{background:linear-gradient(#ff95c8,#ff5c9e)}.ic-room{background:linear-gradient(#4ac2ff,#1f7ad0)}.st-b .rooms button{background:#2f8fdc;box-shadow:0 3px 0 #1a5d99}.st-b .rooms button:first-child{background:#2f8fdc;box-shadow:0 3px 0 #1a5d99}.ic-th{background:linear-gradient(#e0475a,#a3162c)}.ic-tri{background:linear-gradient(#9b8bff,#6a52e0)}.ic-card{background:linear-gradient(#5fd39a,#25a06a)}
+.ic-town{background:linear-gradient(#ff95c8,#ff5c9e)}.ic-room{background:linear-gradient(#4ac2ff,#1f7ad0)}.st-b .rooms button{background:#2f8fdc;box-shadow:0 3px 0 #1a5d99}.st-b .rooms button:first-child{background:#2f8fdc;box-shadow:0 3px 0 #1a5d99}.ic-th{background:linear-gradient(#e0475a,#a3162c)}.ic-tri{background:linear-gradient(#9b8bff,#6a52e0)}.ic-tour{background:linear-gradient(#ffc36b,#f08a3a)}.ic-card{background:linear-gradient(#5fd39a,#25a06a)}
 .st-credit{margin:16px 0 0;font-size:11.5px;letter-spacing:.08em}.st-credit a{color:#b8b4e8;text-decoration:none}
 /* 横向きの低い画面（スマホの横）：左に題字、右に入口 */
 @media (orientation:landscape) and (max-height:560px){.st-in{max-width:880px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 22px;align-items:start}.st-q{margin-top:6px}#stTitle{max-width:320px}}
@@ -162,6 +171,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
     <div class="st-b st-mk" id="stRooms"><i class="ic ic-room" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3.5h12l4 5.5-10 12L2 9z"/><path d="M2 9h20M9 3.5L12 21M15 3.5L12 21"/></svg></i><span class="tx2"><b>仕掛けの部屋へ、まっすぐ</b><small>町を通らずに、遊びたい部屋だけ開きます</small><span class="two rooms"><button type="button" data-room="glass">ステンドグラス</button><button type="button" data-room="museum">宝石の美術館</button><button type="button" data-room="ice">氷の彫像</button><button type="button" data-room="swim">ぷるぷる水そう</button><button type="button" data-room="blocks">グミのつみき</button></span></span></div>
     <button class="st-b" type="button" data-go="theater"><i class="ic ic-th" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M10 7.8v5.4l4.6-2.7z" fill="currentColor"/><path d="M8 20.5h8"/></svg></i><span class="tx2"><b>シアターでMVを見る</b><small>3つのシアターで、サビを15秒ずつ。全編へも</small></span></button>
     <button class="st-b" type="button" data-go="trivia"><i class="ic ic-tri" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.3 7.2L22 12l-7.7 2.8L12 22l-2.3-7.2L2 12l7.7-2.8z"/></svg></i><span class="tx2"><b>豆知識を読む</b><small>町のあちこちで光る、クリスマスの豆知識</small></span></button>
+    <button class="st-b" type="button" data-go="tour"><i class="ic ic-tour" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5L21 4l-6.5 17-3.2-7.3z"/><path d="M11.3 13.7L21 4"/></svg></i><span class="tx2"><b>お任せで遊覧</b><small>豆知識とシアターを、町の空から順に案内します</small></span></button>
     <div class="st-b st-mk"><i class="ic ic-card" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 6.5l9 7 9-7"/></svg></i><span class="tx2"><b>カードをつくって送る</b><small>LINE で送れます</small><span class="two"><button type="button" data-make="greet">グリーティングカード</button><button type="button" data-make="invite">招待状</button></span><button type="button" class="howto" id="stHowto">はじめての方へ：つくりかた・おくりかた ›</button></span></div>
    </div>
    <p class="st-credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
@@ -181,6 +191,9 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <div id="joy"><div id="knob"></div></div><button class="ud" id="upB" type="button" hidden>▲</button><button class="ud" id="dnB" type="button" hidden>▼</button>
 <div id="theaterUI" role="dialog" aria-label="ミュージカルの劇場" hidden><div id="thHead"><div><b>ミュージカルの劇場</b><small>3つのシアターで、サビを15秒ずつ上映中</small></div><button id="thBack" type="button">‹ 港町へもどる</button></div><div id="thList"></div></div>
 <div id="card" hidden><b id="cName"></b><small id="cSub"></small><p id="cText"></p><div class="src" id="cSrc"></div><div class="row"><a id="go" target="_blank" rel="noopener" hidden>この場所へ ›</a><button id="close" type="button">とじる</button></div></div>
+<div id="tour" role="region" aria-label="お任せ遊覧" hidden><div class="tg"><span>お任せ遊覧　<span id="trN"></span></span><span id="trFly">飛んでいます…</span><span id="trStop">止めています</span></div><b id="trName"></b><small id="trSub"></small><p id="trText"></p><div id="trBar"><i></i></div>
+<div class="row run"><button id="trPrev" type="button" aria-label="前へ">‹ 前へ</button><button id="trPlay" type="button">⏸ 止める</button><button id="trNext" type="button" aria-label="次へ">次へ ›</button><button id="trMore" type="button" class="pri">くわしく</button><button id="trX" type="button" aria-label="遊覧をおわる">✕</button></div>
+<div class="row endr"><button id="trAgain" type="button">もう一度</button><button id="trEnd" type="button" class="pri">おわる</button></div></div>
 <div id="tip"><p id="tipQ"></p><div class="row"><button id="tipYes" type="button">うん</button><button id="tipNo" type="button">まだ！ つれてって</button></div></div>
 <div id="cotton" hidden><canvas id="cotC"></canvas><div id="cotIn"><div id="cotTag"></div><div id="cotName"></div><p id="cotText"></p><div id="cotSrc"></div><button id="cotOk" type="button">なるほど！</button></div></div>
 <button id="menuB" type="button" aria-haspopup="dialog">☰ メニュー</button>
@@ -2087,7 +2100,7 @@ $('tipNo').addEventListener('click', () => { const t = tipOn; hideTip(); if (t) 
 // どれを出すか：一度も体験していない物で、このタブでまだ出していない物だけ。⓪先に出す物（画質の札のわけ）①ふつうのヒント ②見落としがちな物。全部体験したら（出しつくしたら）出さない
 //   出ている間に、そのことを体験したら、すぐ引っこめる
 function stepTips(dt) { if ((tipSweep -= dt) <= 0) { tipSweep = 1; sweepTips(); }
-  if (tipOn) { if (TIP_DONE.has(tipOn.id) || (tipHide -= dt) <= 0) hideTip(); return; } if (SHOP.on || !card.hidden || COT.open || auto || INTRO.t >= 0) return; if (!$('menu').hidden || (tipT -= dt) > 0) return; tipT = rnd(35, 50);
+  if (tipOn) { if (TIP_DONE.has(tipOn.id) || (tipHide -= dt) <= 0) hideTip(); return; } if (SHOP.on || !card.hidden || COT.open || auto || INTRO.t >= 0 || TOUR.on) return; if (!$('menu').hidden || (tipT -= dt) > 0) return; tipT = rnd(35, 50);
   const live = TIPS.filter((t) => (!t.when || t.when()) && !TIP_DONE.has(t.id) && !TIP_SHOWN.has(t.id) && !t.done() && tipQ(t)); let c = live.filter((t) => t.first);
   if (!c.length) c = live.filter((t) => !t.deep);
   if (!c.length) c = live.filter((t) => t.deep);
@@ -2141,7 +2154,7 @@ function step(f0) {
   waterMat.uniforms.uT.value = t; sqMat.uniforms.uT.value = t; FALL.mat.uniforms.uT.value = t;
   // オーロラ：光の波のあとは明るく、色が流れる
   aurBoost = Math.max(0, aurBoost - dt * 0.12); hueT += dt * aurBoost * 1.2; sky.mat.uniforms.uAur.value = 1.1 + aurBoost * 1.6; sky.mat.uniforms.uHue.value = Math.sin(hueT) * 1.4 * Math.min(1, aurBoost * 3); waterMat.uniforms.uAur.value = sky.mat.uniforms.uAur.value; waterMat.uniforms.uHue.value = sky.mat.uniforms.uHue.value;
-  stepFireworks(dt); stepTips(dt);
+  stepFireworks(dt); stepTips(dt); tourStep(dt);
   // ツリー：ぷるん（下から上へゆれる）・ゆらり。電飾は、触ってしばらく色が流れてまたたく
   { const J = TREE_J; J.v += (-80 * J.j - 5 * J.v) * dt; J.j += J.v * dt; J.sv += (-30 * J.sway - 2.5 * J.sv) * dt; J.sway += J.sv * dt; BIGTREE.scale.set(1 - J.j * 0.5, 1 + J.j, 1 - J.j * 0.5); BIGTREE.rotation.z = J.sway; J.mat.userData.U.uWob.value = Math.min(0.08, Math.abs(J.v) * 0.04);
     J.spark = Math.max(0, J.spark - dt * 0.35); const cl = J.lights.geometry.attributes.color; if (J.spark > 0.001 || J.lit) { J.lit = J.spark > 0.001; for (let i = 0; i < cl.count; i++) { const b = J.base[i], k = J.spark; HC.setHSL((i / cl.count * 3 + t * 0.9) % 1, 1, 0.62); const tw = 1 + 2.2 * k * Math.pow(Math.max(0, Math.sin(t * 17 + i * 1.7)), 6); cl.setXYZ(i, (b[0] * (1 - k) + HC.r * k) * tw, (b[1] * (1 - k) + HC.g * k) * tw, (b[2] * (1 - k) + HC.b * k) * tw); } cl.needsUpdate = true; J.lights.material.size = 0.55 * (1 + J.spark * 0.9); } }
@@ -2222,7 +2235,7 @@ function step(f0) {
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}\n${GLDIAG.gpu.slice(0, 48)} VU${VU} D${DENT_N} shaderErr ${GLDIAG.err.length}${GLDIAG.err.length ? '\n' + GLDIAG.err[0].slice(0, 140) : ''}`; frames = 0; tf = performance.now(); }
 }
 let BATCH = null;
-if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), frames: () => renderer.info.render.frame, scene, cam, drone, counts,
+if (fpsEl) window.__dbg = { tour: () => ({ on: TOUR.on, i: TOUR.i, n: TOUR.list.length, phase: TOUR.phase, paused: TOUR.paused, arrived: TOUR.arrived, t: TOUR.t, name: TOUR.list[TOUR.i] ? TOUR.list[TOUR.i].name : '', auto: !!auto }), tourK: (k) => { TOUR.k = k; }, tourStart: () => startTour(), errs: () => ERRS.slice(), frames: () => renderer.info.render.frame, scene, cam, drone, counts,
   // キャラの当たりの検査：いちばん重なっている量（負＝めり込み。行列どうしは数えない）／当たりを切る／ぶつかった回数／行列の進み
   crowdGap: () => { const A = crowdAgents(); let m = 9, who = null; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { if (A[i].k === 'luc' && A[j].k === 'luc') continue; const g = Math.hypot(A[i].x - A[j].x, A[i].z - A[j].z) - A[i].r - A[j].r; if (g < m) { m = g; who = [A[i].k, A[j].k]; } } return [+m.toFixed(3), who]; },
   crowdOff: (v) => { CROWD.off = v; }, crowdBumps: () => CROWD.bumps, lucA: () => +LUC.a.toFixed(4), lucBy: () => { const q = LUC.by; if (!q) return null; const b = q.b; return q.k === 'gb' ? ['gb', GBS.indexOf(b), b.back, +(b.wait || 0).toFixed(2)] : ['puyo', PUYOS.indexOf(b), +b.hop.toFixed(2), b.hops, +b.next.toFixed(2), b.tgt.map((v) => +v.toFixed(1)), [+b.grp.position.x.toFixed(2), +b.grp.position.z.toFixed(2)], b.home]; },
@@ -2293,6 +2306,57 @@ if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), frames: () => renderer.inf
   scaleOf: (id) => AREAS.find((a) => a.id === id).g.scale.x, halos: () => TRIVIA.filter((T) => (T.big ? SANTA_HALO.material.opacity : HALO_G.attributes.color.getX(T.k) + HALO_G.attributes.color.getY(T.k)) > 0.05).length, festoons: () => FESTOONS.length, boatsY: () => BOATS.map((b) => b.g.position.y), santaPos: () => SANTA.g.position.toArray(), tip: (i) => showTip(TIPS[i]), tips: () => TIPS.map((x) => x.id), tipNo: () => $('tipNo').click(), pull: () => PULL.uPull.value.length(), teddyFoot: () => { const T = TEDDY.userData.k; T.updateMatrixWorld(true); return new THREE.Box3().setFromObject(T).min.y - TEDDY.getWorldPosition(new THREE.Vector3()).y; }, tree: () => [TREE_J.j, TREE_J.spark], slope: (x, z) => slopeAt(x, z), padAt: (k) => { const [x, z] = AREAPOS[k]; return [landH(x - 2, z), landH(x + 2, z), landH(x, z - 2), landH(x, z + 2)]; }, cardAt: () => cardAt && cardAt.toArray(), rayAll: (x, y) => { pickAt(x, y); return ray.intersectObjects([...PICK, GROUND, ...HOUSE_MESHES, ...BITE_EXTRA], false).slice(0, 6).map((h) => [+h.distance.toFixed(2), isTeddy(h.object), h.object.userData.key || h.object.material.type, PICK.includes(h.object)]); }, tedMeshes: () => { let n = 0, p = 0; TEDDY.traverse((o) => { if (o.isMesh) { n++; if (PICK.includes(o)) p++; } }); return [n, p]; }, pickObj: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, !!h.obj, h.obj ? isTeddy(h.obj) : null, h.obj ? h.obj.type + ':' + (h.obj.parent && h.obj.parent.type) : null] : null; }, teddyW: () => TEDDY.userData.k.localToWorld(new THREE.Vector3(0, 0, 0)).toArray(), teddyN: () => new THREE.Vector3(0, 0, 1).transformDirection(TOY.g.matrixWorld).toArray() };
 // ---------- メニュー：行ける場所・豆知識・つかいかた・音 ----------
 const WHERE = { bauble: '広場の奥の、ガラス玉の屋台', wreath: '礼拝堂の前の、ろうそくの輪', reindeer: '広場の奥で、ひと休みするトナカイ', gtown: 'パン屋の看板のあたり', seven: 'パン屋の窓辺', tree: '広場の大きなツリー', card: '郵便局の赤いポスト', silent: '礼拝堂の鐘', lucia: '広場をまわる、光の冠の行列', yule: '家の窓辺の靴', almond: '広場の屋台', norad: '夜空を走るそり' };
+// ---------- お任せ遊覧（本人 2026-10-31「お任せで遊覧」＝豆知識とシアターを回って案内）：町の豆知識12とシアターを、いまいる所から近い順に ----------
+//   全国遊覧と同じ決まり：文は1秒8字＋眺める間だけ出す（読む人は50〜60代）・止める／前へ／次へ／くわしく・飛んでいる途中に「くわしく」を押しても行き先の文
+//   札の字を書きかえるのは、次の行き先へ飛び立つ時だけ。飛ぶ間・眺める間は、進み具合の線を CSS で伸ばすだけ（動いている間に重い書きかえをしない）
+//   遊覧の間は飛ぶ丸と上下のボタンを隠す（お任せなので）。なぞって見まわすのはそのまま。指やキーで飛んだ・メニューを開いた＝止める
+//   見た豆知識は「見つけた」に数える。飴工房の開店（12そろった時）は、遊覧を終えてから（途中でカメラを取らない）
+const TOUR = { on: false, pend: false, list: [], i: -1, phase: '', t: 0, dwell: 0, paused: false, goal: null, arrived: 0, k: 1, el: $('tour') };
+const T_READ = 8, T_LOOK = 3.5, T_FLYMAX = 12;   // 1秒に読む字・眺める間・飛ぶ時間の上限（家に当たって着かない時）
+function tourStops() {
+  const S = [...TRIVIA.map((T) => ({ kind: 'trivia', T, name: T.name, sub: WHERE[T.id], text: T.text })), ...AREAS.filter((A) => A.id === 'theater').map((A) => ({ kind: 'area', A, name: A.name, sub: A.sub, text: A.text }))];
+  const at = (x) => (x.kind === 'trivia' ? x.T.obj : x.A.g).getWorldPosition(new THREE.Vector3()), out = []; let p = drone.p.clone();
+  while (S.length) { let bi = 0, bd = Infinity; S.forEach((x, k) => { const d = at(x).distanceTo(p); if (d < bd) { bd = d; bi = k; } }); const x = S.splice(bi, 1)[0]; out.push(x); p = at(x); }
+  return out;
+}
+const tourBar = (to, sec) => { const b = TOUR.el.querySelector('#trBar i'); b.style.transition = sec > 0 ? `transform ${sec.toFixed(2)}s linear` : 'none'; b.style.transform = `scaleX(${to})`; };
+function tourGo(i) {   // i 番目へ飛び立つ（札の字は、ここで1回だけ書きかえる）
+  TOUR.i = i; const x = TOUR.list[i]; closeTrivia(true); card.hidden = true; if (tipOn) hideTip();
+  $('trN').textContent = `${i + 1} / ${TOUR.list.length}`; $('trName').textContent = x.name; $('trSub').textContent = x.sub || ''; $('trText').textContent = x.text; $('trText').scrollTop = 0;
+  $('trMore').textContent = x.kind === 'area' ? 'シアターへ' : 'くわしく';
+  TOUR.el.classList.add('fly'); tourBar(0, 0); TOUR.phase = 'fly'; TOUR.t = 0; TOUR.dwell = ([...x.text].length / T_READ + T_LOOK) / TOUR.k;
+  if (x.kind === 'trivia') { const T = x.T, c = T.obj.getWorldPosition(new THREE.Vector3()); flyTo(c, c, T.big ? 13 : 6.5, T.big ? 3 : 2.4); T.pop = 1; }
+  else { const A = x.A, c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); }
+  TOUR.goal = auto.p.clone();
+}
+function tourArrive() { const x = TOUR.list[TOUR.i]; TOUR.phase = 'read'; TOUR.t = 0; TOUR.arrived++;
+  if (x.kind === 'trivia' && !found.has(x.T.id)) { found.add(x.T.id); x.T.pop = 1; updateFound(); saveProgress(); }
+  if (x.kind === 'area') x.A.seen = true;
+  TOUR.el.classList.remove('fly'); tourBar(1, TOUR.dwell); }
+function tourNext(d = 1) { const i = TOUR.i + d; if (i < 0) return; if (i >= TOUR.list.length) { tourDone(); return; } if (TOUR.paused) tourPlay(true); tourGo(i); }
+function tourPause() { if (!TOUR.on || TOUR.paused || TOUR.phase === 'end') return; TOUR.paused = true; TOUR.el.classList.add('paused'); if (TOUR.phase === 'fly') auto = null;
+  tourBar(TOUR.phase === 'read' ? Math.min(1, TOUR.t / TOUR.dwell) : 0, 0); $('trPlay').textContent = '▶ 続ける'; }   // 線を今の長さで止める
+function tourPlay(quiet) { if (!TOUR.paused) return; TOUR.paused = false; TOUR.el.classList.remove('paused'); $('trPlay').textContent = '⏸ 止める'; if (quiet) return;
+  if (TOUR.phase === 'fly' || drone.p.distanceTo(TOUR.goal) > 2) tourGo(TOUR.i); else tourBar(1, TOUR.dwell - TOUR.t); }   // 指で離れていたら、その所へ飛びなおす
+function startTour() { closeMenu(); closeTrivia(true); card.hidden = true; if (tipOn) hideTip(); TOUR.pend = false;
+  TOUR.list = tourStops(); TOUR.on = true; TOUR.paused = false; TOUR.el.classList.remove('paused'); TOUR.el.classList.remove('end'); TOUR.el.hidden = false; document.body.classList.add('touring'); $('trPlay').textContent = '⏸ 止める'; counts.tours = (counts.tours || 0) + 1; tourGo(0); }
+function tourDone() { TOUR.phase = 'end'; TOUR.paused = false; TOUR.el.classList.remove('paused'); auto = null; TOUR.el.classList.remove('fly'); TOUR.el.classList.add('end');
+  $('trN').textContent = ''; $('trName').textContent = '遊覧は、これでおしまい'; $('trSub').textContent = ''; $('trText').textContent = '左の丸で、町を自由に飛んでみてね。もう一度見たい時は、メニューの「お任せ遊覧」から。'; }
+function tourEnd() { TOUR.on = false; TOUR.phase = ''; TOUR.el.hidden = true; document.body.classList.remove('touring'); auto = null; TOUR.paused = false; checkUnlock(); }   // 12そろっていたら、ここで飴工房が開く
+function tourStep(dt) {
+  if (!TOUR.on) { if (TOUR.pend && INTRO.t < 0) startTour(); return; }
+  if (TOUR.paused || TOUR.phase === 'end') return; TOUR.t += dt;
+  if (TOUR.phase === 'fly') { if (auto && TOUR.t < T_FLYMAX) return; if (auto) auto = null; else if (drone.p.distanceTo(TOUR.goal) > 1.2) { tourPause(); return; }   // 指やキーで飛んだ＝止める
+    tourArrive(); return; }
+  if (TOUR.t >= TOUR.dwell) tourNext(1);
+}
+$('trPrev').addEventListener('click', () => { SND.tap(); tourNext(-1); });
+$('trNext').addEventListener('click', () => { SND.tap(); tourNext(1); });
+$('trPlay').addEventListener('click', () => { SND.tap(); if (TOUR.paused) tourPlay(); else tourPause(); });
+$('trMore').addEventListener('click', () => { SND.tap(); const x = TOUR.list[TOUR.i]; tourPause(); if (x.kind === 'trivia') { found.add(x.T.id); updateFound(); showTrivia(x.T, false); } else openTheaterUI(false); });   // 飛んでいる途中でも、行き先の豆知識
+$('trX').addEventListener('click', () => { SND.tap(); tourEnd(); });
+$('trAgain').addEventListener('click', () => { SND.tap(); startTour(); });
+$('trEnd').addEventListener('click', () => { SND.tap(); tourEnd(); });
 const SOUND_KEY = 'xmas-town-sound', PREF = (() => { try { return Object.assign({ bgm: true, track: 'jingle', se: true, bgmVol: 70, seVol: 100 }, JSON.parse(localStorage.getItem(SOUND_KEY) || '{}')); } catch (e) { return { bgm: true, track: 'jingle', se: true, bgmVol: 70, seVol: 100 }; } })();
 const savePref = () => { try { localStorage.setItem(SOUND_KEY, JSON.stringify(PREF)); } catch (e) { /* その場かぎり */ } };
 BGM.setTrack(PREF.track); BGM.setMedley(!!PREF.medley); BGM.setVolume(PREF.bgmVol / 100); SND.setVolume(PREF.seVol / 100); SND.setMute(!PREF.se); BGM.onChange = () => { if (!$('menu').hidden && menuTab === 'sound') drawMenu(); };
@@ -2316,12 +2380,12 @@ let menuTab = 'places';
 const mEl = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const mRow = (title, sub, ...btns) => { const r = mEl('div', 'it'), t = mEl('div', 'mtx'); t.append(mEl('b', null, title)); if (sub) t.append(mEl('small', null, sub)); r.append(t, ...btns); return r; };
 const mBtn = (label, fn, cls) => { const b = mEl('button', cls || null, label); b.type = 'button'; b.addEventListener('click', () => { SND.tap(); fn(); }); return b; };
-function openMenu(tab) { if (tab) menuTab = tab; closeTrivia(true); card.hidden = true; if (tipOn) hideTip(); $('menu').hidden = false; drawMenu(); counts.menus++; }
+function openMenu(tab) { if (tab) menuTab = tab; tourPause(); closeTrivia(true); card.hidden = true; if (tipOn) hideTip(); $('menu').hidden = false; drawMenu(); counts.menus++; }
 function closeMenu() { $('menu').hidden = true; }
 function drawMenu() {
   for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.t === menuTab);
   const P = $('pane'); P.textContent = ''; P.scrollTop = 0;
-  if (menuTab === 'places') { P.append(mEl('div', 'hd', 'さわると、そこへ飛びます。「入る」で、中の仕掛けへ'));
+  if (menuTab === 'places') { P.append(mRow('お任せ遊覧', '豆知識とシアターを、町の空から順に案内します', mBtn('はじめる', () => { closeMenu(); startTour(); }, 'go'))); P.append(mEl('div', 'hd', 'さわると、そこへ飛びます。「入る」で、中の仕掛けへ'));
     for (const A of AREAS) { const bs = [mBtn('ここへ', () => { closeMenu(); focusArea(A); })]; if (A.link) { const a = mEl('a', 'go', '入る ›'); a.href = A.link; if (!PAGES) { a.target = '_blank'; a.rel = 'noopener'; } a.addEventListener('click', () => use(A.id)); bs.push(a); } else if (A.enter) bs.push(mBtn('入る ›', () => { closeMenu(); A.enter(); }, 'go'));
       P.append(mRow((USED.has(A.id) || (!A.link && !A.enter && A.id !== 'teddy' && A.seen) ? '✓ ' : '') + A.name, A.sub, ...bs)); }
     if (OPEN.cakes) for (const M of MOUNTS.filter((q) => q.cake)) P.append(mRow((ACH.has('cake') ? '✓ ' : '') + M.name + 'の山', M.where, mBtn('ここへ', () => { closeMenu(); goPoint(new THREE.Vector3(M.x, M.y + M.yMax * 0.6, M.z), M.rMax + 12, 4); }))); }
@@ -2497,6 +2561,6 @@ $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'car
   // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
   SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam, BG.on && !START ? () => BG.y() : null); SPOON.g.visible = FORK.g.visible = false; ready = true; window.__built = true; await START_P; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
   // はじめの画面（メニューの「はじめの画面へ」で戻った時）から選んだ時は、組み立てた町のまま。豆知識を読むで来た時は、題字を出さずに一覧を開く
-  window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true) }; if (START.mode === 'trivia') openMenu('trivia'); })();
+  window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true), tour: () => { TOUR.pend = true; } }; if (START.mode === 'trivia') openMenu('trivia'); if (START.mode === 'tour') TOUR.pend = true; })();
 </script>
 </body></html>

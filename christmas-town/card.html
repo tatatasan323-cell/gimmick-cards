@@ -315,12 +315,16 @@ import { SHOWS } from './theater.js';
   const state = { card: null, sample: true, mine: false };
 
   // ---------- 音（さわった時だけ。最初に画面にふれてから鳴らす）。音の部屋・出口・港町のメニューの「音」（効果音のオン・オフと大きさ）は、共通の土台（共通/sound_core.js） ----------
+  // ネオンの「ジジッ」は、ヒップホップの MV のエンドクレジットと同じ音（動画制作ラボ/engine/se.py の「ネオン点灯」を書き出した neon_on.m4a）。本人 2026-11-01「エンドクレジットみたいな音に」
+  //   先に読んで（音の部屋が無くても、音の形にほどける）、押した時は1つ流すだけ（押すたびに音を組むと、その瞬間に曲が途切れる）
+  const NEON = { buf: null };
+  try { fetch('neon_on.m4a').then((r) => r.arrayBuffer()).then((b) => { const c = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 1, 44100); return new Promise((ok, ng) => c.decodeAudioData(b, ok, ng)); }).then((d) => { NEON.buf = d; }, () => { /* 読めない時は鳴らさない */ }); } catch (e) { /* 同上 */ }
   const Snd = (() => { const SC = makeSound({ gain: 0.8 }); let ac = null, out = null;
     const tone = (f0, f1, vol, delay, dur, type = 'sine') => { if (!ac || ac.state !== 'running') return; try { const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02); } catch (e) { /* 音が出なくても使える */ } };
     return {
       unlock() { try { ac = SC.audio(); out = SC.out; } catch (e) { /* 同上 */ } },
       ctx: () => SC.audio(), raw: () => SC.ac,   // BGM と同じ音の部屋（止める・動かすを合わせる）
-      buzz(v = 1) { tone(118, 118, 0.06 * v, 0, 0.12, 'sawtooth'); tone(3000, 2200, 0.022 * v, 0, 0.02, 'square'); tone(236, 230, 0.03 * v, 0.03, 0.08, 'square'); tone(118, 118, 0.045 * v, 0.1, 0.06, 'sawtooth'); },   // ネオンが灯る「ジジッ」（v＝大きさ。またたきは小さく）
+      buzz(v = 1) { if (!ac || ac.state !== 'running' || !NEON.buf) return; try { const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = NEON.buf; s.playbackRate.value = 0.92 + Math.random() * 0.16; g.gain.value = 0.6 * v; s.connect(g); g.connect(out); s.start(); } catch (e) { /* 音が出なくても使える */ } },   // ネオンが灯る「ジジッ」（v＝大きさ。またたきは小さく）
       stitch(v = 1) { tone(3100, 2300, 0.035 * v, 0, 0.035); tone(2700, 2000, 0.03 * v, 0.09, 0.035); },   // 針の「ちく、ちく」（v＝大きさ）
       choir(k) { const f = [262, 294, 330, 349, 392][k % 5]; [1, 1.25, 1.5].forEach((m, i) => tone(f * m, f * m, 0.045, i * 0.02, 1.3, 'triangle')); },   // 聖歌隊の、やわらかい和音
       bell() { tone(523, 523, 0.12, 0, 2.4); tone(1443, 1443, 0.04, 0, 1.2); tone(2824, 2824, 0.02, 0, 0.5); },   // 鐘（ずれた倍音を少し）

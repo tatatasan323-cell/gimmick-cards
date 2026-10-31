@@ -77,9 +77,18 @@ export function build() {
   // ---------- 物語の時刻 ----------
   const S = { step: 0, total: 5, done: false, t: [], hearts: [], hop: -9 };
   const since = (k, t) => (S.t[k] == null ? -1 : t - S.t[k]);
-  const TXT_D = 1.5, TREE_D = 1.9, SEW0 = 1.05, SEWD = 0.62, SEWN = 3, BTN_D = SEW0 + SEWN * SEWD + 0.6, WAKE_D = 3.2;
+  // 字は1針ずつ：1針＝字の上を STL だけ進む・STD 秒（針を布に刺して、少し先から出す。出た所までの糸の字が見える）
+  const STL = 8.5, STD = 0.24, WORDS = [[0, W1], [W1, 1]], NST = WORDS.map(([a, b]) => Math.ceil(((b - a) * tw) / STL)), TXT_D = NST.map((n) => n * STD);
+  const TREE_D = 3.1, SEW0 = 1.05, SEWD = 0.85, SEWN = 3, BTN_D = SEW0 + SEWN * SEWD + 0.6, WAKE_D = 3.2;
   const sewAt = (u) => { const k = (u - SEW0) / SEWD; return k < 0 ? { n: 0, u: -1 } : k >= SEWN ? { n: SEWN, u: 1 } : { n: Math.floor(k), u: k - Math.floor(k) }; };
-  const textProg = (t) => { let p = 0; const a = since(0, t), b = since(1, t); if (a >= 0) p = W1 * easeInOut(a / TXT_D); if (b >= 0) p = W1 + (1 - W1) * easeInOut(b / TXT_D); return p; };
+  // 縫えた所（字の幅の割合）と、いま縫っている針（針先の位置と、糸の出どころ）
+  function textAt(t) { let p = 0, nd = null;
+    WORDS.forEach(([w0, w1], k) => { const a = since(k, t); if (a < 0) return; if (a >= TXT_D[k]) { p = w1; return; }
+      const c = a / STD, i = Math.floor(c), f = c - i, x0 = X0 + w0 * tw + i * STL; p = Math.min(w1, w0 + (i * STL) / tw);
+      const dip = f < 0.55 ? Math.sin((f / 0.55) * Math.PI / 2) : Math.cos(((f - 0.55) / 0.45) * Math.PI / 2);   // 0 布の上 → 1 布に刺す → 0 少し先から出る
+      nd = { x: x0 + STL * ease(f), y: TY + 9 * dip - 3, dip, from: { x: x0, y: TY + 5 } }; });
+    return { p, nd }; }
+  const textProg = (t) => textAt(t).p;
 
   // ---------- MV の人物（フェルトのテディとジンジャーブレッド） ----------
   let FR = null, M = null, TD = null, GB = null;
@@ -106,7 +115,7 @@ export function build() {
     const J = GB.J, o = { x: GX, y: FLOOR, sc: SC }, b4 = since(3, t), w = since(4, t);
     const p = Object.assign({}, FR.REST, { t, btn: b4 >= 0.38 ? [1, 0, 1] : [1, 1, 1], blink: 0 }); M.stance(p, J, { dir: 1 });
     let needle = null;
-    const tp = textProg(t), sew = (since(0, t) >= 0 && since(0, t) < TXT_D) || (since(1, t) >= 0 && since(1, t) < TXT_D), tr = since(2, t);
+    const tp = textProg(t), sew = [0, 1].some((k) => since(k, t) >= 0 && since(k, t) < TXT_D[k]), tr = since(2, t);
     if (b4 < 0) {   // 縫い進む針を見上げる（目 → 頭）。終わったら、いつものうれしい顔
       const nx = X0 + tw * tp; p.turn = sew ? clamp((nx - GX) / 120, -0.6, 0.6) : 0.15; p.lookY = sew ? -1 : tr >= 0 && tr < TREE_D ? -0.3 : 0; p.look = sew ? p.turn : tr >= 0 && tr < TREE_D ? -1 : 0.3; p.neck = sew ? -0.1 : 0;
       M.hand(p, J, 1, -40, 26, 'down'); M.hand(p, J, -1, 40, 26, 'down'); if (sew) { p.mouth = 0.25; }
@@ -141,14 +150,16 @@ export function build() {
     g.stroke(); g.strokeStyle = 'rgba(50,54,62,.95)'; g.lineWidth = 1.9; g.beginPath(); g.moveTo(eye.x, eye.y); g.lineTo(vis.x, vis.y); g.stroke(); g.strokeStyle = '#eef2f8'; g.lineWidth = 1; g.stroke(); g.restore();
   }
   // 宙を飛んで縫う針（字・ツリーの飾り）：針先を下へ向けて、ちくちく上下しながら進む。糸は縫い終えた所から
-  function flyNeedle(g, x0, y0, from, t) {
-    const bob = Math.abs(Math.sin(t * 22)) * 5, tip = { x: x0, y: y0 + 4 - bob }, eye = { x: x0 + 6, y: y0 - 14 - bob };
+  function flyNeedle(g, x0, y0, from, t, dip = null) {
+    const bob = dip == null ? Math.abs(Math.sin(t * 9)) * 5 : 0, tip = { x: x0, y: y0 + 4 - bob }, eye = { x: x0 + 9, y: y0 - 20 - bob };
+    if (dip != null && dip > 0.6) { g.save(); g.fillStyle = 'rgba(20,10,30,.55)'; g.beginPath(); g.arc(x0, y0 + 4, 1.4, 0, TAU); g.fill(); g.restore(); }   // 布に刺した所
     g.save(); g.lineCap = 'round'; g.strokeStyle = THREAD; g.lineWidth = 0.9; g.beginPath(); g.moveTo(from.x, from.y); g.quadraticCurveTo((from.x + eye.x) / 2, Math.max(from.y, eye.y) + 8, eye.x, eye.y); g.stroke();
-    g.strokeStyle = 'rgba(30,30,40,.9)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(eye.x, eye.y); g.lineTo(tip.x, tip.y); g.stroke(); g.strokeStyle = '#eef2f8'; g.lineWidth = 1.1; g.stroke();
-    g.strokeStyle = 'rgba(30,30,40,.8)'; g.lineWidth = 0.6; g.beginPath(); g.ellipse(eye.x - 0.6, eye.y + 2.2, 0.7, 1.6, 0.3, 0, TAU); g.stroke(); g.restore();
+    g.strokeStyle = 'rgba(30,30,40,.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(eye.x, eye.y); g.lineTo(tip.x, tip.y); g.stroke(); g.strokeStyle = '#eef2f8'; g.lineWidth = 1.6; g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(eye.x - 0.8, eye.y + 3); g.lineTo(tip.x + 2, tip.y - 5); g.stroke();   // 針の光
+    g.strokeStyle = 'rgba(30,30,40,.85)'; g.lineWidth = 0.7; g.beginPath(); g.ellipse(eye.x - 0.8, eye.y + 2.6, 0.8, 2, 0.42, 0, TAU); g.stroke(); g.restore();
   }
   // ツリーの飾り（3回目：玉が順にぽんと縫いつく → モール → 星）
-  const ornT = (i) => 0.12 + i * 0.12, SWAG_T = [0.35, 0.85], STAR_T = 1.45;
+  const ornT = (i) => 0.2 + i * 0.2, SWAG_T = [0.6, 1.4], STAR_T = 2.35;
   function treeDeco(g, t) {
     const u = since(2, t); if (u < 0) return;
     SWAG.forEach(([a, b, c], i) => { const q = clamp((u - SWAG_T[i]) / 0.45, 0, 1); if (q <= 0) return; g.save(); g.setLineDash([2.2, 1.8]); g.lineWidth = 1.3; g.strokeStyle = GOLD; g.beginPath(); for (let k = 0; k <= 24 * q; k++) { const v = k / 24, x0 = (1 - v) * (1 - v) * a[0] + 2 * v * (1 - v) * b[0] + v * v * c[0], y0 = (1 - v) * (1 - v) * a[1] + 2 * v * (1 - v) * b[1] + v * v * c[1]; k ? g.lineTo(x0, y0) : g.moveTo(x0, y0); } g.stroke(); g.restore(); });
@@ -156,7 +167,7 @@ export function build() {
     const q = u - STAR_T; if (q >= 0) { const s = spring(q / 0.45); g.save(); g.translate(TRX, 72); g.scale(s, s); felt(g, (gg, i) => { gg.beginPath(); for (let k = 0; k <= 10; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 5, r = (k % 2 ? 4.6 : 10) - i * 0.8; gg.lineTo(Math.cos(a) * r, Math.sin(a) * r); } gg.closePath(); }, GOLD, { sh: 2, inset: 1.6, tw: 0.7, dash: [1.4, 1.2] }); g.restore();
       if (q < 0.9) { g.save(); g.globalAlpha = 1 - q / 0.9; g.fillStyle = '#fff4c0'; for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU, r = 10 + 18 * q; g.beginPath(); g.arc(TRX + Math.cos(a) * r, 72 + Math.sin(a) * r, 1.6, 0, TAU); g.fill(); } g.restore(); } }
   }
-  const treeNeedle = (u) => { if (u < 0 || u > TREE_D) return null; if (u > STAR_T - 0.2) return { x: TRX + 2, y: 72, from: { x: TRX + 34, y: 170 } }; const i = clamp(Math.floor((u - 0.05) / 0.12), 0, ORN.length - 1), f = clamp((u - 0.05) / 0.12 - i, 0, 1), a = ORN[Math.max(0, i - 1)], b = ORN[i];
+  const treeNeedle = (u) => { if (u < 0 || u > TREE_D) return null; if (u > STAR_T - 0.2) return { x: TRX + 2, y: 72, from: { x: TRX + 34, y: 170 } }; const i = clamp(Math.floor((u - 0.1) / 0.2), 0, ORN.length - 1), f = clamp((u - 0.1) / 0.2 - i, 0, 1), a = ORN[Math.max(0, i - 1)], b = ORN[i];
     return { x: a[0] + (b[0] - a[0]) * ease(f * 1.5), y: b[1] + (a[1] - b[1]) * (1 - ease(f * 1.5)) - 4, from: { x: a[0], y: a[1] } }; };
   // 窓の外を、フェルトのサンタのそりが横切る（5回目）
   function santa(g, t) {
@@ -170,7 +181,7 @@ export function build() {
   }
   // 人物は1秒15コマ（MV の紙の人形と同じコマ送り）で紙に描いて残し、間はその紙を貼る
   const [CC, cc] = (() => { const c = document.createElement('canvas'); c.width = c.height = 8; return [c, c.getContext('2d')]; })(); let ccKey = '';
-  const charBusy = (t) => [0, 1, 2].some((k) => since(k, t) >= 0 && since(k, t) < (k === 2 ? TREE_D : TXT_D) + 0.1) || (since(3, t) >= 0 && since(3, t) < BTN_D) || (since(4, t) >= 0 && since(4, t) < 2.2) || (S.done && t - S.hop < 0.9);
+  const charBusy = (t) => [0, 1, 2].some((k) => since(k, t) >= 0 && since(k, t) < (k === 2 ? TREE_D : TXT_D[k]) + 0.1) || (since(3, t) >= 0 && since(3, t) < BTN_D) || (since(4, t) >= 0 && since(4, t) < 2.2) || (S.done && t - S.hop < 0.9);
   let lastNeedle = null;
   function chars(x, t, dev) {
     if (!TD) return;
@@ -185,14 +196,13 @@ export function build() {
     if (lastNeedle) needleAt(x, lastNeedle.hand, lastNeedle.nd);
   }
 
-  const stitches = (sfx, dur, every = 0.11) => { for (let k = 0; k * every < dur; k++) setTimeout(() => sfx.stitch && sfx.stitch(k % 2 ? 0.35 : 0.5), k * every * 1000); };
+  const stitches = (sfx, dur, every) => { for (let k = 0; k * every < dur; k++) setTimeout(() => sfx.stitch && sfx.stitch(k % 2 ? 0.35 : 0.5), k * every * 1000); };
   return { S, ready, snow: { n: 12, kind: 'felt', size: 2.6, rect: [WIN.x, WIN.y, WIN.w, WIN.h] },
     draw(x, t) {
       const dev = Math.abs(x.getTransform().a) || 1; x.drawImage(bg, 0, 0, W, H);
-      const tp = textProg(t), rx = X0 + tw * tp; if (tp > 0) { x.save(); x.beginPath(); x.rect(0, 0, tp >= 1 ? W : rx, H); x.clip(); x.drawImage(thread, 0, 0, W, H); x.restore(); }
+      const ta = textAt(t), tp = ta.p, rx = X0 + tw * tp; if (tp > 0) { x.save(); x.beginPath(); x.rect(0, 0, tp >= 1 ? W : rx, H); x.clip(); x.drawImage(thread, 0, 0, W, H); x.restore(); }
       santa(x, t); treeDeco(x, t);
-      const sewing = [0, 1].some((k) => since(k, t) >= 0 && since(k, t) < TXT_D);
-      if (sewing) flyNeedle(x, rx, TY + 6, { x: rx - 6, y: TY + 4 }, t);
+      if (ta.nd) flyNeedle(x, ta.nd.x, ta.nd.y, ta.nd.from, t, ta.nd.dip);
       const tn = treeNeedle(since(2, t)); if (tn) flyNeedle(x, tn.x, tn.y, tn.from, t);
       chars(x, t, dev);
       for (const h of S.hearts) { const v = (t - h.t) / 1.4; if (v < 0 || v > 1) continue; x.save(); x.globalAlpha = Math.min(1, (1 - v) * 2); x.translate(h.x + 6 * Math.sin(v * 7), 186 - 70 * v); felt(x, heart(0, 0, 0.7 + v * 0.3), '#e8283a', { sh: 2, inset: 1.6, tw: 0.6 }); x.restore(); }
@@ -200,8 +210,8 @@ export function build() {
     busy: (t) => charBusy(t) || (since(2, t) >= 0 && since(2, t) < TREE_D + 0.3) || (since(4, t) >= 0 && since(4, t) < WAKE_D) || S.hearts.some((h) => t - h.t < 1.45),
     tap(t, sfx) {
       if (S.step < S.total) { const k = S.step++; S.t[k] = t;
-        if (k < 2) stitches(sfx, TXT_D); else if (k === 2) stitches(sfx, TREE_D, 0.12);
-        else if (k === 3) { setTimeout(() => sfx.pop && sfx.pop(), 380); for (let n = 0; n < SEWN; n++) for (const d of [0.12, 0.34]) setTimeout(() => sfx.stitch && sfx.stitch(0.6), (SEW0 + n * SEWD + d) * 1000); }
+        if (k < 2) stitches(sfx, TXT_D[k], STD); else if (k === 2) stitches(sfx, TREE_D - 0.5, 0.2);
+        else if (k === 3) { setTimeout(() => sfx.pop && sfx.pop(), 380); for (let n = 0; n < SEWN; n++) for (const d of [0.3, 0.5]) setTimeout(() => sfx.stitch && sfx.stitch(0.6), (SEW0 + n * SEWD + d * SEWD) * 1000); }
         else { S.done = true; setTimeout(() => sfx.chime && sfx.chime(), 1300); }
       } else { S.hop = t; S.hearts.push({ x: (GX + TDX) / 2 + (Math.random() - 0.5) * 16, t }, { x: (GX + TDX) / 2 + (Math.random() - 0.5) * 30, t: t + 0.25 }); while (S.hearts.length > 8) S.hearts.shift(); if (sfx.stitch) sfx.stitch(0.5); setTimeout(() => sfx.pop && sfx.pop(), 120); }
     } };
