@@ -264,11 +264,20 @@ import { uiZoom } from './uiscale.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { GEM_Q } from './gemshader.js';
 import { openTheater, theaterDucked } from './theater.js';
-// はじめの画面で選ぶまで、町を組み立てない（組み立てる間は画面が固まり、はじめの画面のボタンが押せない）。建物の前へ戻る時と検査は、すぐ
-// START.mode＝town（町を回る）・trivia（豆知識を読む）。START.top＝はじめの画面から来た（届いたカードは、はじめの画面で知らせ済み）
-const START = await window.__start;
-try { sessionStorage.setItem('xmas-back', 'town'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }   // 町からカードや部屋へ行った時の「もどる」は、町のその建物の前へ（はじめの画面から行った時は top）
-guardLeave('おかしな港町から出ますか？', '');
+// はじめの画面の間は、裏でゆっくり組み立てる（本人 2026-10-31「余計なことをやっている間に、町のデータをゆっくり読みこめばいい」）
+//   区切り（BG.y）ごとに手を空けて、はじめの画面のボタンがすぐ応えるように。シアターの動画が流れている間は待つ（映像をなめらかに）
+//   選んだら、残りは区切らずに急いで組み立てる。町を見せる・音・「出ますか？」の守りは、選んでから。建物の前へ戻る時と検査（?fps）は、はじめから急いで
+// START.mode＝town（町を回る）・trivia（豆知識を読む）。START.top＝はじめの画面から来た（届いたカードは、はじめの画面で知らせ済み）。選ぶまでは null
+let START = null;
+const START_P = window.__start.then((s) => { START = s; guardLeave('おかしな港町から出ますか？', '');
+  try { sessionStorage.setItem('xmas-back', 'town'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }   // 町からカードや部屋へ行った時の「もどる」は、町のその建物の前へ（はじめの画面から行った時は top）
+  return s; });
+const onTop = () => !document.getElementById('start').hidden;
+const BG = { on: !!window.__go, t: 0, sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  playing: () => [...document.querySelectorAll('#thList video')].some((v) => !v.paused && !v.ended),
+  n: 0, async y() { if (!BG.on || START) return; while (BG.playing() && !START) await BG.sleep(400); if (performance.now() - BG.t < 30) return; await BG.sleep(0); BG.t = performance.now(); BG.n++; } };
+window.__bgN = () => BG.n;   // 区切りで手を空けた回数（確かめる道具が読む）
+if (BG.on) await Promise.race([START_P, BG.sleep(900)]);   // はじめの画面の入口が出るのを待ってから（選んだら、すぐ）
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
 const $ = (id) => document.getElementById(id);
@@ -291,9 +300,9 @@ const LITE = makeLite({ page: 'town', levels: { 100: { dpr: TOUCH_DEV ? 1.5 : 2,
 let DPR = LITE.dpr(); renderer.setPixelRatio(DPR);
  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#04060f'); const FOG = new THREE.Color('#080d22'); scene.fog = new THREE.FogExp2(FOG, 0.0085);
-const sky = makeSky(scene, { aurora: 1.1 });
-const GEM_ENV = gemEnv(renderer);
-{ const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#141c38', side: THREE.BackSide })));
+await BG.y(); const sky = makeSky(scene, { aurora: 1.1 });
+await BG.y(); const GEM_ENV = gemEnv(renderer);
+await BG.y(); { const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: '#141c38', side: THREE.BackSide })));
   const box = (w, h, x, y, z, col, s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(s), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
   box(12, 6, 0, 16, 3, '#ffffff', 3); box(4, 4, -12, 6, 8, '#cfe6ff', 4); box(3, 6, 13, 4, -4, '#ffd6a0', 5); box(2, 2, 6, 3, 13, '#ffffff', 6); box(10, 3, 0, 4, -14, '#40ffb0', 1.2); box(6, 2, 0, -10, 8, '#ffb060', 2);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.02).texture; pm.dispose(); }   // 作る道具は片付ける（残すと作業用の絵が GPU に残った）
@@ -303,8 +312,9 @@ const V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), V2b = new THREE.Vector
 const ctex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
 const glowTex = ctex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
 const sprite = (col, s, op = 1) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending })); m.scale.setScalar(s); return m; };
-const MATS = SW.makeMats(GEM_ENV);
+const MATS = SW.makeMats(GEM_ENV, await SW.matTex(() => BG.y()));
 
+await BG.y();
 // ---------- 入り江：湾（だ円）と、南の外海への水路。陸は湾から奥へ、段々に上がる ----------
 const AX = 21, AZ = 13, BZ = 14, eOf = (x, z) => Math.hypot(x / AX, (z - BZ) / AZ), polar = (e, f) => [AX * e * Math.cos(f), BZ + AZ * e * Math.sin(f)];
 const seaLine = (x) => 33 + 0.006 * x * x, chanHalf = (z) => 6 + Math.max(0, z - 20) * 0.35;
@@ -326,6 +336,7 @@ const QF0 = Math.PI - 0.25, QF1 = TAU - 0.72;
     for (const v of [ao, ai, bo, bo, ai, bi]) { top.push(...v); tn.push(0, 1, 0); tu.push(v[0] * 0.3, v[2] * 0.3); } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); scene.add(new THREE.Mesh(g, MATS.choco));
   const t = new THREE.BufferGeometry(); t.setAttribute('position', new THREE.Float32BufferAttribute(top, 3)); t.setAttribute('normal', new THREE.Float32BufferAttribute(tn, 3)); t.setAttribute('uv', new THREE.Float32BufferAttribute(tu, 2)); scene.add(new THREE.Mesh(t, MATS.frost)); }
+await BG.y();
 // ---------- 町割り：湾にそって等高線のように走る通り（6段）と、坂をのぼる小道（6本・少し曲がる） ----------
 // 家は通りの山側に、正面を通りへ向けて並ぶ（奥行きのある区画では、谷側にも背中合わせの列）。広場の所は通りを途切れさせる
 const RING = [1.09, 1.47, 1.85, 2.23, 2.61, 2.99], RW = [2.6, 1.8, 1.8, 1.7, 1.7, 1.6];
@@ -395,6 +406,7 @@ function snowify(m, roadEdges) {
   for (let t = 0; t < pos.length; t += 9) { const xs = [pos[t], pos[t + 3], pos[t + 6]], zs = [pos[t + 2], pos[t + 5], pos[t + 8]];
     for (let gx = Math.floor(Math.min(...xs) / 2); gx <= Math.floor(Math.max(...xs) / 2); gx++) for (let gz = Math.floor(Math.min(...zs) / 2); gz <= Math.floor(Math.max(...zs) / 2); gz++) { const k = (gx + 500) * 1000 + gz + 500; if (!ROAD_HASH.has(k)) ROAD_HASH.set(k, []); ROAD_HASH.get(k).push(t); } } }
 
+await BG.y();
 // ---------- 海：さざ波。空とオーロラを映し、町の灯りが縦にゆらぐ。触ると、光の波が本当にうねって輪に広がる（高さ・傾き・波頭の光） ----------
 const WAVES = Array.from({ length: 12 }, () => new THREE.Vector4(0, 0, -99, 0));
 // 波紋は1列の画像に並べてシェーダーで読む（uniform の配列だと、Android の Chrome で海が描かれなかった 2026-10-18。山のくぼみと同じ）
@@ -443,24 +455,25 @@ function waveH(x, z, t) { let h = 0; for (const w of WAVES) { const dt = t - w.z
 const STREAK = [], HC = new THREE.Color(), STREAK_M = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 120); STREAK_M.count = 0; STREAK_M.frustumCulled = false; scene.add(STREAK_M);
 function addStreak(x, z, len, col = '#ffb868', w = 0.5) { if (STREAK.length >= 120) return; const toC = new THREE.Vector3(-x, 0, BZ + 30 - z).normalize(); STREAK.push({ p: new THREE.Vector3(x + (toC.x * len) / 2, WATER_Y + 0.02, z + (toC.z * len) / 2), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(toC.x, toC.z)), w, len, c: new THREE.Color(col), ph: Math.random() * 10 }); STREAK_M.count = STREAK.length; }
 
+await BG.y();
 // ---------- 山：かき氷（練乳・くだもの・ガラスの器）とパフェ（大きなグラス・層・ソフトクリーム）、ソフトクリーム（ワッフルの器）が連なる。東の崖（メロンのかき氷）から炭酸の滝 ----------
 const MTN = [['k', -44, -44, 15, 24, 'strawberry'], ['p', -20, -52, 12, 32, '#fff4e0', '#f2dcb8'], ['k', 4, -58, 18, 28, 'hawaii'], ['p', 26, -50, 13, 30, '#fff2dc', '#6a3a1e'], ['k', 46, -34, 15, 22, 'lemon'],
   ['s', -60, -16, 11, 24, '#ffd2e0', '#fff4f8'], ['k', 34, 8, 11, 16, 'melon'], ['p', 60, 6, 11, 26, '#dff0c4', '#fff8ea'], ['k', -56, 20, 13, 17, 'grape'], ['k', -32, -34, 9, 14, 'melon'], ['s', 14, -36, 8, 18, '#fff6e6', '#f6d8a8'], ['k', 64, -12, 12, 18, 'strawberry']];
 const MM = SW.mountainMats(GEM_ENV), MOUNTS = [], SYR = { strawberry: '#ff6a86', hawaii: '#52b6ff', lemon: '#ffe45a', melon: '#7ae08a', grape: '#a77ae6' };
 const sparkPos = [];
-MTN.forEach(([k, x0, z0, R0m, H0, a, b], i) => { const far = z0 < -20 ? 1.18 : 1, x = x0 * far, z = z0 * far - (z0 < -20 ? 4 : 0), R = R0m * 0.85, H = H0 * 0.85, y = landH(x, z) - 0.8;
+for (const [i, [k, x0, z0, R0m, H0, a, b]] of MTN.entries()) { await BG.y(); const far = z0 < -20 ? 1.18 : 1, x = x0 * far, z = z0 * far - (z0 < -20 ? 4 : 0), R = R0m * 0.85, H = H0 * 0.85, y = landH(x, z) - 0.8;
   const g = k === 'k' ? SW.kakiMountain(MM, R, H, a, i + 1) : k === 'p' ? SW.parfaitMountain(MM, MATS.wafer, R, H, a, b, i + 1) : SW.serveMountain(MM, MATS.wafer, R, H, a, b, i + 1);
   g.position.set(x, y, z); g.rotation.y = i * 1.7; scene.add(g); MOUNTS.push({ k, g, R, H, col: k === 'k' ? SYR[a] : a, col2: b, syr: a });
-  if (k === 'k') for (let j = 0; j < 120; j++) { const t = Math.pow(Math.random(), 0.7), ang = Math.random() * TAU, r0 = R * Math.pow(1 - Math.pow(t, 1.7), 0.55) * 1.02; sparkPos.push(x + Math.cos(ang) * r0, y + H * t, z + Math.sin(ang) * r0); } });
+  if (k === 'k') for (let j = 0; j < 120; j++) { const t = Math.pow(Math.random(), 0.7), ang = Math.random() * TAU, r0 = R * Math.pow(1 - Math.pow(t, 1.7), 0.55) * 1.02; sparkPos.push(x + Math.cos(ang) * r0, y + H * t, z + Math.sin(ang) * r0); } }
 // クリスマスケーキの山：いちごのショートケーキ（奥の山の間）とブッシュ・ド・ノエル（東の岬）。豆知識をぜんぶ集めて、仕掛けをぜんぶ遊ぶと見つかる（それまでは隠す＝on が false）
 // クリームは山のパフェと分ける（食べた跡の中を、スポンジといちごの層にするため）
 const CM = SW.cakeMats(GEM_ENV); CM.cream = MM.cream.clone();
 // 8切れ（ブッシュは8枚の輪切り）でできたケーキ。材質はケーキごとに写す（切れごとの大きさを、ケーキごとに持つため）。userData.base＝もとの材質
 const CAKES = [];
 { const mk = (g, x, z, ry, sink, o) => { g.position.set(x, landH(x, z) - sink, z); g.rotation.y = ry; g.traverse((m) => { if (m.isMesh) { const b = m.material; m.material = b.clone(); m.material.userData.base = b; } }); scene.add(g); const M = Object.assign({ g, cake: true, on: false, ws: new Float32Array(g.userData.N).fill(1), wsT: new Float32Array(g.userData.N).fill(1), back: [] }, o); MOUNTS.push(M); CAKES.push(M); return M; };
-  mk(SW.sliceCake(MM, CM, [[11, 5], [7.6, 4.4], [4.8, 3.8]], 8, 4, 'star'), -8, -50, 0.4, 0.6, { k: 't', R: 11, H: 14, col: '#ffffff', col2: '#e8243e', name: 'クリスマスのタワーケーキ', where: '山の奥' });
-  mk(SW.sliceCake(MM, CM, [[6, 6]], 8, 2, 'plate'), -25.0, 28.0, 0.2, 0.4, { k: 'c', R: 6, H: 7, col: '#ffffff', col2: '#e8243e', name: 'いちごのショートケーキ', where: '西の岬' });
-  mk(SW.sliceBuche(MM, CM, 22, 5, 8), 20.5, 26, 0.25, 0.6, { k: 'b', R: 6, H: 10, col: '#6a3a1a', col2: '#ffffff', name: 'ブッシュ・ド・ノエル', where: '東の岬' }); }
+  await BG.y(); mk(SW.sliceCake(MM, CM, [[11, 5], [7.6, 4.4], [4.8, 3.8]], 8, 4, 'star'), -8, -50, 0.4, 0.6, { k: 't', R: 11, H: 14, col: '#ffffff', col2: '#e8243e', name: 'クリスマスのタワーケーキ', where: '山の奥' });
+  await BG.y(); mk(SW.sliceCake(MM, CM, [[6, 6]], 8, 2, 'plate'), -25.0, 28.0, 0.2, 0.4, { k: 'c', R: 6, H: 7, col: '#ffffff', col2: '#e8243e', name: 'いちごのショートケーキ', where: '西の岬' });
+  await BG.y(); mk(SW.sliceBuche(MM, CM, 22, 5, 8), 20.5, 26, 0.25, 0.6, { k: 'b', R: 6, H: 10, col: '#6a3a1a', col2: '#ffffff', name: 'ブッシュ・ド・ノエル', where: '東の岬' }); }
 { const sparkG = new THREE.BufferGeometry(); sparkG.setAttribute('position', new THREE.Float32BufferAttribute(sparkPos, 3)); scene.add(new THREE.Points(sparkG, new THREE.PointsMaterial({ map: glowTex, color: '#ffffff', size: 0.45, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }))); }
 // 動かない物は、部品を材質ごとに1つの形へまとめて描く（山だけで描く回数が88あった）。点・板（きらめき）はそのまま残す
 function mergeStatic(roots) { const bins = new Map(), keep = [], made = [];
@@ -471,21 +484,22 @@ function mergeStatic(roots) { const bins = new Map(), keep = [], made = [];
   for (const { m, list } of bins.values()) { const out = new THREE.BufferGeometry();
     for (const name of Object.keys(list[0].attributes)) { const sz = list[0].attributes[name].itemSize, arr = new Float32Array(list.reduce((n, g) => n + g.attributes[name].count * sz, 0)); let k = 0; for (const g of list) { arr.set(g.attributes[name].array, k); k += g.attributes[name].count * sz; } out.setAttribute(name, new THREE.BufferAttribute(arr, sz)); }
     out.computeBoundingSphere(); const mm = new THREE.Mesh(out, m); scene.add(mm); made.push(mm); for (const g of list) g.dispose(); } return made; }
+await BG.y();
 // ---------- 山を食べる ----------
 // 山ごとに番号（aMtn＝1〜12）を形に書いておく（材質ごとに1つにまとめて描いても、どの山の頂点か分かる）。あわせて輪郭（高さごとの、いちばん外の半径）を測り、タップの当たりとドローンの壁に使う
 const MTN_B = 28;
-MOUNTS.forEach((M, i) => { const g = M.g, P0 = g.position; let yMax = 0; g.updateMatrixWorld(true); const each = (fn) => g.traverse((o) => { if (o.isMesh && !o.isInstancedMesh) fn(o); });
+for (const [i, M] of MOUNTS.entries()) { await BG.y(); const g = M.g, P0 = g.position; let yMax = 0; g.updateMatrixWorld(true); const each = (fn) => g.traverse((o) => { if (o.isMesh && !o.isInstancedMesh) fn(o); });
   each((o) => { const pa = o.geometry.attributes.position; o.geometry.setAttribute('aMtn', new THREE.BufferAttribute(new Float32Array(pa.count).fill(i + 1), 1)); for (let k = 0; k < pa.count; k++) yMax = Math.max(yMax, V1.fromBufferAttribute(pa, k).applyMatrix4(o.matrixWorld).y - P0.y); });
   const rr = new Float32Array(MTN_B + 1); each((o) => { const pa = o.geometry.attributes.position; for (let k = 0; k < pa.count; k++) { V1.fromBufferAttribute(pa, k).applyMatrix4(o.matrixWorld); const b = clamp(Math.round(((V1.y - P0.y) / yMax) * MTN_B), 0, MTN_B); rr[b] = Math.max(rr[b], Math.hypot(V1.x - P0.x, V1.z - P0.z)); } });
   for (let b = MTN_B - 1; b >= 0; b--) rr[b] = Math.max(rr[b], rr[b + 1] * 0.6);   // 部品のすき間の段で、輪郭が欠けないように
   M.yMax = yMax; M.rr = rr; M.x = P0.x; M.y = P0.y; M.z = P0.z; M.rMax = Math.max(...rr);
   const pts = []; for (let b = 0; b <= MTN_B; b++) pts.push(new THREE.Vector2(rr[b] * 0.96, (b / MTN_B) * yMax)); pts.push(new THREE.Vector2(0.001, yMax));
-  const hit = new THREE.Mesh(new THREE.LatheGeometry(pts, 20), new THREE.MeshBasicMaterial()); hit.position.copy(P0); hit.visible = false; scene.add(hit); M.hit = hit; });
+  const hit = new THREE.Mesh(new THREE.LatheGeometry(pts, 20), new THREE.MeshBasicMaterial()); hit.position.copy(P0); hit.visible = false; scene.add(hit); M.hit = hit; }
 const mtnR = (M, yRel) => { if (yRel < 0) return M.rr[0]; if (yRel > M.yMax) return 0; const f = (yRel / M.yMax) * MTN_B, b = Math.floor(f), u = f - b; return M.rr[b] * (1 - u) + M.rr[Math.min(MTN_B, b + 1)] * u; };
-const MTN_MESHES = mergeStatic(MOUNTS.filter((M) => !M.cake).map((M) => M.g)), CAKE_MESHES = [], EAT_MESHES = [...MTN_MESHES, ...CAKE_MESHES];
+await BG.y(); const MTN_MESHES = mergeStatic(MOUNTS.filter((M) => !M.cake).map((M) => M.g)), CAKE_MESHES = [], EAT_MESHES = [...MTN_MESHES, ...CAKE_MESHES];
 for (const M of CAKES) M.g.traverse((o) => { if (o.isMesh) { CAKE_MESHES.push(o); EAT_MESHES.push(o); o.visible = false; } });
 // まとめた形の中で、山 i の三角はひと続き：その範囲を覚えておく（すくった所の形を、スプーンやフォークへ写すため）
-for (const mm of EAT_MESHES) { const a = mm.geometry.attributes.aMtn, R = {}; if (a) for (let v = 0; v < a.count; v++) { const i = Math.round(a.array[v]); if (!i) continue; const r = R[i] || (R[i] = [v, v]); r[1] = v + 1; } mm.userData.rng = R; }
+for (const mm of EAT_MESHES) { await BG.y(); const a = mm.geometry.attributes.aMtn, R = {}; if (a) for (let v = 0; v < a.count; v++) { const i = Math.round(a.array[v]); if (!i) continue; const r = R[i] || (R[i] = [v, v]); r[1] = v + 1; } mm.userData.rng = R; }
 // 食べた跡＝くぼみの球（中心と半径）と、すくう向き。球の中と、すくう向きの手前にある頂点を、すくう向きに沿って球の底の面まで動かす（＝山から球をくりぬいた形）
 // 面の向きに沿って押しこむと、練乳の細い管や飾りの裏の面が、ばらばらの向きへ飛び出した。本体（氷・クリーム）は底の面に、飾りはその少し奥へ沈めて隠す。かき氷の中は、シロップのない白い氷
 // 計算するのは、いま食べられている山の頂点だけ（ふだんは、どの頂点も何もしない）
@@ -531,7 +545,7 @@ function innerRGB(kind, y) { const fr = (v) => v - Math.floor(v);
   if (kind === 'cake') { const ly = fr(y / 1.7); return ly < 0.58 ? [0.96, 0.8, 0.5] : ly < 0.74 ? [1.0, 0.98, 0.94] : ly < 0.84 ? [0.86, 0.14, 0.22] : [1.0, 0.98, 0.94]; }
   const ly = fr(y / 1.1 + 0.2 * Math.sin(y * 3)); return ly < 0.7 ? [0.42, 0.22, 0.1] : [1.0, 0.97, 0.92]; }
 // ガラスの器と、そのふちの輪（rim）は食べない（ふちの輪だけ食べられる物に入っていて、パフェのふちを触るとガラスが欠けて形が変わった 本人 2026-10-18）
-{ const done = new Set(), body = new Set([MM.ice, MM.cream, MM.sponge, MM.flakes, MM.sauce, CM.cream, CM.bark]), IN = INNER_OF;
+await BG.y(); { const done = new Set(), body = new Set([MM.ice, MM.cream, MM.sponge, MM.flakes, MM.sauce, CM.cream, CM.bark]), IN = INNER_OF;
   for (const mm of EAT_MESHES) { const m = mm.material, b = m.userData.base || m; if (!mm.geometry.attributes.aMtn || done.has(m) || b === MM.glass || b === MM.rim) continue; done.add(m); eatable(m, IN.get(b) || null, body.has(b) ? 0 : 0.35, b === CM.cream ? '|cake' : ''); } }
 // 切れごとの量（0＝持っていかれた・1＝ある）。戻る間は、下から積み上がる：ケーキの底から量の高さまでを描き、それより上の頂点はその高さにそろえる
 // （切れのまん中から大きくしていた時は、ほかの山や氷の像の「下から積み上がる」戻り方とそろわなかった 本人 2026-10-18）
@@ -568,7 +582,7 @@ function cakeClamp(ud, k0, P, deep) { const wIn = deep > 0 ? 0.14 : 0.04;
   const t = ud.tiers.find(([, top]) => P.y < top) || tl, rl = t[0] - (deep > 0 ? 0.15 : 0); let r = Math.hypot(P.x, P.z); if (r > rl) { P.x *= rl / r; P.z *= rl / r; r = rl; }
   const da = TAU / ud.N, am = (k0 + 0.5) * da, hw = da / 2 - wIn / Math.max(r, 0.3); let d = Math.atan2(P.x, P.z) - am; d -= TAU * Math.floor((d + Math.PI) / TAU);
   if (Math.abs(d) > hw) { const b = am + Math.sign(d) * Math.max(hw, 0), ux = Math.sin(b), uz = Math.cos(b), dd = Math.max(P.x * ux + P.z * uz, 0); P.x = ux * dd; P.z = uz * dd; } }
-for (const M of CAKES) { const ud = M.g.userData;
+await BG.y(); for (const M of CAKES) { const ud = M.g.userData;
   if (ud.N !== 8) throw new Error('ケーキの切れは8つの前提（シェーダーの wsOf と跡の戻し）');
   if (ud.kind === 'log') M.ck = { K: new THREE.Vector4(2, 0, 0, 0), T: new THREE.Vector4(ud.L, ud.L / ud.N, ud.cy, ud.R), R: new THREE.Vector4() };
   else { const T = ud.tiers, at = (j) => T[Math.min(j, T.length - 1)]; M.ck = { K: new THREE.Vector4(1, 0, 0, 0), T: new THREE.Vector4(at(0)[1], T.length > 1 ? at(1)[1] : 1e4, T.length > 2 ? at(2)[1] : 1e4, 0), R: new THREE.Vector4(at(0)[0], at(1)[0], at(2)[0], T[T.length - 1][1] + T[T.length - 1][0] * 0.012) }; } }
@@ -637,6 +651,7 @@ function trimChunk(ch, C) { const Y = [], BODY = [MM.ice, MM.cream, MM.sponge, M
     for (const name of Object.keys(g.attributes)) { const a = g.attributes[name], sz = a.itemSize, arr = new Float32Array(keep.length * 3 * sz); keep.forEach((t, j) => arr.set(a.array.subarray(t * sz, (t + 3) * sz), j * 3 * sz)); g.setAttribute(name, new THREE.BufferAttribute(arr, sz)); } });
   return base; }
 const dropChunk = (o) => { if (!o) return; o.removeFromParent(); o.traverse((m) => { if (m.isMesh) m.geometry.dispose(); }); };
+await BG.y();
 // ---------- 大きなスプーン：空から降りてきて、山の上半分をごっそりすくい、山盛りのまま見せてから、らせんを描いて天へ（かけらがこぼれる） ----------
 // 形と材質は 共通/spoon.js（つながった面・首にリボン・柄の端に飾り）。皿の上の山盛りは、すくった所の形そのもの（シロップ・練乳・くだもの・クリームが、山にあったとおり）
 // 大きなスプーンとフォークは、30回かじるまで出てこないので、開いてから裏で作る（開く前に作ると、安いタブレット相当で約2秒）。先に呼ばれたら、その場で作る
@@ -674,6 +689,7 @@ function stepSpoon(dt) { if (SPOON.i < 0) return; const M = MOUNTS[SPOON.i], S =
     SPOON.glow.material.opacity = Math.max(0, (u - 0.7) * 3.3) * 0.95; }
   else { g.visible = false; SPOON.glow.material.opacity = 0; SPOON.setFill(0); dropChunk(SPOON.chunk); SPOON.chunk = null; SPOON.i = -1; S.spoon = false; S.taps = 0; S.spoonEnd = nowS(); return; }   // かじった数は0から（残すと、次の1口でまたスプーンが来た 本人 2026-10-18）
   g.position.copy(pos); g.scale.setScalar(sc); g.rotation.set(0, 0, 0); g.rotateY(SPOON.yaw + spin); g.rotateX(pitch); g.rotateZ(roll); }
+await BG.y();
 // ---------- 大きなフォーク：ケーキの山に、空から降りてきて真上から刺し、刺さった所をごっそり持ち上げて、らせんを描いて天へ ----------
 // 歯の真ん中が、刺す所に来る。持っていく形は、刺した瞬間のケーキの形そのもの（フォークに刺さったまま動く）
 // どの切れを持っていくか：まるいケーキは見ている人の方を向いた切れ、ブッシュは見ている人に近い方の端の1枚
@@ -732,12 +748,13 @@ function stepFork(dt) { if (FORK.i < 0) return; const M = MOUNTS[FORK.i], S = MT
     FORK.glow.material.opacity = Math.max(0, (u - 0.7) * 3.3) * 0.95; }
   else { g.visible = false; FORK.glow.material.opacity = 0; dropChunk(FORK.chunk); FORK.chunk = null; M.back.push(FORK.k); FORK.i = -1; S.spoon = false; S.spoonTaps = S.taps = 0; S.spoonEnd = nowS(); return; }
   g.position.copy(base).add(V3.set(Math.sin(around) * sz * 1.4, up, (1 - Math.cos(around)) * sz * 1.4)); g.quaternion.copy(FORK.q); if (spin) g.quaternion.premultiply(QQ2.setFromAxisAngle(V3.set(0, 1, 0), spin)); if (wob) g.quaternion.multiply(QQ2.setFromAxisAngle(V3.set(0, 0, 1), wob)); g.scale.setScalar(sc); }
+await BG.y();
 // ---------- 戻る：大きな雪の結晶と、星・氷のかけらの渦が、山を下から上へ。くぼみは低い順に、ふさがっていく ----------
 const FLAKE_TEX = ctex(256, 256, (c) => { c.translate(128, 128); c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineCap = 'round'; c.shadowColor = 'rgba(160,210,255,.9)'; c.shadowBlur = 10;
   for (let k = 0; k < 6; k++) { c.save(); c.rotate((k / 6) * TAU); c.lineWidth = 7; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -108); c.stroke(); c.lineWidth = 5; for (const [y, l] of [[-40, 30], [-68, 24], [-92, 14]]) { c.beginPath(); c.moveTo(0, y); c.lineTo(-l, y - l * 0.9); c.moveTo(0, y); c.lineTo(l, y - l * 0.9); c.stroke(); } c.restore(); }
   c.lineWidth = 4; c.beginPath(); for (let k = 0; k <= 6; k++) { const a = (k / 6) * TAU; c.lineTo(Math.cos(a) * 18, Math.sin(a) * 18); } c.stroke(); });
-const FLAKES = Array.from({ length: 8 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: FLAKE_TEX, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: '#cfe6ff' })); m.visible = false; scene.add(m); return m; });
-const SWIRL_N = 420, swirlPos = new Float32Array(SWIRL_N * 3), swirlCol = new Float32Array(SWIRL_N * 3), SWIRL_P = Array.from({ length: SWIRL_N }, (_, k) => ({ a: Math.random() * TAU, h: Math.random(), sp: rnd(1.2, 2.6), off: rnd(0.6, 2.4), c: new THREE.Color(['#ffffff', '#bfe4ff', '#ffe9a0', '#d8c8ff'][k % 4]) }));
+await BG.y(); const FLAKES = Array.from({ length: 8 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: FLAKE_TEX, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, color: '#cfe6ff' })); m.visible = false; scene.add(m); return m; });
+await BG.y(); const SWIRL_N = 420, swirlPos = new Float32Array(SWIRL_N * 3), swirlCol = new Float32Array(SWIRL_N * 3), SWIRL_P = Array.from({ length: SWIRL_N }, (_, k) => ({ a: Math.random() * TAU, h: Math.random(), sp: rnd(1.2, 2.6), off: rnd(0.6, 2.4), c: new THREE.Color(['#ffffff', '#bfe4ff', '#ffe9a0', '#d8c8ff'][k % 4]) }));
 const swirlG = new THREE.BufferGeometry(); swirlG.setAttribute('position', new THREE.BufferAttribute(swirlPos, 3)); swirlG.setAttribute('color', new THREE.BufferAttribute(swirlCol, 3));
 const SWIRL = new THREE.Points(swirlG, new THREE.PointsMaterial({ map: glowTex, size: 1.1, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); SWIRL.frustumCulled = false; SWIRL.visible = false; scene.add(SWIRL);
 let RESTORING = -1;
@@ -762,7 +779,7 @@ function stepMtn(dt) { const now = nowS();
   for (const D of EAT.list) { D.t += dt; const g = D.grow > 0 ? Math.min(1, D.t / D.grow) : 1; EAT.dent[D.slot].set(D.c.x, D.c.y, D.c.z, D.r * g * D.k); } packEat();
   stepSpoon(dt); stepFork(dt); stepCakes(); stepRestore(dt, now); }
 // 炭酸の滝：崖の棚から湾へ。しゅわしゅわの泡がのぼり、下は白い泡
-const FALL = (() => { const W = 3.2, top = 11.5, x0 = 25.2, x1 = 21.6, z = 8.5, nx = 6, ny = 40, pos = [], uv = [], idx = [];
+await BG.y(); const FALL = (() => { const W = 3.2, top = 11.5, x0 = 25.2, x1 = 21.6, z = 8.5, nx = 6, ny = 40, pos = [], uv = [], idx = [];
   for (let j = 0; j <= ny; j++) { const t = j / ny, y = top + (WATER_Y - top) * t, x = x0 + (x1 - x0) * Math.pow(t, 0.6); for (let i = 0; i <= nx; i++) { const s = i / nx; pos.push(x - 0.3 * Math.sin(s * Math.PI), y, z - W / 2 + s * W); uv.push(s, t); } }
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + nx + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
@@ -780,10 +797,11 @@ const FALL = (() => { const W = 3.2, top = 11.5, x0 = 25.2, x1 = 21.6, z = 8.5, 
   const foam = sprite('#e8fff8', 5, 0.55); foam.position.set(x1 - 0.5, WATER_Y + 0.3, z); scene.add(foam); const glow = sprite('#7fffe0', 9, 0.18); glow.position.set(23, 5, z); scene.add(glow);
   return { mat, bub, bv, foam }; })();
 
+await BG.y();
 // ---------- 家並み（同じ材質は町じゅう1つにまとめて描く） ----------
 const HOUSE_ACC = new SW.Acc(), SHOP_AT = [-31.5, -16]; let SHOP_HOUSE = null;
 const GLASS = ['#ffb347', '#ff7a5a', '#ffd86a', '#9ad46a', '#ff9ad0', '#ffc070'], SHADE = ['#ffffff', '#f2d6b6', '#e6c09a', '#fff0dc', '#d9aa80'];
-function row(k, side) {
+async function row(k, side) {   // 通りの片側の家並み。はじめの画面の裏では、何軒かごとに手を空ける
   const [fa, fb] = RING_SPAN(k); let f = fa + rr(0, 0.02);
   while (f < fb) {
     const w = rr(1.9, 2.5), gap = rr(0.15, 0.45), m = mPerE(f), block = side > 0 ? ((RING[k + 1] ?? RING[k] + 0.45) - RING[k]) * m - RW[k] / 2 - (RW[k + 1] ?? 0) / 2 - 0.7 : (RING[k] - RING[k - 1]) * m - RW[k] / 2 - RW[k - 1] / 2 - 0.7;
@@ -797,11 +815,11 @@ function row(k, side) {
     const c0 = HOUSE_ACC.count(); SW.addHouse(HOUSE_ACC, o); const H = { x, z, r: Math.max(w, d) * 0.62, top: y + h + rh + 0.3, o, k, c0, c1: HOUSE_ACC.count() }; HOUSES.push(H);   // c0・c1＝この家の部品の範囲（ピックで持ち上げる時や、飴工房に変わる時に、この家だけを写し取る）
     if (!SHOP_HOUSE && k === 4 && side > 0 && Math.hypot(x - SHOP_AT[0], z - SHOP_AT[1]) < 4) { SHOP_HOUSE = H; H.shop = true; }   // 飴工房になる家（豆知識を12集めると開店）：はじめの景色の左上の奥（西の上の段）の1軒
     if (k === 0) addStreak(x, z, rr(5, 9), '#ffc070', 0.45);
-    f = fc + (w / 2 + gap) / S;
+    f = fc + (w / 2 + gap) / S; await BG.y();
   }
 }
-for (let k = 0; k < RING.length; k++) { row(k, 1); if (k > 0) row(k, -1); }
-const HOUSE_OFF = HOUSE_ACC.offsets(), HOUSE_MESHES = HOUSE_ACC.build(MATS); for (const m of HOUSE_MESHES) scene.add(m);
+for (let k = 0; k < RING.length; k++) { await row(k, 1); if (k > 0) await row(k, -1); }
+await BG.y(); const HOUSE_OFF = HOUSE_ACC.offsets(), HOUSE_MESHES = HOUSE_ACC.build(MATS); for (const m of HOUSE_MESHES) scene.add(m);
 // 街灯：遊歩道と坂道ぞいに。キャンディケインの柱と灯り（にじみはまとめて1回で）
 const LAMPS = []; for (let f = QF0 + 0.05; f < QF1; f += 0.085) LAMPS.push(polar(1.045, f));
 for (const g of LANES) for (const e of [1.3, 1.66, 2.04, 2.42, 2.8]) { const f = laneF(g, e), [x, z] = polar(e, f), [nx, nz] = nOut(f), tx = -nz, tz = nx; LAMPS.push([x + tx * (LANE_W / 2 + 0.15), z + tz * (LANE_W / 2 + 0.15)]); }
@@ -881,6 +899,7 @@ function stepLamps(dt) { let any = false, nc = 0; const ease = (u) => u * u * (3
   for (const m of LP) { m.instanceMatrix.needsUpdate = any; m.visible = any; } CHIP.count = nc; CHIP.visible = nc > 0; if (nc) CHIP.instanceMatrix.needsUpdate = true; }
 for (const [x, z, s] of [[-12, 4.5, 30], [12, 4.5, 30], [SQ[0], SQ[1], 46], [-26, 9, 22]]) { const L = new THREE.PointLight('#ffb070', s, 16, 2); L.position.set(x, landH(x, z) + 4, z); scene.add(L); }
 
+await BG.y();
 // ---------- 名所（タップで寄って、その場所の試作へ） ----------
 const AREAS = [], PICK = [], PICKSET = new Set(); const addPick = (o, ref) => { o.userData.pick = ref; if (!PICKSET.has(o)) { PICKSET.add(o); PICK.push(o); } };
 addPick(LAMP.hit, { kind: 'lamp' });
@@ -911,7 +930,7 @@ const houseGroup = (o, extra, mats = MATS) => { const g = new THREE.Group(); g.p
 let ROSE_WIN = null, BELL = null, BELL_HIT = null;
 // 鐘楼：塔を屋根の棟（約6.4）より上へ出し、柱だけの開いた鐘楼に鐘を吊るす（どの向きからも見える）。前は塔の正面に半分埋まった小さな鐘で、外からほとんど見えなかった（本人 2026-10-19）
 const BELFRY = { y0: 8.1, y1: 9.7, z: -2.2, half: 0.62 };
-const CHAPEL = (() => { const [x, z, ry] = AREAPOS.chapel, o = { x, y: landH(x, z), z, ry, w: 4.4, d: 6.4, h: 3.6, rh: 2.6, roof: 'frost', shade: '#f2d6b6', glass: '#ffd86a', door: true, base: 2, gum: true };
+await BG.y(); const CHAPEL = (() => { const [x, z, ry] = AREAPOS.chapel, o = { x, y: landH(x, z), z, ry, w: 4.4, d: 6.4, h: 3.6, rh: 2.6, roof: 'frost', shade: '#f2d6b6', glass: '#ffd86a', door: true, base: 2, gum: true };
   const { y0, y1, z: bz, half } = BELFRY;
   const g = houseGroup(o, (acc) => { acc.add('cookie', new THREE.BoxGeometry(1.5, 4.6, 1.5).translate(0, 5.8, bz), '#e6c09a');
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) acc.add('cookie', new THREE.BoxGeometry(0.24, y1 - y0, 0.24).translate(sx * half, (y0 + y1) / 2, bz + sz * half), '#e6c09a');   // 鐘楼の4本の柱
@@ -928,7 +947,7 @@ const CHAPEL = (() => { const [x, z, ry] = AREAPOS.chapel, o = { x, y: landH(x, 
   return area('glass', 'ステンドグラスの礼拝堂', '色ガラスの窓', 'タップすると窓のかけらが落ちて砕け、少しすると光の粒になって元の窓へ。窓ごとに戻り方がちがいます。', ART.glass, g, { d: 15, h: 5 }, 11.5); })();
 // 宝石の美術館：キャンディケインの柱が並ぶ正面と、屋根の上でゆっくり回る大きな宝石
 let BIG_GEM = null;
-const MUSEUM = (() => { const [x, z, ry] = AREAPOS.museum, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = ry; scene.add(g);
+await BG.y(); const MUSEUM = (() => { const [x, z, ry] = AREAPOS.museum, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = ry; scene.add(g);
   const acc = new SW.Acc(); acc.add('cookie', new THREE.BoxGeometry(5.6, 3.0, 4.0).translate(0, 1.5, 0), '#fff0dc'); acc.add('choco', new THREE.BoxGeometry(5.8, 1.8, 4.2).translate(0, -0.8, 0));
   const ped = new THREE.Shape(); ped.moveTo(-3.1, 0); ped.lineTo(3.1, 0); ped.lineTo(0, 1.1); ped.closePath(); acc.add('cookie', new THREE.ExtrudeGeometry(ped, { depth: 4.4, bevelEnabled: false }).translate(0, 3.0, -2.2), '#fff0dc'); acc.add('frost', new THREE.BoxGeometry(6.6, 0.18, 4.8).translate(0, 3.05, 0));
   for (let i = 0; i < 6; i++) acc.add('stripe', new THREE.CylinderGeometry(0.17, 0.2, 2.8, 14).translate(-2.3 + i * 0.92, 1.4, 2.35));
@@ -937,7 +956,7 @@ const MUSEUM = (() => { const [x, z, ry] = AREAPOS.museum, g = new THREE.Group()
   const gem = makeGem(MORE_GEMS.find((s) => s.id === 'zircon'), 1.0, { env: GEM_ENV }); gem.group.position.set(0, 5.5, 0); g.add(gem.group); BIG_GEM = gem.group; const gl = sprite('#bfe4ff', 3.4, 0.5); gl.position.set(0, 5.5, 0); g.add(gl);
   return area('museum', '宝石の美術館', '本物らしい宝石48種', '一人称で歩きまわる大ホール。宝石はそっと触ると歌い、強くたたくと…？ ガラスのベンチも、触りすぎると割れます。', ART.museum, g, { d: 14, h: 4 }, 7.8); })();
 // 氷の彫像の広場：白い大理石の円に、小さな氷の彫像5つ
-const ICE = (() => { const [x, z, ry] = AREAPOS.ice, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = ry; scene.add(g);
+await BG.y(); const ICE = (() => { const [x, z, ry] = AREAPOS.ice, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = ry; scene.add(g);
   const plaza = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.5, 2.0, 48), new THREE.MeshPhysicalMaterial({ color: '#e2e0dc', roughness: 0.2, clearcoat: 0.8 })); plaza.position.y = -0.9; g.add(plaza);
   const iceMat = new THREE.MeshPhysicalMaterial({ color: '#d4f0ff', roughness: 0.05, transparent: true, opacity: 0.62, clearcoat: 1, envMapIntensity: 2.6, flatShading: true, emissive: '#4fa8e8', emissiveIntensity: 0.18 });
   const shapes = [() => { const m = new THREE.Group(); [[0.55, 0.6, 0.3], [0.42, 0.5, 0.72], [0.28, 0.42, 1.05]].forEach(([r, h, y]) => { const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), iceMat); c.position.y = y; m.add(c); }); return m; }, () => { const m = new THREE.Group(); [[0.36, 0.36], [0.26, 0.88]].forEach(([r, y]) => { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), iceMat); s.position.y = y; m.add(s); }); return m; }, () => { const m = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.55, 0.62), iceMat); b.position.y = 0.3; m.add(b); return m; }, () => { const m = new THREE.Group(); const s = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 1), iceMat); s.position.y = 0.5; m.add(s); return m; }, () => { const m = new THREE.Group(); const sh = new THREE.Shape(); for (let i = 0; i <= 10; i++) { const a = (i / 10) * TAU + Math.PI / 2, r = i % 2 ? 0.2 : 0.46; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); } const s = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: false }).center(), iceMat); s.position.y = 0.62; m.add(s); return m; }];
@@ -945,7 +964,7 @@ const ICE = (() => { const [x, z, ry] = AREAPOS.ice, g = new THREE.Group(); g.po
   return area('ice', '氷の彫像の広場', '削って宝石を取り出す', 'ノミでコンコン、機械でガリガリ。根元を削りすぎると、彫像が倒れます。宝石を取り出しきると、雪が降って元の姿へ。', ART.ice, g, { d: 11, h: 4 }, 3.6); })();
 // ぷるぷる水そう（無重力スイム）：湾につき出た桟橋の先の、水の玉
 let TANK = null;
-const SWIM = (() => { const [x, z] = AREAPOS.tank, g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+await BG.y(); const SWIM = (() => { const [x, z] = AREAPOS.tank, g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
   const deck = new THREE.Mesh(new RoundedBoxGeometry(2.0, 0.22, 6.2, 2, 0.08), MATS.choco); deck.position.set(0, 0.15, -3.4); g.add(deck);
   const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.7, 0.9, 32), MATS.choco); base.position.y = -0.1; g.add(base);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.1, 10, 40), MATS.frost); ring.rotation.x = Math.PI / 2; ring.position.y = 0.36; g.add(ring);
@@ -954,7 +973,7 @@ const SWIM = (() => { const [x, z] = AREAPOS.tank, g = new THREE.Group(); g.posi
   TANK = { g, kids: [] }; return area('swim', 'ぷるぷる水そう', '無重力のグミと水', '水の中を泳ぎながら、グミたちをつまんで伸ばす。ちぎれた水は、表面張力でぷるんと戻ります。', ART.swim, g, { d: 10, h: 2.5 }, 5.2); })();
 // テディグミの店：港の西。店先の大きなくまのグミ（このまま触って、ぷるん）
 let TEDDY = null;
-const GUMMY_HOUSE = (() => { const G = (hex, glow) => gel(hex, { glow, gl: 0.75 }), roof = G('#ffd23a', '#fff08a'), trim = G('#35c96a', '#9af0b8'), grape = G('#9a6cff', '#d4b8ff'), milk = G('#fff0f6', '#ffffff');
+await BG.y(); const GUMMY_HOUSE = (() => { const G = (hex, glow) => gel(hex, { glow, gl: 0.75 }), roof = G('#ffd23a', '#fff08a'), trim = G('#35c96a', '#9af0b8'), grape = G('#9a6cff', '#d4b8ff'), milk = G('#fff0f6', '#ffffff');
   // 壁は、つやのあるグミのレンガを積んだ絵（形は増やさない）。レンガごとに色・中ほど明るく・ふちは濃く・左上に光・砂糖の粒
   const brick = ctex(512, 512, (c, w, h) => { const C = ['#ff3d6e', '#ff5f8a', '#ff2f5a', '#ff7aa0', '#ff4878'], bw = 128, bh = 64; c.fillStyle = '#8a1838'; c.fillRect(0, 0, w, h);
     for (let r = 0; r < h / bh; r++) for (let k = -1; k < w / bw + 1; k++) { const x = k * bw + (r % 2) * (bw / 2) + 4, y = r * bh + 4, col = C[(r * 3 + k * 7 + 15) % C.length], g = c.createRadialGradient(x + bw * 0.42, y + bh * 0.4, 4, x + bw / 2, y + bh / 2, bw * 0.62);
@@ -979,7 +998,7 @@ function openTheaterUI(fromTop) { card.hidden = true; TH.open = true; use('theat
     duck: (on) => { if (!on) { if (PREF.bgm) BGM.set(SND.audio(), true); return false; } if (!(PREF.bgm && soundStarted)) return false; BGM.set(SND.audio(), false); return true; } }); }
 // 郵便局（クリスマスカードへ）＋赤いポスト（豆知識）
 let POSTBOX = null;
-const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.5, rh: 1.5, roof: 'frost', shade: '#fff4e6', glass: '#ffd86a', door: true, base: 1.6 };
+await BG.y(); const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.5, rh: 1.5, roof: 'frost', shade: '#fff4e6', glass: '#ffd86a', door: true, base: 1.6 };
   const g = houseGroup(o); POSTBOX = new THREE.Group(); POSTBOX.position.set(1.7, 0, 1.9); g.add(POSTBOX);
   // 赤いポスト：イギリスの丸いポスト（最初のクリスマスカードの国）。台・胴・つばのある丸屋根・差し入れ口とひさし・金の札・雪・ヒイラギ・のぞく封筒。部品は材質ごとにまとめて描く
   { const L = (pts, seg = 40) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg), acc = new SW.Acc(), at = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(1, 1, 1));
@@ -1003,21 +1022,21 @@ const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), 
     PM.leaf.side = THREE.DoubleSide; for (const m of acc.build(PM)) POSTBOX.add(m); }
   return area('post', '郵便局', 'クリスマスカード', 'クリスマスカード（招待状）をつくって、LINEで送れます。もらった人は、カードからこの港町へ。', ART.post, g, { d: 9, h: 1.5 }, 4.7); })();
 // パン屋
-const BAKERY = (() => { const [x, z, ry] = AREAPOS.bakery, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.6, rh: 1.6, roof: 'frost', shade: '#d9aa80', glass: '#ffb347', door: true, base: 1.6, chimney: true }; return { g: houseGroup(o), o }; })();
+await BG.y(); const BAKERY = (() => { const [x, z, ry] = AREAPOS.bakery, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.6, rh: 1.6, roof: 'frost', shade: '#d9aa80', glass: '#ffb347', door: true, base: 1.6, chimney: true }; return { g: houseGroup(o), o }; })();
 // 空に浮かぶテーブル（グミのつみき）
 let TABLE = null;
-const BLOCKS = (() => { const g = new THREE.Group(); g.position.set(-4, 22, -16); scene.add(g); TABLE = g;
+await BG.y(); const BLOCKS = (() => { const g = new THREE.Group(); g.position.set(-4, 22, -16); scene.add(g); TABLE = g;
   const top = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.22, 40), MATS.choco); g.add(top); const cloth = new THREE.Mesh(new THREE.CylinderGeometry(2.25, 2.25, 0.05, 40), MATS.frost); cloth.position.y = 0.13; g.add(cloth);
   for (let i = 0; i < 4; i++) { const a = (i / 4) * TAU + 0.4, l = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 1.2, 10), MATS.stripe); l.position.set(Math.cos(a) * 1.5, -0.7, Math.sin(a) * 1.5); g.add(l); }
   const cols = ['#ff4a5a', '#3fa8ff', '#ffd23a', '#3fd06a', '#b07aff', '#ff8a2a'];
   [[0, 0.35, 0, 0.6], [0.7, 0.35, 0.2, 0.5], [0.2, 0.9, 0.1, 0.45], [-0.7, 0.32, -0.3, 0.45], [-0.5, 0.78, -0.2, 0.38], [0.9, 0.78, 0.25, 0.32]].forEach(([x, y, z, s], i) => { const m = new THREE.Mesh(new RoundedBoxGeometry(s, s, s, 3, s * 0.22), gel(cols[i], { glow: cols[i], gl: 0.9 })); m.material.transparent = true; m.material.opacity = 0.85; m.position.set(x, y, z); m.rotation.y = i * 0.7; g.add(m); });
   g.add(sprite('#ffd890', 7, 0.22)); return area('blocks', 'グミのつみき', '空に浮かぶテーブル', '町の上空に浮かぶテーブルで、グミの積み木。はじいて、持って、高く積む。端から落ちたら、空から降り直します。', ART.blocks, g, { d: 11, h: 1 }, 2.6); })();
 // 広場：フロスティングの大きなツリー（豆知識：オスロから届くツリー）と、屋台（豆知識：アーモンドが1粒）
-const BIGTREE = new THREE.Group(); { const [x, z] = AREAPOS.square; BIGTREE.position.set(x, landH(x, z), z); scene.add(BIGTREE); }
+await BG.y(); const BIGTREE = new THREE.Group(); { const [x, z] = AREAPOS.square; BIGTREE.position.set(x, landH(x, z), z); scene.add(BIGTREE); }
 // 広場の大きなツリー：ぷるぷるのゼリーの枝（4段）にフロスティングのしずく、ガムドロップ・キャンディケイン・ペパーミント・砂糖の真珠、らせんの飴のガーランドと電飾
 // 触ると、ぷるんとゆれて（下から上へ）、電飾が色を流してきらめく
 const TREE_J = { j: 0, v: 0, sway: 0, sv: 0, spark: 0, mat: null, lights: null, base: [] };
-{ const jelly = gel('#2fb060', { glow: '#7dffa8', gl: 0.75 }); TREE_J.mat = jelly;
+await BG.y(); { const jelly = gel('#2fb060', { glow: '#7dffa8', gl: 0.75 }); TREE_J.mat = jelly;
   const acc = new SW.Acc(), tiers = [[2.6, 2.4, 0], [2.1, 2.2, 1.7], [1.6, 2.0, 3.2], [1.05, 1.8, 4.5]], tierR = (k, t) => Math.max(0.001, tiers[k][0] * (1 - t) + Math.sin(t * Math.PI) * 0.15);
   const COLS = ['#ff3a4a', '#ffd23a', '#3a9aff', '#ff8ad0', '#ffffff', '#b07aff', '#ff8a2a'], M = new THREE.Matrix4(), Qo = new THREE.Quaternion();
   const hook = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, -0.32, 0), new THREE.Vector3(0, 0.05, 0), new THREE.Vector3(0.04, 0.13, 0), new THREE.Vector3(0.12, 0.14, 0), new THREE.Vector3(0.16, 0.06, 0)]), 16, 0.028, 6, false);
@@ -1039,20 +1058,21 @@ const TREE_J = { j: 0, v: 0, sway: 0, sv: 0, spark: 0, mat: null, lights: null, 
 function treeTap() { TREE_J.v += 2.4; TREE_J.sv += (Math.random() < 0.5 ? -1 : 1) * 0.5; TREE_J.spark = 1; SND.jingle(); counts.treeTaps++;
   const p = BIGTREE.position; for (let i = 0; i < 60 && SPARKS.length < FW_N - 1; i++) { const t = Math.random(), a = Math.random() * TAU, r = (2.6 - t * 2.3) * 1.1; SPARKS.push({ p: new THREE.Vector3(p.x + Math.cos(a) * r, p.y + 0.5 + t * 6, p.z + Math.sin(a) * r), v: new THREE.Vector3(Math.cos(a) * 0.8, rnd(0.2, 1.4), Math.sin(a) * 0.8), t: 0, L: rnd(0.8, 1.6), c: new THREE.Color().setHSL(Math.random(), 0.9, 0.7), tr: 0, g: 0.4 }); } }
 let BOWL = null;
-{ const [sx, sz] = AREAPOS.square, g = new THREE.Group(); g.position.set(sx + 4.6, landH(sx + 4.6, sz + 2.8), sz + 2.8); g.rotation.y = -0.7; scene.add(g);
+await BG.y(); { const [sx, sz] = AREAPOS.square, g = new THREE.Group(); g.position.set(sx + 4.6, landH(sx + 4.6, sz + 2.8), sz + 2.8); g.rotation.y = -0.7; scene.add(g);
   const acc = new SW.Acc(); acc.add('cookie', new THREE.BoxGeometry(1.8, 0.9, 0.8).translate(0, 0.45, 0), '#f2d6b6'); for (const s of [-1, 1]) acc.add('stripe', new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8).translate(s * 0.8, 1.6, -0.25)); acc.add('wafer', new THREE.BoxGeometry(2.1, 0.12, 1.2).rotateX(0.28).translate(0, 2.35, 0), '#ffffff');
   for (const m of acc.build(MATS)) g.add(m);
   BOWL = new THREE.Group(); BOWL.position.set(0, 0.95, 0.1); g.add(BOWL);
   const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 10, 0, TAU, Math.PI / 2, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3, side: THREE.DoubleSide })); bowl.position.y = 0.2; BOWL.add(bowl);
   const pud = new THREE.Mesh(new THREE.CircleGeometry(0.2, 20).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#fbf3e4', roughness: 0.6 })); pud.position.y = 0.17; BOWL.add(pud); const sauce = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14).rotateX(-Math.PI / 2), gel('#b0122a', { glow: '#ff3050', gl: 0.5 })); sauce.position.set(0.03, 0.175, 0.02); BOWL.add(sauce); }
 // パン屋の看板と窓辺のクッキー（クッキーの住人と同じ形）
-const GB_FACES = {}; const gbMats = (kind) => { const f = GB_FACES[kind] || (GB_FACES[kind] = kind === 'santa' ? SW.santaFace() : SW.gbFace(kind)); return SW.bendMaterial(new THREE.MeshStandardMaterial({ map: f, roughness: 0.82, emissive: '#ffffff', emissiveMap: f, emissiveIntensity: 0.2 })); };   // 材質は1つで渡す（配列にすると、区切りのない形は何も描かれない）
+await BG.y(); const GB_FACES = {}; const gbMats = (kind) => { const f = GB_FACES[kind] || (GB_FACES[kind] = kind === 'santa' ? SW.santaFace() : SW.gbFace(kind)); return SW.bendMaterial(new THREE.MeshStandardMaterial({ map: f, roughness: 0.82, emissive: '#ffffff', emissiveMap: f, emissiveIntensity: 0.2 })); };   // 材質は1つで渡す（配列にすると、区切りのない形は何も描かれない）
 let BAKERY_SIGN = null, BAKERY_TRAY = null;
-{ const g = BAKERY.g, arm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9, 8).rotateZ(Math.PI / 2), MATS.stripe); arm.position.set(1.7, 2.3, 1.75); g.add(arm);
+await BG.y(); { const g = BAKERY.g, arm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9, 8).rotateZ(Math.PI / 2), MATS.stripe); arm.position.set(1.7, 2.3, 1.75); g.add(arm);
   BAKERY_SIGN = new THREE.Group(); BAKERY_SIGN.position.set(2.0, 2.3, 1.75); g.add(BAKERY_SIGN); const sgm = new THREE.Mesh(SW.flatCookie(SW.gbOutline(false), 0.09), gbMats('man')); sgm.scale.setScalar(0.9); sgm.position.y = -0.52; BAKERY_SIGN.add(sgm);
   BAKERY_TRAY = new THREE.Group(); BAKERY_TRAY.position.set(-0.65, 0.98, 1.76); g.add(BAKERY_TRAY); BAKERY_TRAY.add(new THREE.Mesh(new RoundedBoxGeometry(0.85, 0.06, 0.4, 2, 0.02), MATS.frost));
   [-0.27, 0, 0.27].forEach((x, i) => { const m = new THREE.Mesh(SW.flatCookie(SW.gbOutline(i === 1), 0.08), gbMats(i === 1 ? 'woman' : 'man')); m.scale.setScalar(0.32); m.position.set(x, 0.2, 0); m.rotation.x = -0.25; BAKERY_TRAY.add(m); }); }
 
+await BG.y();
 // ---------- 仕掛けのある建物を目立たせる：ほかの家より大きく、色の屋根と、とりどりの電球の線で縁どる（電球は順に色が流れる） ----------
 const TINTS = new Map(), BITE_EXTRA = [];
 function tint(g, map) { g.traverse((o) => { const k = o.userData.key; if (!o.isMesh || !k || !map[k]) return; const id = k + map[k]; let m = TINTS.get(id); if (!m) { m = SW.biteable(MATS[k].clone(), k === 'cookie'); m.color = new THREE.Color(map[k]); TINTS.set(id, m); } o.material = m; }); }
@@ -1076,6 +1096,7 @@ const bigger = (A, s) => { A.g.scale.multiplyScalar(s); A.label.position.y = A.g
   const [sw] = SW.softServe(0.55, 0.8, '#ffc8dc', '#fff4f8', 2.6), cr = new THREE.Mesh(sw, MM.cream); cr.position.set(0, BAKERY.o.h + BAKERY.o.rh + 0.5, 0); BAKERY.g.add(cr);
   BAKERY.g.traverse((o) => { if (o.isMesh && o.userData.key && !o.userData.pick) BITE_EXTRA.push(o); });
   const ch = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), MM.cherry); ch.position.set(0, BAKERY.o.h + BAKERY.o.rh + 1.4, 0); BAKERY.g.add(ch); }
+await BG.y();
 // ---------- すり抜けない（本人 2026-10-17）：広場のツリー・名所の建物・屋台・氷の彫像・水そう・灯台。家は家の輪（stepDrone）、山とケーキは輪郭の壁 ----------
 // 建物は、その建物の向きの箱（地面に平らな飾り・光の板・すけた殻は数えない）。水そう＝球、ツリー・灯台＝高さで太さの変わる筒。空のテーブル（動く）は、毎コマ箱を置きなおす
 const COLL = [], PAD = 0.7;   // PAD＝ドローンの体の大きさ
@@ -1099,6 +1120,7 @@ function initColliders() { for (const A of AREAS) if (A.id !== 'swim' && A.id !=
   { const p = BIGTREE.position; for (const [r, y0, y1] of [[2.75, 0, 2.3], [2.15, 2.3, 4.0], [1.5, 4.0, 5.6], [0.8, 5.6, 7.3]]) cyl(p.x, p.z, r, p.y + y0, p.y + y1); }
   { const L = LIGHTHOUSE; cyl(L.x, L.z, 1.35, L.y0, L.y0 + 9.8, () => L.st === 'ok'); cyl(L.x, L.z, 1.3, L.y0, L.y0 + 1.6, () => L.st !== 'ok'); }
   for (const g of [BAUBLE.g, REST.g, BOWL.parent, WR.g]) boxOf(g); }
+await BG.y();
 // ---------- お菓子の家をたくさんかじると：空からクリスマスのピックが降ってきて刺さり、家ごと空へ（空に食べられるように）。しばらくすると、元の場所にぷるんと戻る（本人 2026-10-17） ----------
 // 家の形は町じゅう1つにまとめてあるので、その家の分だけを写し取って動かし、まとめた形のその範囲は地面の下へ寄せておく（戻ったら元の位置に）
 // ピックの飾りは6とおり（星・雪だるま・サンタ・ツリー・トナカイ・プレゼント）。棒は赤白のしま
@@ -1150,6 +1172,7 @@ function stepPicks(dt) { const ease = (u) => u * u * (3 - 2 * u);
     else { P.tb += dt; const u = Math.min(1, P.tb / 1.6), e = 1 - Math.exp(-6 * u) * Math.cos(u * 14);   // ぷるんと元の大きさへ
       P.g.scale.set(Math.max(0.01, e), Math.max(0.01, e * (1 + 0.15 * Math.sin(u * 20) * (1 - u))), Math.max(0.01, e)); if (Math.random() < 0.6) spill(V4.set(H.x + rnd(-H.r, H.r), H.o.y + rnd(0, H.o.h + H.o.rh), H.z + rnd(-H.r, H.r)), '#fff2c0', 1, 0.2);
       if (u >= 1) { houseRestore(H); P.g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); }); scene.remove(P.g); H.away = false; PICKS.splice(i, 1); SND.chime(4); counts.pickBack++; } } } }
+await BG.y();
 // ---------- 湾のヨット：白いつやの船体・チークの甲板・キャビンの灯り・マストと索具。停泊中は帆にカバー、2そうは帆を上げて湾をゆっくり回る ----------
 const BOATS = [];
 for (const [x, z, s, ry, sail] of [[-12, 8, 1, 0.3, 0], [8, 6.5, 1.1, -0.5, 0], [-15, 14, 0.9, 1.1, 0], [16, 15, 0.85, -0.2, 0], [-5, 27, 0.95, 1.4, 0], [6, 25, 1.05, 1.7, 0], [0, 0, 1, 0, 1], [0, 0, 0.95, 0, 2]]) {
@@ -1219,6 +1242,7 @@ function stepLighthouse(dt) { const L = LIGHTHOUSE; if (L.st === 'ok') return; L
     if (done === L.segs.length) { L.st = 'ok'; L.beam.visible = true; L.glow.material.opacity = 0.8; L.lampMat.emissiveIntensity = 3; SND.chime(5); counts.lhBack++; } }
   for (const S of L.segs) { S.pv.position.copy(S.p); S.pv.quaternion.copy(S.q); } }
 
+await BG.y();
 // ---------- ジンジャークッキーの住人：男女・老若。手足がぐにょりと曲がって歩く ----------
 const GBS = [];
 const ringRoute = (k, sp, ph) => (t) => { const [fa, fb] = RING_SPAN(k), u = (Math.sin(t * sp + ph) + 1) / 2; return polar(RING[k], fa + 0.12 + u * (fb - fa - 0.24)); };
@@ -1226,11 +1250,11 @@ const laneRoute = (i, sp, ph) => (t) => { const u = (Math.sin(t * sp + ph) + 1) 
 const sqRoute = (r, sp, ph) => (t) => [SQ[0] + Math.cos(t * sp + ph) * r, SQ[1] + Math.sin(t * sp + ph) * r * 0.75];
 const ROUTES = [ringRoute(0, 0.03, 0), ringRoute(0, 0.026, 2), sqRoute(5.0, 0.12, 0), sqRoute(5.8, -0.1, 2), laneRoute(2, 0.05, 0), laneRoute(1, 0.045, 1.3), laneRoute(3, 0.04, 2.5), ringRoute(1, 0.03, 4), ringRoute(2, 0.028, 1), sqRoute(4.4, 0.09, 4), ringRoute(0, 0.035, 5), ringRoute(3, 0.03, 2.2)];
 const GEO_CACHE = {};
-ROUTES.forEach((route, i) => { const K = SW.GB_KINDS[i % SW.GB_KINDS.length], key = K.kind;
+for (const [i, route] of ROUTES.entries()) { await BG.y(); const K = SW.GB_KINDS[i % SW.GB_KINDS.length], key = K.kind;
   const geo = GEO_CACHE[key] || (GEO_CACHE[key] = SW.flatCookie(SW.gbOutline(K.dress), 0.09, 0.06, K.extras)), mats = gbMats(key), m = new THREE.Mesh(geo, mats); m.position.y = 0.43 * K.s * 1.5; m.scale.setScalar(K.s * 1.5);
-  const g = new THREE.Group(); g.add(m); scene.add(g); const b = { g, m, route, t: R0() * 60, kind: 'gb', s: K.s, U: mats.userData.U, last: null, dir: 0, state: 'walk', eat: 0, lastBite: -99, shake: 0, pull: false, st: 0 }; addPick(m, b); GBS.push(b); });
+  const g = new THREE.Group(); g.add(m); scene.add(g); const b = { g, m, route, t: R0() * 60, kind: 'gb', s: K.s, U: mats.userData.U, last: null, dir: 0, state: 'walk', eat: 0, lastBite: -99, shake: 0, pull: false, st: 0 }; addPick(m, b); GBS.push(b); }
 // クッキーのかけら（家・住人をかじった時に散る）。住人のかけらは、しばらくすると元のクッキーへ集まって、クッキーがよみがえる
-const CR_N = 700, CR = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ map: SW.dough().map, normalMap: SW.dough().normal, roughness: 0.8 }), CR_N), CRUMBS = [], CRZ = new THREE.Matrix4().makeScale(0, 0, 0), M4 = new THREE.Matrix4(), QQ = new THREE.Quaternion();
+await BG.y(); const CR_N = 700, CR = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ map: SW.dough().map, normalMap: SW.dough().normal, roughness: 0.8 }), CR_N), CRUMBS = [], CRZ = new THREE.Matrix4().makeScale(0, 0, 0), M4 = new THREE.Matrix4(), QQ = new THREE.Quaternion();
 for (let i = 0; i < CR_N; i++) CR.setMatrixAt(i, CRZ); CR.frustumCulled = false; scene.add(CR); let crI = 0;
 function crumbs(p, n = 12, owner = null, spread = 0.3) { for (let i = 0; i < n; i++) { if (CRUMBS.length >= CR_N) CR.setMatrixAt(CRUMBS.shift().slot, CRZ); CRUMBS.push({ slot: crI++ % CR_N, p: p.clone().add(V1.set(rnd(-spread, spread), rnd(-0.15, 0.25), rnd(-spread, spread))), v: new THREE.Vector3(rnd(-1.6, 1.6), rnd(1.0, 2.8), rnd(-1.6, 1.6)), r: new THREE.Euler(rnd(0, 6), rnd(0, 6), rnd(0, 6)), s: rnd(0.025, 0.065), t: 0, owner, rest: false }); } }
 // 家をかじる：当たった所に、歯形のぎざぎざの球の穴（32まで。45秒たつと、ふさがる）。同じ所をまたかじると、奥へ
@@ -1250,12 +1274,12 @@ function gbBite(b) { if (b.state !== 'walk') return; SND.crunch('gb'); counts.cr
   const p = b.m.getWorldPosition(new THREE.Vector3()); crumbs(p, 9, b, 0.4 * b.s);
   if (b.eat >= 1) { b.state = 'gone'; b.st = 0; b.m.visible = false; crumbs(p, 16, b, 0.25); counts.gbGone++; } }
 // ゼリーの住人（ぷよ）
-const blobGeo = (() => { const g = new THREE.SphereGeometry(1, 26, 16), p = g.attributes.position; for (let i = 0; i < p.count; i++) { let y = p.getY(i); if (y < -0.62) y = -0.62 + (y + 0.62) * 0.18; p.setY(i, y); } g.computeVertexNormals(); return g; })();
+await BG.y(); const blobGeo = (() => { const g = new THREE.SphereGeometry(1, 26, 16), p = g.attributes.position; for (let i = 0; i < p.count; i++) { let y = p.getY(i); if (y < -0.62) y = -0.62 + (y + 0.62) * 0.18; p.setY(i, y); } g.computeVertexNormals(); return g; })();
 const darkMat = new THREE.MeshStandardMaterial({ color: '#3a1604', roughness: 0.25 }), blushMat = new THREE.MeshBasicMaterial({ color: '#ff4a4a', transparent: true, opacity: 0.5, depthWrite: false });
 // ほおは半透明でも束ねて1回で描く（最初の眺めで描く回数 138→129。2026-10-26 かるい表示）。体（renderOrder 2）・芯（1）より先に描く順は、束ねる前と同じ（0）
 blushMat.userData.batchT = true;
 const mergeGeos = (gs) => { const a = new SW.Acc(); for (const g of gs) a.add('x', g); return a.build({ x: null })[0].geometry; };
-const faceGeo = mergeGeos([...[-1, 1].map((sx) => new THREE.SphereGeometry(0.085, 12, 8).scale(0.85, 1.3, 0.55).translate(sx * 0.3, 0.12, 0.93)), new THREE.TorusGeometry(0.1, 0.026, 6, 12, Math.PI).rotateZ(Math.PI).scale(1, 0.9, 0.6).translate(0, -0.02, 0.985)]);
+await BG.y(); const faceGeo = mergeGeos([...[-1, 1].map((sx) => new THREE.SphereGeometry(0.085, 12, 8).scale(0.85, 1.3, 0.55).translate(sx * 0.3, 0.12, 0.93)), new THREE.TorusGeometry(0.1, 0.026, 6, 12, Math.PI).rotateZ(Math.PI).scale(1, 0.9, 0.6).translate(0, -0.02, 0.985)]);
 const blushGeo = mergeGeos([-1, 1].map((sx) => new THREE.CircleGeometry(0.15, 14).translate(sx * 0.55, -0.05, 0.8)));
 const PUYOS = [], UP = new THREE.Vector3(0, 1, 0), Q2 = new THREE.Quaternion();
 // 見える地面の高さ：地面の網（1.25m おき）の三角どおりに補間した高さと、道・敷石の三角の高さの高いほう。landH のままだと、網の目の間や道の上で十数cm埋まった
@@ -1268,7 +1292,7 @@ function surfaceAt(x, z) { const p = GROUND.geometry.attributes.position, fx = (
 const BLOB_B = 0.688;   // ぷよの形の底（中心から、半径1あたり）
 // ぷよを何度もつつくと（5秒に7回）、羽が生えて天使の輪がつき、空へ昇って消える。しばらくすると、空から落ちてきて元どおり
 // 翼：羽根を3列（長い風切り羽・中の羽・短い雨覆い）、扇に重ねる。根元が原点、外（+x）へ広がり、先へ行くほど長い。1つの形にまとめる
-const WING_G = (() => { const acc = new SW.Acc(), feather = (len, wid) => { const f = new THREE.Shape(); f.moveTo(0, 0); f.quadraticCurveTo(wid, len * 0.35, wid * 0.5, len * 0.86); f.quadraticCurveTo(0.02, len * 1.04, -wid * 0.35, len * 0.82); f.quadraticCurveTo(-wid * 0.6, len * 0.3, 0, 0); return new THREE.ShapeGeometry(f, 6); };
+await BG.y(); const WING_G = (() => { const acc = new SW.Acc(), feather = (len, wid) => { const f = new THREE.Shape(); f.moveTo(0, 0); f.quadraticCurveTo(wid, len * 0.35, wid * 0.5, len * 0.86); f.quadraticCurveTo(0.02, len * 1.04, -wid * 0.35, len * 0.82); f.quadraticCurveTo(-wid * 0.6, len * 0.3, 0, 0); return new THREE.ShapeGeometry(f, 6); };
   for (const [n, len, wid, z, a0, a1] of [[8, 1.0, 0.17, -0.012, -0.45, -1.75], [7, 0.66, 0.17, 0, -0.35, -1.55], [6, 0.38, 0.15, 0.012, -0.2, -1.3]]) for (let k = 0; k < n; k++) { const u = k / (n - 1), L = len * (0.7 + 0.45 * u);
     acc.add('w', feather(L, wid).rotateZ(a0 + (a1 - a0) * u).translate(u * 0.85 * (1 - 0.25 * z * 40), 0.28 * Math.sin(u * Math.PI * 0.9) + 0.12 * u, z)); }
   return acc.build({ w: null })[0].geometry; })();
@@ -1343,7 +1367,7 @@ function puyo(x, z, r, hex, ry = 0, parent = scene) { const grp = new THREE.Grou
   const b = { grp, body, face, r, s: 0, v: 0, hop: 0, hv: 0, t0: rnd(0, 10), next: rnd(1, 5), kind: 'puyo', walk: parent === scene, home: [x, z], tgt: [x, z], hops: 0, vx: 0, vz: 0, crouch: 0, yawT: ry }; addPick(body, b); PUYOS.push(b); return b; }
 for (const [p, r, c] of [[[SQ[0] - 3.5, SQ[1] + 2.4], 0.5, '#ff8a3a'], [[SQ[0] + 3.2, SQ[1] - 2.2], 0.45, '#ff6fa0'], [[SQ[0] - 6, SQ[1] - 1.2], 0.42, '#7ad46a'], [[SQ[0] + 6.4, SQ[1] + 0.8], 0.4, '#b88cff'], [polar(RING[0], 4.0), 0.4, '#ffd23a'], [polar(RING[0], 4.9), 0.44, '#5fc8ff'], [polar(RING[0], 5.4), 0.38, '#ff5a5a'], [polar(RING[1], 4.3), 0.4, '#f0f0ff'], [polar(RING[2], 5.1), 0.42, '#ffb0e0']]) puyo(p[0], p[1], r, c, rnd(-1, 1));
 // ルシア祭の行列（広場のツリーのまわり）
-const LUCIA = new THREE.Group(); scene.add(LUCIA);
+await BG.y(); const LUCIA = new THREE.Group(); scene.add(LUCIA);
 const LUCIA_CROWN = gel('#2fb05a', { glow: '#2fb05a', gl: 0.6 }), LUCIA_CANDLE = new THREE.MeshStandardMaterial({ color: '#fff8ee' });   // 3人とも同じ材質（束ねて1回で描く）
 for (let i = 0; i < 3; i++) { const b = puyo(0, 0, i ? 0.32 : 0.38, '#fbf8ff', 0, LUCIA); b.grp.position.set(0, 0, -i * 0.95); const crown = new THREE.Group(); crown.position.y = b.r * 1.22; b.grp.add(crown); crown.add(new THREE.Mesh(new THREE.TorusGeometry(b.r * 0.55, 0.045, 8, 20).rotateX(Math.PI / 2), LUCIA_CROWN));
   for (let k = 0; k < (i ? 1 : 4); k++) { const a = (k / 4) * TAU, c = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 8), LUCIA_CANDLE); c.position.set(Math.cos(a) * b.r * 0.55, 0.08, Math.sin(a) * b.r * 0.55); crown.add(c); const f = sprite('#ffcf6a', 0.32, 0.95); f.position.set(c.position.x, 0.22, c.position.z); crown.add(f); } }
@@ -1394,7 +1418,7 @@ let SHOE = null;
   SHOE.add(new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.025, bevelSegments: 2 }).translate(0, 0, -0.05).scale(1.4, 1.4, 1.4), gel('#d8282e', { glow: '#ff5040', gl: 0.6 })));
   const ww = Math.min(0.42, o.w * 0.2), wh = ww * 1.3, cy = (o.h > 2.6 ? o.h * 0.32 : o.h * 0.55) - wh / 2; const loc = new THREE.Vector3(-o.w * 0.27, cy + 0.04, o.d / 2 + 0.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), o.ry); SHOE.position.set(o.x + loc.x, o.y + loc.y, o.z + loc.z); SHOE.rotation.y = o.ry + 0.4; scene.add(SHOE); }
 // 空を駆けるサンタ（そりとトナカイ4頭。どれもクッキー）。トナカイは脚と首を動かして駆ける
-const SANTA = (() => { const g = new THREE.Group(); scene.add(g); const parts = [], deer = [];
+await BG.y(); const SANTA = (() => { const g = new THREE.Group(); scene.add(g); const parts = [], deer = [];
   const slTex = ctex(256, 320, (c, w, h) => { c.fillStyle = c.createPattern(SW.dough().canvas, 'repeat'); c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(205,32,48,.86)'; c.fillRect(0, 0, w, h); c.strokeStyle = '#ffd86a'; c.lineWidth = 6; c.shadowColor = 'rgba(60,10,0,.6)'; c.shadowBlur = 3; c.shadowOffsetY = 2; for (let y = 40; y < h; y += 70) { c.beginPath(); for (let x = 0; x <= w; x += 8) c.lineTo(x, y + Math.sin(x * 0.08) * 8); c.stroke(); } c.fillStyle = '#fffaf2'; for (let i = 0; i < 30; i++) { c.beginPath(); c.arc(Math.random() * w, Math.random() * h, 3, 0, TAU); c.fill(); } });
   const sl = new THREE.Mesh(SW.flatCookie(SW.sleighOutline(), 0.14, 0.06), SW.cookieMaterial(slTex)); sl.scale.setScalar(1.6); g.add(sl); parts.push(sl);
   const sa = new THREE.Mesh(SW.flatCookie(SW.gbOutline(false), 0.09), gbMats('santa')); sa.scale.setScalar(1.2); sa.position.set(-0.3, 0.75, 0.0); g.add(sa); parts.push(sa);
@@ -1404,7 +1428,7 @@ const SANTA = (() => { const g = new THREE.Group(); scene.add(g); const parts = 
   return { g, parts, deer, trail: tg, ti: 0 }; })();
 // ガラス玉の屋台：ドイツのラウシャの吹きガラス（内側を銀で鏡にした玉）。棒からつるした5つと、台に並べた6つ。さわると、つるした玉がゆれて、ちりんと鳴る
 const BAUBLE = { g: null, amp: 0, hang: [], balls: null, caps: null, strings: null };
-{ const [x, z] = MARKET.bauble, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = Math.atan2(SQ[0] - x, SQ[1] - z); scene.add(g); BAUBLE.g = g;
+await BG.y(); { const [x, z] = MARKET.bauble, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = Math.atan2(SQ[0] - x, SQ[1] - z); scene.add(g); BAUBLE.g = g;
   const acc = new SW.Acc(); acc.add('cookie', new THREE.BoxGeometry(1.8, 0.9, 0.8).translate(0, 0.45, 0), '#f6dcc0'); for (const s of [-1, 1]) acc.add('stripe', new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8).translate(s * 0.8, 1.6, -0.25)); acc.add('wafer', new THREE.BoxGeometry(2.1, 0.12, 1.2).rotateX(0.28).translate(0, 2.35, 0), '#ffffff');
   acc.add('stripe', new THREE.CylinderGeometry(0.025, 0.025, 1.75, 8).rotateZ(Math.PI / 2).translate(0, 2.17, 0.3)); acc.add('frost', new THREE.BoxGeometry(1.5, 0.05, 0.5).translate(0, 0.925, 0.05));
   for (const m of acc.build(MATS)) g.add(m);
@@ -1425,7 +1449,7 @@ function stepBaubles(t, dt) { BAUBLE.amp *= Math.exp(-dt * 0.8); const E = new T
 // 礼拝堂の前のアドベントリース：木の輪に、ふだんの日の赤いろうそく20本と、日曜日の白い4本（1839年の最初のリースは、12月1日の日曜日から24日まで）
 // 見つけたあとは、さわるたびに1本ずつ灯り、ぜんぶ灯ると鈴が鳴ってきらめく。もう一度さわると、吹き消す
 const WR = { g: null, lit: 1, full: 0, flames: null, halo: null, glow: 0, pos: [] };
-{ const [x, z, ry] = AREAPOS.chapel, loc = new THREE.Vector3(2.0, 0, 4.3).applyAxisAngle(UP, ry), wx = x + loc.x, wz = z + loc.z, g = new THREE.Group(); g.position.set(wx, landH(wx, wz), wz); g.rotation.y = ry; scene.add(g); WR.g = g;
+await BG.y(); { const [x, z, ry] = AREAPOS.chapel, loc = new THREE.Vector3(2.0, 0, 4.3).applyAxisAngle(UP, ry), wx = x + loc.x, wz = z + loc.z, g = new THREE.Group(); g.position.set(wx, landH(wx, wz), wz); g.rotation.y = ry; scene.add(g); WR.g = g;
   const acc = new SW.Acc(); acc.add('cookie', new THREE.CylinderGeometry(0.32, 0.36, 0.08, 20).translate(0, 0.04, 0), '#e6c09a'); acc.add('cookie', new THREE.CylinderGeometry(0.13, 0.19, 0.72, 16).translate(0, 0.44, 0), '#e6c09a'); acc.add('choco', new THREE.CylinderGeometry(0.64, 0.64, 0.06, 40).translate(0, 0.83, 0));
   acc.add('cookie', new THREE.TorusGeometry(0.5, 0.05, 8, 48).rotateX(Math.PI / 2).translate(0, 0.88, 0), '#c98f5a'); for (let k = 0; k < 6; k++) acc.add('cookie', new THREE.BoxGeometry(0.9, 0.03, 0.05).rotateY((k / 6) * Math.PI).translate(0, 0.88, 0), '#c98f5a');
   for (const m of acc.build(MATS)) g.add(m);
@@ -1444,11 +1468,12 @@ function wreathTap() { if (WR.lit >= 24) { WR.lit = 0; SND.blow(); return; } WR.
   if (WR.lit === 24) { WR.full++; WR.glow = 1; SND.suzu(); const p = WR.g.getWorldPosition(new THREE.Vector3()); for (let i = 0; i < 50 && SPARKS.length < FW_N - 1; i++) { const a = Math.random() * TAU; SPARKS.push({ p: new THREE.Vector3(p.x + Math.cos(a) * 0.5, p.y + 1.1, p.z + Math.sin(a) * 0.5), v: new THREE.Vector3(Math.cos(a) * 0.5, rnd(0.6, 1.6), Math.sin(a) * 0.5), t: 0, L: rnd(0.8, 1.5), c: new THREE.Color().setHSL(0.1 + Math.random() * 0.05, 0.9, 0.7), tr: 0, g: 0.3 }); } } }
 // ひと休みするトナカイ（2頭）と小さなそり：空のサンタと同じクッキー。首をゆっくり上げ下げし、さわると跳ねて、鈴が鳴る
 const REST = { g: null, deer: [], hop: 0 };
-{ const [x, z] = MARKET.deer, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = Math.atan2(SQ[0] - x, SQ[1] - z); scene.add(g); REST.g = g;
+await BG.y(); { const [x, z] = MARKET.deer, g = new THREE.Group(); g.position.set(x, landH(x, z), z); g.rotation.y = Math.atan2(SQ[0] - x, SQ[1] - z); scene.add(g); REST.g = g;
   const sl = new THREE.Mesh(SANTA.parts[0].geometry, SANTA.parts[0].material); sl.scale.setScalar(1.2); sl.position.set(-0.95, 0.16, 0); g.add(sl);
   [[0.55, 0.16], [1.55, -0.16]].forEach(([dx, dz], i) => { const m = SW.deerMaterial(SANTA.deer[0].d.material.map), d = new THREE.Mesh(SANTA.deer[0].d.geometry, m); d.scale.setScalar(1.05); d.position.set(dx, 0.33, dz); g.add(d); REST.deer.push({ d, U: m.userData.U, y0: 0.33, ph: i * 2.3 }); }); }
 function stepRest(t, dt) { REST.hop = Math.max(0, REST.hop - dt * 1.6);
   REST.deer.forEach((D, i) => { const h = clamp(REST.hop * 1.6 - i * 0.3, 0, 1), up = Math.sin(h * Math.PI); D.d.position.y = D.y0 + up * 0.45; D.U.uNeck.value = 0.18 * Math.sin(t * 0.6 + D.ph) - 0.08; const L = up * 0.5; D.U.uLeg.value.set(L, L, -L, -L); }); }
+await BG.y();
 // ---------- 豆知識（確かめたもの・クリスマスにちなんだもの）。光る ✦ が目印 ----------
 const TRIVIA = [
   { id: 'gtown', obj: BAKERY_SIGN, name: 'ジンジャーブレッドの町', text: 'ノルウェーのベルゲンでは1991年から毎年、幼稚園や学校の子ども、地元の会社、たくさんのボランティアが作ったジンジャーブレッドの家を集めた町が開かれます。観光局は「世界最大のジンジャーブレッドの町」と紹介しています。', src: '出典：ノルウェー政府観光局（visitnorway.com）' },
@@ -1466,7 +1491,7 @@ const TRIVIA = [
 ];
 const sparkTex = ctex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,240,200,.8)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.beginPath(); g.arc(32, 32, 30, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.95)'; for (const [w, h] of [[3, 30], [30, 3]]) { g.beginPath(); g.ellipse(32, 32, w, h, 0, 0, TAU); g.fill(); } });
 const found = new Set();
-TRIVIA.forEach((T, i) => { T.k = i; T.kind = 'trivia'; const mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, color: '#ffd890', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); mk.renderOrder = 7; scene.add(mk); T.mk = mk;
+await BG.y(); TRIVIA.forEach((T, i) => { T.k = i; T.kind = 'trivia'; const mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, color: '#ffd890', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); mk.renderOrder = 7; scene.add(mk); T.mk = mk;
   const hit = new THREE.Mesh(new THREE.SphereGeometry(T.big ? 2.2 : 0.8, 8, 6), new THREE.MeshBasicMaterial()); hit.visible = false; scene.add(hit); addPick(hit, T); T.hit = hit; T.obj.traverse((o) => { if (o.isMesh) addPick(o, T); }); (T.hits || []).forEach((m) => addPick(m, T)); });
 // 見つけた豆知識・行った名所は、この端末に覚えておく（仕掛けへ行って戻るたびに、0 にもどっていた）
 const SAVE_KEY = 'xmas-town-v1';
@@ -1482,12 +1507,13 @@ const triviaAll = () => (OPEN.shop ? [...TRIVIA, ...CANDIES] : TRIVIA);
 function updateFound() { const L = triviaAll(); $('fN').textContent = L.filter((T) => found.has(T.id)).length; $('fT').textContent = L.length; }
 updateFound();
 // 豆知識のある所は、ほのかに光る：やわらかな光の輪と、足もとの光だまり（空のサンタは光の輪だけ）
-const HALO_G = new THREE.BufferGeometry(); HALO_G.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(TRIVIA.length * 3), 3)); HALO_G.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(TRIVIA.length * 3), 3));
+await BG.y(); const HALO_G = new THREE.BufferGeometry(); HALO_G.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(TRIVIA.length * 3), 3)); HALO_G.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(TRIVIA.length * 3), 3));
 const HALOS = new THREE.Points(HALO_G, new THREE.PointsMaterial({ map: glowTex, size: 2.6, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); HALOS.frustumCulled = false; HALOS.renderOrder = 5; scene.add(HALOS);
 const POOLS = new THREE.InstancedMesh(new THREE.CircleGeometry(1.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), TRIVIA.length); POOLS.frustumCulled = false; POOLS.renderOrder = 4; scene.add(POOLS);
 const SANTA_HALO = sprite('#ffe2a0', 6, 0.3); SANTA_HALO.renderOrder = 5; scene.add(SANTA_HALO);
 const HALO_C = new THREE.Color(), HM = new THREE.Matrix4();
 
+await BG.y();
 // ---------- 海のホタルイカ（うねりに乗って、ほのかにまたたく）・花火（何度か海に触れていると、ときどき盛大に） ----------
 const SQ_N = 4000, sqPos = new Float32Array(SQ_N * 3), sqPh = new Float32Array(SQ_N);
 { let n = 0; for (let i = 0; n < SQ_N && i < SQ_N * 20; i++) { const x = rnd(-56, 56), z = rnd(-2, 100); if (!inWater(x, z)) continue; sqPos.set([x, WATER_Y + 0.05, z], n * 3); sqPh[n] = Math.random() * 100; n++; } }
@@ -1539,6 +1565,7 @@ function stepFireworks(dt) {
     if (TR[i]) { const m = Math.floor(0.35 * k60 + Math.random()); for (let j = 0; j < m && S.n < FW_N - 1; j++) { const u = m > 1 ? (j + 1) / m : 1; S.add(x0 + (P[k] - x0) * u, y0 + (P[k + 1] - y0) * u, z0 + (P[k + 2] - z0) * u, 0, -0.2, 0, 0, 0.6, C[k] * 0.6, C[k + 1] * 0.6, C[k + 2] * 0.6, 0, 0.5); } } }
   const n = S.n; for (let i = 0; i < n; i++) { const k = i * 3, f = (1 - T[i] / LF[i]) * (0.6 + 0.4 * Math.sin(T[i] * 40 + PH[i])) * 1.6; fwCol[k] = C[k] * f; fwCol[k + 1] = C[k + 1] * f; fwCol[k + 2] = C[k + 2] * f; }
   if (n || fwG.drawRange.count) { fwG.setDrawRange(0, n); const pa = fwG.attributes.position, ca = fwG.attributes.color; pa.clearUpdateRanges(); ca.clearUpdateRanges(); if (n) { pa.addUpdateRange(0, n * 3); ca.addUpdateRange(0, n * 3); pa.needsUpdate = ca.needsUpdate = true; } } }
+await BG.y();
 // ---------- 雪（粉砂糖）：見る人のまわりに降る ----------
 // 落ちる・横にゆれる・見る人のまわりへ回りこむのは、頂点の絵の具（GPU）で計算する（前は毎コマ、JS で1800粒を動かして送りなおしていた 2026-10-25）
 //   高さ＝見る人の14m下〜12m上を、粒ごとの速さ（毎秒0.32〜0.8m）で落ちてくり返す。横＝見る人を中心に60m四方へ回りこみ、0.16mほどゆれる（前の作りと同じ）
@@ -1553,13 +1580,14 @@ const LITE_K = { 100: { rain: 1, spark: 1, snow: 1, gem: 5 }, 70: { rain: 1.6, s
 function applyLite(lv) { const K = LITE_K[lv]; DPR = LITE.dpr(); renderer.setPixelRatio(DPR); size(); SPARKS.cap = Math.round(FW_N * K.spark); snowG.setDrawRange(0, Math.round(SNOW_N * K.snow)); GEM_Q.value = K.gem;
   if (!$('menu').hidden && menuTab === 'lite') drawMenu(); }
 
+await BG.y();
 // ---------- 世界の飴が降る（町の豆知識12をぜんぶ集めると、雪にまじって）。落ちた飴は町のあちこちに転がり、しばらくすると溶けて消える。さわると、はじける（はじくだけ） ----------
 // 屋根や建物の上には落とさない（すり抜けて見えるので）。海に落ちた飴は、ぷかぷか浮いて、早めに溶ける
 // 落ちてから溶けるまで10〜15秒（海は6秒）。25〜40秒だった時は、地面に残る飴が多く、描く手間が重かった（本人 2026-10-18）
-const RAIN = CANDIES.map((C, j) => { const geo = candyGeo(C), m = new THREE.InstancedMesh(geo, candyMat(C, { env: GEM_ENV, glow: 0.32, key: 'rain' }), 12); m.frustumCulled = false; m.visible = false;
+const RAIN = []; for (const [j, C] of CANDIES.entries()) { await BG.y(); const geo = candyGeo(C), m = new THREE.InstancedMesh(geo, candyMat(C, { env: GEM_ENV, glow: 0.32, key: 'rain' }), 12); m.frustumCulled = false; m.visible = false;
   for (let i = 0; i < 12; i++) m.setColorAt(i, new THREE.Color('#ffffff')); m.count = 0; scene.add(m);
   geo.computeBoundingBox(); const sz = geo.boundingBox.getSize(new THREE.Vector3()), thin = sz.x <= sz.y && sz.x <= sz.z ? new THREE.Vector3(1, 0, 0) : sz.y <= sz.z ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
-  const R = { C, j, m, list: [], thin, half: Math.min(sz.x, sz.y, sz.z) / 2 }; addPick(m, { kind: 'candy', R }); return R; });
+  const R = { C, j, m, list: [], thin, half: Math.min(sz.x, sz.y, sz.z) / 2 }; addPick(m, { kind: 'candy', R }); RAIN.push(R); }
 let rainT = 0; const RCOL = new THREE.Color(), RM = new THREE.Matrix4(), RWM = new THREE.Matrix4(), RT = new THREE.Matrix4(), RS = new THREE.Vector3();
 // その場所をふさいでいる物（家・名所の筒・山とケーキ）の中心。なければ null
 function blockerAt(x, z) { for (const H of HOUSES) if (Math.hypot(x - H.x, z - H.z) < H.r + 0.4) return [H.x, H.z]; for (const C of COLL) { const cx = C.kind === 'cyl' ? C.x : C.c ? C.c.x : 0, cz = C.kind === 'cyl' ? C.z : C.c ? C.c.z : 0, r = C.kind === 'cyl' ? C.r + 0.3 : C.r * 0.8; if (Math.hypot(x - cx, z - cz) < r) return [cx, cz]; }
@@ -1589,6 +1617,7 @@ function stepRain(dt, t) {
       if (c.st === 'melt') { const u = clamp(c.t / 3, 0, 1), w = (1 + 0.45 * u) * (1 - u * u * u); RWM.makeScale(w, Math.max(0.02, (1 - u) * 0.85), w); RT.makeTranslation(c.p.x, c.p.y - c.s * R.half * u, c.p.z); RM.premultiply(RWM.premultiply(RT).multiply(RT.clone().invert())); }
       R.m.setMatrixAt(k, RM); R.m.setColorAt(k, RCOL.set(c.col)); });
     R.m.count = R.list.length; R.m.visible = R.list.length > 0; R.m.instanceMatrix.needsUpdate = true; if (R.m.instanceColor) R.m.instanceColor.needsUpdate = true; if (R.m.visible) R.m.computeBoundingSphere(); } }   // 当たりの球は飴の今の位置で（前の位置のままだと、タップが地面に抜けて「そこへ飛ぶ」になった）
+await BG.y();
 // ---------- 世界の飴工房：町の豆知識を12集めると、左上の奥の家が飴工房に変わって開店。お店に入ると、世界の飴をかじって食べられる（飴ごとに豆知識） ----------
 let SHOP_G = null, SHOP_AREA = null;   // 開店までは、ふつうの家（ほかの家とまとめて描く・かじれる）。開店する時に、その家の分を写し取って、飾りをつける
 const SWIRL_TEX = ctex(256, 256, (g) => { g.fillStyle = '#fff6fa'; g.beginPath(); g.arc(128, 128, 126, 0, TAU); g.fill(); const C = ['#ff4a7a', '#ffd23a', '#4ac0ff', '#5ad07a', '#b07aff']; g.lineCap = 'round';
@@ -1608,6 +1637,7 @@ function readyUp(objs, then) { Promise.all(objs.map((o) => renderer.compileAsync
 function openShop(fanfare) { if (OPEN.shop && SHOP_AREA) return; readyUp(RAIN.map((R) => R.m)); OPEN.shop = true; saveProgress(); updateFound(); shopExterior(); if (!fanfare || !SHOP_AREA) return;
   SND.fanfare(); const c = SHOP_G.getWorldPosition(new THREE.Vector3()); for (let i = 0; i < 160 && SPARKS.length < FW_N - 1; i++) { const a = Math.random() * TAU; SPARKS.push({ p: c.clone().add(V1.set(Math.cos(a) * 2.5, rnd(0, 5), Math.sin(a) * 2.5)), v: new THREE.Vector3(Math.cos(a) * rnd(0.5, 2), rnd(1, 4), Math.sin(a) * rnd(0.5, 2)), t: 0, L: rnd(1, 2.2), c: new THREE.Color().setHSL(Math.random(), 0.9, 0.7), tr: 0, g: 0.5 }); }
   const look = c.clone().setY(c.y + 2); flyTo(look, look, 11, 3); showCard('世界の飴工房が開店！', '町の豆知識を、ぜんぶ集めたお祝い', '左上の奥の家が、世界の飴のお店に変わりました。空からも、世界の飴が降ってきます。お店の中の飴は、かじって食べられます。', '', null, SHOP_AREA); }
+await BG.y();
 // ---------- ケーキの山が見つかる：豆知識（町12＋飴9）をぜんぶ集めて、仕掛けの館とお店をぜんぶ遊ぶと、地面からせり上がる ----------
 const USE_ALL = ['glass', 'museum', 'ice', 'swim', 'blocks', 'post', 'teddy', 'candy'], CAKE_RISE = { t: -1 };
 const allTrivia = () => [...TRIVIA, ...CANDIES].every((T) => found.has(T.id));
@@ -1619,6 +1649,7 @@ function stepCakeRise(dt) { if (CAKE_RISE.t < 0) return; CAKE_RISE.t += dt; cons
   if (u < 1) { for (const M of MOUNTS) if (M.cake && SPARKS.length < FW_N - 4) { const a = Math.random() * TAU; SPARKS.push({ p: new THREE.Vector3(M.x + Math.cos(a) * M.rMax, M.y + rnd(0, M.yMax), M.z + Math.sin(a) * M.rMax), v: new THREE.Vector3(0, rnd(1, 3), 0), t: 0, L: rnd(0.8, 1.6), c: new THREE.Color().setHSL(Math.random(), 0.8, 0.75), tr: 0, g: -0.5 }); } }
   else { CAKE_RISE.t = -1; for (const m of CAKE_MESHES) m.position.y = 0; } }
 function checkUnlock(quiet) { if (!OPEN.shop && TRIVIA.every((T) => found.has(T.id))) openShop(!quiet); if (OPEN.shop && !CAKE_RISE.done && allTrivia() && USE_ALL.every((id) => USED.has(id))) openCakes(!quiet); }
+await BG.y();
 // ---------- お店の中：長いカウンターに、飴の種類ごとのお皿が9枚。1皿に同じ飴が何個も盛ってある。左右になぞる＝カウンターにそって歩く ----------
 // 飴をタップ＝少しかじる（小さな歯の跡が増えて、少しずつ小さくなる。金太郎飴は少しずつ短くなる）。1個食べきると、その飴の豆知識。食べた飴は、しばらくするとお皿に戻る
 // 町とは別の場面。入っている間は、町を描かない。店の材質は、町のかじり跡（世界の座標の穴）の付かないものを使う
@@ -1821,7 +1852,7 @@ const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map(); let pinch = null; ray.layers.enable(HIDDEN);
 const hideHint = () => { $('hint').style.opacity = 0; };
 let repOK = false;
-addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k) return; e.preventDefault(); const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code; auto = null; hideHint(); });
+addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k || onTop()) return; e.preventDefault(); const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code; auto = null; hideHint(); });
 addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
 addEventListener('blur', () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); });
 guardContext(cvs, { onLost: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } });
@@ -2266,7 +2297,7 @@ const SOUND_KEY = 'xmas-town-sound', PREF = (() => { try { return Object.assign(
 const savePref = () => { try { localStorage.setItem(SOUND_KEY, JSON.stringify(PREF)); } catch (e) { /* その場かぎり */ } };
 BGM.setTrack(PREF.track); BGM.setMedley(!!PREF.medley); BGM.setVolume(PREF.bgmVol / 100); SND.setVolume(PREF.seVol / 100); SND.setMute(!PREF.se); BGM.onChange = () => { if (!$('menu').hidden && menuTab === 'sound') drawMenu(); };
 // 音は、最初に画面にさわった時から（スマホは、さわる前に音を出せない）。港町の中だけ鳴る（仕掛けのページには BGM がない）
-let soundStarted = false; const startSound = () => { if (soundStarted) return; soundStarted = true; BGM.set(SND.audio(), PREF.bgm); };
+let soundStarted = false; const startSound = () => { if (soundStarted || onTop()) return; soundStarted = true; BGM.set(SND.audio(), PREF.bgm); };
 addEventListener('pointerdown', startSound, { capture: true }); addEventListener('keydown', startSound, { capture: true });
 // スマホのブラウザは、指が触れた瞬間（押し下げ）では音を出させず、離した瞬間（押し上げ・タップ）に許す。押し下げで予約した BGM・はじける音は、離した時に音の時計を動かして鳴らす
 // （押し下げだけで始めていた時は、「タッチしてね」で風船がはじけても音楽が始まらず、もう1回さわる必要があった 本人 2026-10-18）
@@ -2278,7 +2309,7 @@ const SOUND_ID = Math.random().toString(36).slice(2); let SOUND_BC = null, sound
 const otherSaid = (id) => { if (id && id !== SOUND_ID) SND.pause(true); };
 try { SOUND_BC = new BroadcastChannel('xmas-town-sound'); SOUND_BC.onmessage = (e) => otherSaid(e.data && e.data.id); } catch (e) { /* 古い端末は、下の記録の知らせだけ */ }
 addEventListener('storage', (e) => { if (e.key === 'xmas-town-sound-now' && e.newValue) otherSaid(e.newValue.split(':')[0]); });
-function sayMine() { const n = performance.now(); if (n - soundSaid < 1500) return; soundSaid = n; try { if (SOUND_BC) SOUND_BC.postMessage({ id: SOUND_ID }); localStorage.setItem('xmas-town-sound-now', SOUND_ID + ':' + Date.now()); } catch (e) { /* 知らせられない画面 */ } }
+function sayMine() { if (onTop()) return; const n = performance.now(); if (n - soundSaid < 1500) return; soundSaid = n; try { if (SOUND_BC) SOUND_BC.postMessage({ id: SOUND_ID }); localStorage.setItem('xmas-town-sound-now', SOUND_ID + ':' + Date.now()); } catch (e) { /* 知らせられない画面 */ } }
 addEventListener('pointerdown', sayMine, { capture: true }); addEventListener('keydown', sayMine, { capture: true });
 const hush = () => SND.pause(document.hidden); document.addEventListener('visibilitychange', hush); addEventListener('pageshow', hush); addEventListener('pagehide', () => SND.pause(true));
 let menuTab = 'places';
@@ -2453,18 +2484,18 @@ const skipIntro = (e) => { if (INTRO.wait || (e && e.target && e.target.closest 
 addEventListener('pointerdown', skipIntro, { capture: true }); addEventListener('keydown', skipIntro, { capture: true });
 $('inviteBtn').textContent = CARD_IS_G ? '✉ カードを見る' : '✉ 招待状を見る';
 $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
-(async () => { applyLite(LITE.lv); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
+(async () => { applyLite(LITE.lv); stepDrone(0, nowS()); await BG.y(); await prepare(); await BG.y(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
   BATCH = new Batcher(scene, { meshes: renderer.capabilities.isWebGL2 }).add([...BOATS.map((b) => b.g), ...AREAS.map((A) => A.g), BAKERY.g, BIGTREE, BAUBLE.g, WR.g, REST.g, BOWL.parent, SHOE, LUCIA, ...PUYOS.filter((b) => b.grp.parent === scene).map((b) => b.grp)]).addSprites(SPR);   // 同じ材質の部品は、持ち主をまたいで1回で描く
-  makeTools();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
+  await BG.y(); makeTools(); await BG.y();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
   // 町のシェーダーを用意する間（GPU の待ちで、画面の処理は手が空く）に、題字だけ先に用意して降らせる。町の用意ができたら、町が現れる
   // 待つ間は、夜空（星とオーロラ）だけを題字の場面へ移して、後ろに描く。黒い画面に題字だけだと、シェーダーを覚えておけない LINE の中で、長く真っ黒に見えた（本人 2026-10-18。ブラウザは覚えているので、すぐ町が出る）
   const skyBack = () => { scene.add(sky.root); INTRO.sc.background = null; };   // 町を描いた上に題字を重ねる時は、題字の場面に背景を描かない
   INTRO.sc.add(sky.root); INTRO.sc.background = scene.background;
-  let early = false; try { await renderer.compileAsync(INTRO.sc, cam); startIntro(); early = INTRO.t >= 0; } catch (e) { /* 古いブラウザは、町の用意のあとに */ }
+  let early = false; try { await renderer.compileAsync(INTRO.sc, cam); if (START) { startIntro(); early = INTRO.t >= 0; } } catch (e) { /* 古いブラウザは、町の用意のあとに */ }   // 題字は、選んでから降らせる
   if (!early) skyBack();
   else { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const t0 = pt; const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; sky.update(cam.position, (n - t0) / 1000); renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
   // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
-  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
+  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam, BG.on && !START ? () => BG.y() : null); SPOON.g.visible = FORK.g.visible = false; ready = true; window.__built = true; await START_P; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
   // はじめの画面（メニューの「はじめの画面へ」で戻った時）から選んだ時は、組み立てた町のまま。豆知識を読むで来た時は、題字を出さずに一覧を開く
   window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true) }; if (START.mode === 'trivia') openMenu('trivia'); })();
 </script>

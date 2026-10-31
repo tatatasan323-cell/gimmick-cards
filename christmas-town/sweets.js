@@ -94,8 +94,10 @@ export function biteCavity() {
 }
 
 // ---------- 材質 ----------
-export function makeMats(env) {
-  const D = dough(), F = frosting(), W = waferTex(), C = chocoTex(), G = sugarTex();
+// 生地・フロスティング・ウエハース・チョコ・砂糖の模様（作るのが重い）。step があれば1枚ごとに手を空ける（港町のはじめの画面の裏で組み立てる時）
+export async function matTex(step) { const T = {}; for (const [k, f] of [['D', dough], ['F', frosting], ['W', waferTex], ['C', chocoTex], ['G', sugarTex]]) { T[k] = f(); if (step) await step(); } return T; }
+export function makeMats(env, T) {
+  const { D, F, W, C, G } = T || { D: dough(), F: frosting(), W: waferTex(), C: chocoTex(), G: sugarTex() };
   const glass = ctex(128, 160, (g, w, h) => { const gr = g.createRadialGradient(w / 2, h * 0.55, 4, w / 2, h / 2, h * 0.7); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.6, '#e8e8e8'); gr.addColorStop(1, '#a8a8a8'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(w / 2 - 4, 0, 8, h); g.fillRect(0, h * 0.42, w, 8); g.fillStyle = 'rgba(120,60,30,.35)'; g.fillRect(6, h * 0.62, w - 12, h * 0.3); });
   const mint = ctex(128, 128, (g) => { g.fillStyle = '#fbf6f2'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#e0233a'; for (let i = 0; i < 8; i += 2) { g.beginPath(); g.moveTo(64, 64); for (let k = 0; k <= 10; k++) { const a = ((i + k / 10) / 8) * TAU + (k / 10) * 0.9; g.lineTo(64 + Math.cos(a) * 62 * (k / 10 + 0.05), 64 + Math.sin(a) * 62 * (k / 10 + 0.05)); } for (let k = 10; k >= 0; k--) { const a = ((i + 1 + k / 10) / 8) * TAU + (k / 10) * 0.9; g.lineTo(64 + Math.cos(a) * 62 * (k / 10 + 0.05), 64 + Math.sin(a) * 62 * (k / 10 + 0.05)); } g.fill(); } });
   const stripe = ctex(64, 256, (g, w, h) => { g.fillStyle = '#fbf6f2'; g.fillRect(0, 0, w, h); g.fillStyle = '#d81e34'; for (let i = -2; i < 10; i++) { g.beginPath(); g.moveTo(0, i * 32); g.lineTo(w, i * 32 - 22); g.lineTo(w, i * 32 - 6); g.lineTo(0, i * 32 + 16); g.fill(); } });

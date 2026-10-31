@@ -29,7 +29,7 @@ function build() { const L = $('thList'); if (L.childElementCount) return;
     let f; if (S.yt) { f = mk('a', 'full', 'MVを一曲ぜんぶ見る ›'); f.href = S.yt; f.target = '_blank'; f.rel = 'noopener noreferrer'; } else { f = mk('span', 'full', S.clip ? 'MVの全編は、近日公開' : '近日公開'); f.setAttribute('aria-disabled', 'true'); }
     c.append(st, tx, f); L.append(c); } }
 export const theaterOpen = () => !$('theaterUI').hidden;
-export const theaterDucked = () => ducked;   // 検査用：町の BGM を止めているか
+export const theaterDucked = () => ducked;   // 町の BGM を止めているか（確かめる道具が読む）
 export function openTheater(hooks) { H = hooks || {}; build(); $('thBack').textContent = H.back || '‹ もどる'; $('theaterUI').hidden = false; $('theaterUI').scrollTop = 0;
   if (!wired) { wired = true; $('thBack').addEventListener('click', () => { if (H.tap) H.tap(); if (H.onBack) H.onBack(); else closeTheater(); }); } }
 export function closeTheater() { if (!theaterOpen()) return; stopAll(null); unduck(); $('theaterUI').hidden = true; const f = H.onClose; if (f) f(); }

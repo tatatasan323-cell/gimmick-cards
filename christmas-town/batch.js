@@ -142,10 +142,17 @@ void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(vK.rgb * t.rgb, 
 
 // 開く前のシェーダーの用意は、最初に見える物だけ（three の compile は、隠れている物の材質まで全部作る＝まだ見つかっていないケーキ・出てこないスプーン・束ねた元の部品の分まで）
 // 隠れている枝と、描かない層の部品を一度だけ場面から外して用意し、元の場所（同じ順番）へ戻す。外した物は、出てくる時にその物だけ用意する（町の readyUp）
-export async function compileVisible(renderer, scene, cam) {
+// step（あれば）＝いちばん上の部品をかたまりに分けて用意し、かたまりごとに手を空ける（港町のはじめの画面の裏で組み立てる時。1回で全部だと、遅いスマホで1.2秒止まった）
+//   光をもつ部品は毎回そろえる（光の数がちがうと別の絵の具になり、描く時に作り直しになる）
+export async function compileVisible(renderer, scene, cam, step) {
   const out = []; (function walk(o) { for (let k = 0; k < o.children.length; k++) { const c = o.children[k]; if (!c.visible || (!c.layers.isEnabled(0) && !c.children.length)) out.push([c, o, k]); else walk(c); } })(scene);
   for (let n = out.length - 1; n >= 0; n--) { const [c, p, k] = out[n]; p.children.splice(k, 1); c.parent = null; }
-  try { await renderer.compileAsync(scene, cam); } catch (e) { /* 古いブラウザは最初のコマで用意 */ }
+  try {
+    if (!step) await renderer.compileAsync(scene, cam);
+    else { const all = scene.children, lit = [], rest = []; for (const c of all) { let L = false; c.traverse((o) => { if (o.isLight) L = true; }); (L ? lit : rest).push(c); }
+      const size = Math.max(1, Math.ceil(rest.length / 10));
+      try { for (let i = 0; i < rest.length; i += size) { scene.children = [...lit, ...rest.slice(i, i + size)]; await renderer.compileAsync(scene, cam); scene.children = all; await step(); } } finally { scene.children = all; } }
+  } catch (e) { /* 古いブラウザは最初のコマで用意 */ }
   for (const [c, p, k] of out) { p.children.splice(k, 0, c); c.parent = p; }
   return out.length;
 }
