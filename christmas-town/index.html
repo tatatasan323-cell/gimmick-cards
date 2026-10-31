@@ -74,7 +74,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 .it button,.it a{font:inherit;font-size:12.5px;font-weight:800;border:0;border-radius:999px;padding:7px 11px;background:#eadccb;color:#5a3a1a;text-decoration:none;white-space:nowrap;cursor:pointer}.it .go{background:#c8732e;color:#fff}.it .on{background:#3a8a4a;color:#fff}
 .hd{font-size:12.5px;font-weight:800;color:#8a5a2a;margin:8px 2px 4px}.note{font-size:12px;line-height:1.7;color:#8a6a4a;background:#f6ecdf;border-radius:12px;padding:10px 12px;margin:12px 2px 4px}.vol{width:min(42vw,170px);accent-color:#c8732e}.num{font-size:14px;font-weight:800;color:#c8732e;white-space:nowrap;font-variant-numeric:tabular-nums}.ok{color:#3a8a4a;font-weight:800}
 .qr{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 2px 10px}.qrb{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.qrb button,.qrb a{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 16px;background:#eadccb;color:#5a3a1a;text-decoration:none;cursor:pointer}.qrb .line{background:#06c755;color:#fff}.qr .code{width:min(62vw,240px);aspect-ratio:1;border-radius:14px;overflow:hidden;box-shadow:0 0 0 4px #ffb4d7}.qr .code svg{display:block;width:100%;height:100%}.qr small{font-size:11.5px;color:#8a5a2a;word-break:break-all;text-align:center}.qr button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:999px;padding:8px 14px;background:#c8732e;color:#fff;cursor:pointer}
-#menuX{font:inherit;font-weight:800;border:0;border-radius:999px;padding:9px;background:#eadccb;color:#5a3a1a;cursor:pointer}
+#menuX,#menuTop{font:inherit;font-weight:800;border:0;border-radius:999px;padding:9px;background:#eadccb;color:#5a3a1a;cursor:pointer}#menuTop{background:#f6ecdf;color:#8a5a2a}
 #sheet .credit{margin:0;text-align:center;font-size:11.5px;letter-spacing:.08em}#sheet .credit a{color:#8a6a4a;text-decoration:none}
 #fps{position:fixed;left:8px;top:8px;color:#fff;font:11px monospace;white-space:pre;pointer-events:none}
 #liteTag{position:fixed;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:6;padding:3px 9px;border-radius:999px;background:rgba(30,18,8,.42);color:#ffe7c0;font-size:11px;font-weight:800;letter-spacing:.04em;line-height:1.5;pointer-events:none;opacity:.85;font-variant-numeric:tabular-nums}
@@ -83,18 +83,6 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #introTap[hidden]{display:none}
 @keyframes tapIn{from{opacity:0;transform:translateX(-50%) scale(.6)}}@keyframes tapPulse{50%{transform:translateX(-50%) scale(1.07)}}
 #introSub span{display:inline-block;animation:hop .6s cubic-bezier(.3,1.8,.5,1) both}#introSub.bye{opacity:0}
-#introLead{position:fixed;left:50%;z-index:9;transform:translateX(-50%);width:min(88vw,430px);box-sizing:border-box;padding:6px 12px;border-radius:14px;background:rgba(24,12,44,.38);text-align:center;font-size:clamp(12.5px,3.4vw,15px);font-weight:800;line-height:1.7;letter-spacing:.03em;color:#fff;text-shadow:0 1px 6px rgba(60,20,90,.9);pointer-events:none;opacity:0;animation:leadIn .8s ease 2s forwards}
-#introLead[hidden]{display:none}#introLead.bye{opacity:0!important;transition:opacity .5s}@keyframes leadIn{to{opacity:1}}
-#invite{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(30,12,40,.35);opacity:0;transition:opacity .3s}#invite.on{opacity:1}#invite[hidden]{display:none}
-#invCard{width:min(84vw,330px);box-sizing:border-box;padding:18px 18px 16px;border-radius:24px;background:linear-gradient(#fff7fb,#ffeef7);box-shadow:0 0 0 4px #ffc2de,0 14px 36px rgba(120,30,90,.4);text-align:center;color:#5b3550;transform:translateY(16px) scale(.9);transition:transform .45s cubic-bezier(.2,1.6,.4,1)}
-#invite.on #invCard{transform:none}
-#invEnv{position:relative;width:96px;height:64px;margin:2px auto 10px;border-radius:10px;background:linear-gradient(#ffd6ea,#ffb3d4);box-shadow:inset 0 0 0 3px #ff8fbf;overflow:hidden;animation:bob 1.6s ease-in-out infinite}
-#invEnv i{position:absolute;left:-6px;right:-6px;top:-34px;height:66px;background:#ffc6e1;transform:rotate(0);clip-path:polygon(0 0,100% 0,50% 100%);box-shadow:inset 0 -3px 0 #ff8fbf}
-#invEnv b{position:absolute;left:50%;top:22px;width:22px;height:20px;margin-left:-11px;background:#ff4f93;clip-path:path('M11 20 L1 9 A5.5 5.5 0 0 1 11 3 A5.5 5.5 0 0 1 21 9 Z')}
-@keyframes bob{50%{transform:translateY(-4px) rotate(-2deg)}}
-#invHead{font-size:19px;font-weight:900;letter-spacing:.06em;color:#ff4f93}#invFrom{margin-top:6px;font-size:14px;font-weight:800}#invTitle{margin-top:2px;font-size:13px;font-weight:700;color:#8a6a80;word-break:break-all}
-#invRow{display:flex;flex-direction:column;gap:8px;margin-top:14px}#invRow button{font:inherit;font-size:15px;font-weight:900;border:0;border-radius:999px;padding:10px 14px;cursor:pointer}
-#invGo{color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);box-shadow:0 4px 0 #d2407e}#invLater{color:#7a4a6a;background:#f6e2ee}
 #inviteBtn{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(96px + env(safe-area-inset-top));z-index:15;font:inherit;font-size:13px;font-weight:800;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);border:0;border-radius:999px;padding:7px 12px;box-shadow:0 3px 0 #d2407e;cursor:pointer}
 #shopWait{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 45%,rgba(255,220,236,.95),rgba(122,58,26,.96));color:#5a2a12;font-weight:900;font-size:20px;letter-spacing:.08em}
 #shopWait[hidden]{display:none}
@@ -106,9 +94,87 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 #load i{width:15px;height:15px;border-radius:50%;background:#ffb3d3;box-shadow:0 0 12px rgba(255,190,220,.55);animation:ldhop .9s ease-in-out infinite;will-change:transform}
 #load i:nth-child(2){background:#9eeac6;animation-delay:.15s}#load i:nth-child(3){background:#ffe08f;animation-delay:.3s}
 @keyframes ldhop{0%,100%{transform:translateY(0) scale(1.15,.85)}50%{transform:translateY(-20px) scale(.92,1.08)}}
+/* はじめの画面（本人 2026-10-31「いきなり待ちの画面でユーザーは何してよいかわかりません」）：カードの画面と同じ夜空に、題字・届いたカードのお知らせ・入口。動きは CSS の transform と opacity だけ */
+#start{position:fixed;inset:0;z-index:30;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain;background:linear-gradient(180deg,#0a0f2c 0%,#141244 46%,#1d1546 100%);color:#fff6ea}
+#start[hidden]{display:none}
+#start .st-aur{position:fixed;left:-20%;right:-20%;top:-8vh;height:46vh;pointer-events:none;background:radial-gradient(60% 55% at 30% 60%,rgba(60,255,170,.22),transparent 70%),radial-gradient(50% 45% at 70% 50%,rgba(150,110,255,.2),transparent 70%);filter:blur(8px);will-change:transform;animation:stAur 14s ease-in-out infinite alternate}
+@keyframes stAur{from{transform:translateX(-4%) skewX(-6deg)}to{transform:translateX(4%) skewX(6deg)}}
+.st-in{position:relative;max-width:520px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px calc(22px + env(safe-area-inset-bottom));text-align:center}
+.st-gar{display:flex;justify-content:space-between;margin:0 6px 4px;height:16px;background:radial-gradient(120% 70% at 50% 0,transparent 60%,rgba(255,255,255,.18) 61%,transparent 66%) 0 0/100% 100% no-repeat}
+.st-gar i{width:9px;height:12px;margin-top:4px;border-radius:50% 50% 45% 45%;background:currentColor;box-shadow:0 0 10px currentColor;animation:stTw 2.4s ease-in-out infinite}
+.st-gar i:nth-child(4n+1){color:#ff5a6a}.st-gar i:nth-child(4n+2){color:#ffd23a;animation-delay:.6s}.st-gar i:nth-child(4n+3){color:#4ad0ff;animation-delay:1.2s}.st-gar i:nth-child(4n){color:#7aff8a;animation-delay:1.8s}
+@keyframes stTw{0%,100%{opacity:1}50%{opacity:.35}}
+.st-kick{margin:0;font-size:12px;font-weight:800;letter-spacing:.28em;color:#ffd27a}
+#stTitle{display:grid;place-items:center;margin:2px auto 0;max-width:400px;aspect-ratio:5.74/1.12;font-size:40px;line-height:1.1;font-weight:900;color:#ffe2ee}   /* 題字の絵が来る前の字と、同じ高さ（入れかわる時に下が跳ねない） */
+#stTitle svg{display:block;width:100%;height:auto;overflow:visible}
+.st-sub{margin:6px 0 0;font-size:14.5px;font-weight:800;letter-spacing:.12em;color:#cfd6ff}
+.st-lead{margin:8px auto 0;max-width:24em;font-size:13px;font-weight:700;line-height:1.7;color:#e8e2ff}
+.st-town{margin:8px -6px 0;aspect-ratio:3/1;overflow:hidden;pointer-events:none}
+.st-town img{display:block;width:100%;height:100%;object-fit:cover}
+.st-got{position:relative;margin:8px 0 0;padding:14px 14px 14px;border-radius:20px;background:#fffaf1;color:#4a2a14;box-shadow:0 0 0 3px #ffd27a,0 10px 26px rgba(0,0,0,.4);animation:stPop .6s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes stPop{from{opacity:0;transform:translateY(14px) scale(.92)}to{opacity:1;transform:none}}
+.st-got .env{display:block;width:64px;height:44px;margin:0 auto 6px;animation:stWig 2.6s ease-in-out infinite}
+@keyframes stWig{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-7deg)}90%{transform:rotate(6deg)}94%{transform:rotate(-3deg)}}
+.st-got b{display:block;font-size:19px;font-weight:900;letter-spacing:.04em;color:#c2185b}
+.st-got span{display:block;margin-top:3px;font-size:14px;font-weight:800;color:#7a4a2a;word-break:break-all}
+.st-got button{margin-top:10px;font:inherit;font-size:17px;font-weight:900;letter-spacing:.06em;border:0;border-radius:999px;padding:11px 34px;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);box-shadow:0 4px 0 #d2407e,0 6px 14px rgba(255,92,158,.4);cursor:pointer}
+.st-got button:active,.st-b:active{transform:translateY(3px)}
+.st-again{display:block;margin:10px auto 0;font:inherit;font-size:13.5px;font-weight:800;border:0;border-radius:999px;padding:9px 16px;color:#4a2a14;background:#ffe7b0;cursor:pointer}
+.st-again[hidden]{display:none}
+.st-q{margin:16px 0 8px;font-size:17px;font-weight:900;letter-spacing:.1em;color:#fff3df}
+.st-main{opacity:0;transition:opacity .35s}#start.ready .st-main{opacity:1}
+.st-list{display:flex;flex-direction:column;gap:10px;text-align:left}
+.st-b{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;font:inherit;color:#4a2a14;background:#fff8ee;border:0;border-radius:18px;padding:11px 14px;box-shadow:0 4px 0 #c9a77e,0 8px 18px rgba(0,0,0,.3);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+.st-b .ic{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;color:#fff}
+.st-b .ic svg{width:26px;height:26px}
+.st-b .tx2{flex:1;min-width:0}
+.st-b b{display:block;font-size:16.5px;font-weight:900;letter-spacing:.03em}
+.st-b small{display:block;margin-top:2px;font-size:12.5px;font-weight:700;line-height:1.5;color:#8a5a2a}
+.st-b .two{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.st-b .two button{font:inherit;font-size:13.5px;font-weight:900;border:0;border-radius:999px;padding:8px 13px;color:#fff;background:#c8732e;box-shadow:0 3px 0 #8f4e1c;cursor:pointer}
+.st-b .two button:first-child{background:#e0476e;box-shadow:0 3px 0 #a3264a}
+.st-b .howto{display:block;margin-top:6px;min-height:36px;padding:8px 0;font:inherit;font-size:12.5px;font-weight:800;color:#2f7ad0;background:none;border:0;cursor:pointer;text-align:left}
+.st-mk{cursor:default}.st-mk:active{transform:none}.st-b[hidden]{display:none}
+.ic-town{background:linear-gradient(#ff95c8,#ff5c9e)}.ic-room{background:linear-gradient(#4ac2ff,#1f7ad0)}.st-b .rooms button{background:#2f8fdc;box-shadow:0 3px 0 #1a5d99}.st-b .rooms button:first-child{background:#2f8fdc;box-shadow:0 3px 0 #1a5d99}.ic-th{background:linear-gradient(#e0475a,#a3162c)}.ic-tri{background:linear-gradient(#9b8bff,#6a52e0)}.ic-card{background:linear-gradient(#5fd39a,#25a06a)}
+.st-credit{margin:16px 0 0;font-size:11.5px;letter-spacing:.08em}.st-credit a{color:#b8b4e8;text-decoration:none}
+/* 横向きの低い画面（スマホの横）：左に題字、右に入口 */
+@media (orientation:landscape) and (max-height:560px){.st-in{max-width:880px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 22px;align-items:start}.st-q{margin-top:6px}#stTitle{max-width:320px}}
+@media (prefers-reduced-motion:reduce){#start *{animation:none!important}}
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
 </head><body><canvas id="c"></canvas>
+<div id="start" hidden role="dialog" aria-label="はじめの画面"><div class="st-aur" aria-hidden="true"></div>
+ <div class="st-in">
+  <div class="st-head">
+   <div class="st-gar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+   <p class="st-kick">X'mas Greeting Card</p>
+   <h1 id="stTitle" aria-label="とろけて聖夜">とろけて聖夜</h1>
+   <p class="st-sub">はじいて、こわして、とろける。</p>
+   <p class="st-lead" id="stLead">これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。</p>
+   <div class="st-town" aria-hidden="true"><img src="town_banner.webp" alt="" width="1080" height="360" decoding="async"></div>
+  </div>
+  <div class="st-main">
+   <div class="st-got" id="stGot" role="status" hidden><svg class="env" viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="6" fill="#ff5c9e"/><path d="M5 7l27 20L59 7" fill="none" stroke="#fff4fa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="27" r="5.5" fill="#ffd27a" stroke="#fff4fa" stroke-width="2"/></svg><b id="stGotHead"></b><span id="stGotFrom"></span><span id="stGotTitle"></span><button id="stGotGo" type="button">見る ›</button></div>
+   <button class="st-again" id="stAgain" type="button" hidden></button>
+   <h2 class="st-q">なにをする？</h2>
+   <div class="st-list">
+    <button class="st-b" type="button" data-go="town"><i class="ic ic-town" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="9" r="7"/><path d="M8.6 9a3.4 3.4 0 1 1 6.8 0 2 2 0 1 1-4 0"/><path d="M12 16v6.5"/></svg></i><span class="tx2"><b>町を食べて回る</b><small>お菓子の港町を、自由に飛んで、かじって、こわして</small></span></button>
+    <div class="st-b st-mk" id="stRooms"><i class="ic ic-room" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3.5h12l4 5.5-10 12L2 9z"/><path d="M2 9h20M9 3.5L12 21M15 3.5L12 21"/></svg></i><span class="tx2"><b>仕掛けの部屋へ、まっすぐ</b><small>町を通らずに、遊びたい部屋だけ開きます</small><span class="two rooms"><button type="button" data-room="glass">ステンドグラス</button><button type="button" data-room="museum">宝石の美術館</button><button type="button" data-room="ice">氷の彫像</button><button type="button" data-room="swim">ぷるぷる水そう</button><button type="button" data-room="blocks">グミのつみき</button></span></span></div>
+    <button class="st-b" type="button" data-go="theater"><i class="ic ic-th" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M10 7.8v5.4l4.6-2.7z" fill="currentColor"/><path d="M8 20.5h8"/></svg></i><span class="tx2"><b>シアターでMVを見る</b><small>3つのシアターで、サビを15秒ずつ。全編へも</small></span></button>
+    <button class="st-b" type="button" data-go="trivia"><i class="ic ic-tri" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.3 7.2L22 12l-7.7 2.8L12 22l-2.3-7.2L2 12l7.7-2.8z"/></svg></i><span class="tx2"><b>豆知識を読む</b><small>町のあちこちで光る、クリスマスの豆知識</small></span></button>
+    <div class="st-b st-mk"><i class="ic ic-card" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 6.5l9 7 9-7"/></svg></i><span class="tx2"><b>カードをつくって送る</b><small>LINE で送れます</small><span class="two"><button type="button" data-make="greet">グリーティングカード</button><button type="button" data-make="invite">招待状</button></span><button type="button" class="howto" id="stHowto">はじめての方へ：つくりかた・おくりかた ›</button></span></div>
+   </div>
+   <p class="st-credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
+  </div>
+ </div>
+</div>
+<script>
+// はじめの画面を出すか：リンクだけ・カードのリンク（#c=）で開いた時。建物の前へ戻る時（#museum など）と検査（?fps。?top を付けると出す）は出さない
+// 町（下の大きな module）は、ここで選ぶまで組み立てない＝__start が決まるまで待つ。組み立ての間は画面が固まり、はじめの画面のボタンが押せない
+(function () { var h = location.hash, q = new URLSearchParams(location.search), show = (!h || /^#c=/.test(h)) && (!q.has('fps') || q.has('top'));
+  window.__start = show ? new Promise(function (r) { window.__go = r; }) : Promise.resolve({ mode: 'town', top: false });
+  if (show) document.getElementById('start').hidden = false; })();
+</script>
 <div class="tx" id="top">おかしな港町<small id="sub">じゅんびちゅう…</small></div>
 <div id="found" role="button" tabindex="0" aria-label="見つけた豆知識の一覧">豆知識 <span id="fN">0</span> / <span id="fT">12</span> ›</div>
 <div class="tx" id="hint">左の丸＝飛ぶ（見ている向きへ）・空や町をなぞる＝見まわす<br>海をなぞる＝光の波・家や住人をタップ＝かじる　♪音あり</div>
@@ -120,16 +186,52 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 <button id="menuB" type="button" aria-haspopup="dialog">☰ メニュー</button>
 <button id="fsB" type="button" aria-label="全画面にする" hidden><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path id="fsI" d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <div id="introSub" hidden></div>
-<div id="introLead" hidden>これは招待状＆グリーティングカード機能の付いた、時間がとろける、聖夜にぴったりのアプリです。</div>
 <button id="introTap" type="button" hidden>タッチしてね</button>
 <div id="load" aria-hidden="true"><i></i><i></i><i></i></div>
-<div id="invite" hidden role="dialog" aria-label="招待状のお知らせ"><div id="invCard"><div id="invEnv" aria-hidden="true"><i></i><b></b></div><div id="invHead">招待状が届いているよ！</div><div id="invFrom"></div><div id="invTitle"></div><div id="invRow"><button id="invGo" type="button">先に招待状を見る</button><button id="invLater" type="button">町を見てから</button></div></div></div>
 <button id="inviteBtn" type="button" hidden>✉ 招待状を見る</button>
 <div id="shopUI" hidden><button id="shopBack" type="button">‹ 港町へもどる</button></div>
 <div id="shopWait" hidden><i></i>いらっしゃいませ</div>
-<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="make">カードをつくる</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR・スマホへ</button><button type="button" data-t="rec">きろく</button><button type="button" data-t="lite">画質</button></div><div id="pane"></div><button id="menuX" type="button">とじる</button><p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p></div></div>
+<div id="menu" hidden><div id="sheet" role="dialog" aria-label="メニュー"><div id="tabs"><button type="button" data-t="places" class="on">行ける場所</button><button type="button" data-t="trivia">豆知識</button><button type="button" data-t="make">カードをつくる</button><button type="button" data-t="howto">つかいかた</button><button type="button" data-t="sound">音</button><button type="button" data-t="qr">QR・スマホへ</button><button type="button" data-t="rec">きろく</button><button type="button" data-t="lite">画質</button></div><div id="pane"></div><button id="menuTop" type="button">はじめの画面へ</button><button id="menuX" type="button">とじる</button><p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p></div></div>
 <div id="fps" hidden></div>
 <div id="liteTag"></div>
+<script type="module">
+// はじめの画面の中身：題字・届いたカードのお知らせ・入口。読むのは小さな部品だけ（町の部品は、下の module が選んだ後に使う）
+import { Card } from './card_code.js';
+import { titleSvg } from './title_svg.js';
+import { openTheater, closeTheater, theaterOpen } from './theater.js';
+import { scaleUI } from './uiscale.js';
+scaleUI();   // パソコンでは、画面の上の部品を窓の大きさに合わせて伸び縮み（ブラウザの拡大・縮小でも 3D と同じ釣り合い）
+const TOP_PAGES = true;   // GitHub の公開版では true（共通/まとめる_pages.py）。カードのページへ同じタブで
+const $ = (id) => document.getElementById(id), start = $('start'), KEEP = 'xmas-card-hash';
+if (TOP_PAGES && new URLSearchParams(location.search).has('openExternalBrowser')) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // LINE から開きなおした後は、アドレスを元に
+const CARD_ART = 'https://claude.ai/artifact/8BYtjoMnsyP5yRzrQojXfC';
+$('stTitle').textContent = ''; $('stTitle').appendChild(titleSvg(null, 'st'));
+// 届いたカード：リンクに付いて来た時は大きく知らせる。このタブで前にもらったカード（カードを見てから戻った時）は、小さく「もう一度見る」。中身は textContent でしか出さない
+const fresh = TOP_PAGES ? Card.fromHash(location.hash) : null;
+let hash = fresh ? location.hash : '';
+try { if (fresh) sessionStorage.setItem(KEEP, hash); else if (TOP_PAGES) { const h = sessionStorage.getItem(KEEP); if (h && Card.fromHash(h)) hash = h; } } catch (e) { /* 覚えておけない画面 */ }
+const got = hash ? Card.fromHash(hash) : null, isG = !!got && got.k === 'g';
+// カードのページ・部屋の「もどる」は、はじめの画面へ（町から行った時は、町のその建物の前へ＝xmas-back が town）
+const toCard = (h) => { try { sessionStorage.setItem('xmas-back', 'top'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }
+  if (TOP_PAGES) location.href = 'card.html' + h; else open(CARD_ART + h, '_blank', 'noopener'); };
+if (fresh) { $('stGot').hidden = false; $('stLead').hidden = true; $('stGotHead').textContent = isG ? 'グリーティングカードが届いたよ！' : '招待状が届いているよ！';
+  $('stGotFrom').textContent = got.f ? got.f + ' さんから' : ''; $('stGotTitle').textContent = !isG && got.t ? '「' + got.t + '」' : ''; $('stGotGo').addEventListener('click', () => toCard(hash)); }
+else if (got) { const b = $('stAgain'); b.hidden = false; b.textContent = isG ? '✉ もらったグリーティングカードを、もう一度見る' : '✉ もらった招待状を、もう一度見る'; b.addEventListener('click', () => toCard(hash)); }
+// 入口：町を回る・豆知識は、ここで初めて町を組み立てる。町がもう動いている時（メニューの「はじめの画面へ」から来た時）は、町の約束（__town）で
+const pick = (mode) => { start.hidden = true; if (window.__town) window.__town[mode](); else window.__go({ mode, top: true }); };
+// シアター：町を組み立てずに、同じ劇場の画面を開く。端末の「戻る」でも、はじめの画面へ
+function theater() { if (window.__town) { start.hidden = true; window.__town.theater(); return; }
+  start.hidden = true; history.pushState({ th: 1 }, ''); openTheater({ back: '‹ もどる', onBack: () => history.back(), onClose: () => { start.hidden = false; } }); }
+addEventListener('popstate', () => { if (!window.__town && theaterOpen()) closeTheater(); });
+for (const b of start.querySelectorAll('[data-go]')) b.addEventListener('click', () => (b.dataset.go === 'theater' ? theater() : pick(b.dataset.go)));
+for (const b of start.querySelectorAll('[data-make]')) b.addEventListener('click', () => toCard('#make-' + b.dataset.make));
+$('stHowto').addEventListener('click', () => toCard('#howto'));   // つくりかた・おくりかた（Keepメモに一度送って確かめてから、転送。本人 2026-10-31）
+// 部屋へまっすぐ（本人 2026-10-31「街を動きたくない人もいるので、すぐに目的のギミックに行ける」）。部屋の「もどる」は、はじめの画面へ（共通/kobo_back.js）
+// 試作の非公開ページでは、部屋は別々の置き場なので、ここからは開かない
+if (!TOP_PAGES) $('stRooms').hidden = true;
+for (const b of start.querySelectorAll('[data-room]')) b.addEventListener('click', () => { try { sessionStorage.setItem('xmas-back', 'top'); } catch (e) { /* 同上 */ } location.href = b.dataset.room + '.html'; });
+start.classList.add('ready');   // 入口は、ここでつないでから出す（はじめの画面は部品が届く前に出るので、つなぐ前に押しても何も起きなかった）
+</script>
 <script type="module">
 // 冬の夜の、北欧の入り江の港町。湾を囲むハーバーに、お菓子の家（ジンジャーブレッドの壁・フロスティングの屋根・飴の窓）が坂の上まで段々に続く
 // 奥にはかき氷とソフトクリームの山、東の崖から炭酸の滝。湾には揺れるヨット、岬にキャンディケインの灯台、空にはオーロラとサンタのそり
@@ -138,7 +240,6 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 import * as THREE from 'three';
 import { watchOrientation } from './orient.js';
 import { guardLeave } from './stay.js';
-guardLeave('おかしな港町から出ますか？', '');
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { makeSky } from './space.js';
 import { gel, fadeEdge, timeU } from './mat.js';
@@ -159,10 +260,15 @@ import { Card } from './card_code.js';
 import { gstats, gcount } from './gdone.js';
 import { Batcher, HIDDEN, twin, compileVisible } from './batch.js';
 import { makeLite } from './lite.js';
-import { scaleUI, uiZoom } from './uiscale.js';
-scaleUI();   // パソコンでは、画面の上の部品を窓の大きさに合わせて伸び縮み（ブラウザの拡大・縮小でも 3D と同じ釣り合い）
+import { uiZoom } from './uiscale.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { GEM_Q } from './gemshader.js';
+import { openTheater, theaterDucked } from './theater.js';
+// はじめの画面で選ぶまで、町を組み立てない（組み立てる間は画面が固まり、はじめの画面のボタンが押せない）。建物の前へ戻る時と検査は、すぐ
+// START.mode＝town（町を回る）・trivia（豆知識を読む）。START.top＝はじめの画面から来た（届いたカードは、はじめの画面で知らせ済み）
+const START = await window.__start;
+try { sessionStorage.setItem('xmas-back', 'town'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }   // 町からカードや部屋へ行った時の「もどる」は、町のその建物の前へ（はじめの画面から行った時は top）
+guardLeave('おかしな港町から出ますか？', '');
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
 const $ = (id) => document.getElementById(id);
@@ -793,7 +899,6 @@ const INVITE = PAGES ? Card.fromHash(location.hash) : null, CARD_KEEP = 'xmas-ca
 let INVITE_HASH = INVITE ? location.hash : '';
 try { if (INVITE) sessionStorage.setItem(CARD_KEEP, INVITE_HASH); else if (PAGES) { const h = sessionStorage.getItem(CARD_KEEP); if (h && Card.fromHash(h)) INVITE_HASH = h; } } catch (e) { /* 覚えておけない画面 */ }
 const CARD_GOT = INVITE || (INVITE_HASH ? Card.fromHash(INVITE_HASH) : null), CARD_IS_G = !!CARD_GOT && CARD_GOT.k === 'g';
-if (PAGES && q.has('openExternalBrowser')) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // LINE から開きなおした後は、アドレスを元に
 const ART = PAGES ? { glass: 'glass.html', museum: 'museum.html', ice: 'ice.html', swim: 'swim.html', blocks: 'blocks.html', post: 'card.html' + INVITE_HASH }
   : { glass: 'https://claude.ai/artifact/MATECBRi4yXkT7uX2ands5', museum: 'https://claude.ai/artifact/E7qTYWV5M5GETCQGsLsyWk', ice: 'https://claude.ai/artifact/7nvfo7JxZdyPyX5juGDMpa', swim: 'https://claude.ai/artifact/WYHYJwoZufvR8er3MxSeYb', blocks: 'https://claude.ai/artifact/9cqAzwMwTa6K1GNWjGUW7U', post: 'https://claude.ai/artifact/8BYtjoMnsyP5yRzrQojXfC' };
 if (PAGES) { $('go').removeAttribute('target'); $('go').removeAttribute('rel'); }
@@ -867,34 +972,11 @@ const THEATER = (() => { const [x, z, ry] = AREAPOS.theater, g = new THREE.Group
   const acc = new SW.Acc(); acc.add('cookie', new THREE.CylinderGeometry(2.4, 2.5, 3.0, 36).translate(0, 1.5, 0), '#f2d6b6'); acc.add('choco', new THREE.CylinderGeometry(2.55, 2.55, 2, 36).translate(0, -0.95, 0)); acc.add('gum', new THREE.SphereGeometry(2.45, 36, 16, 0, TAU, 0, Math.PI / 2).scale(1, 0.65, 1).translate(0, 3.0, 0), '#e0283c'); acc.add('gum', new THREE.TorusGeometry(2.45, 0.14, 8, 48).rotateX(Math.PI / 2).translate(0, 3.0, 0), '#ffd23a'); acc.add('gum', new THREE.SphereGeometry(0.25, 14, 10).translate(0, 4.65, 0), '#ffd23a'); acc.add('choco', new THREE.BoxGeometry(0.9, 1.6, 0.1).translate(0, 0.8, 2.45));
   for (const m of acc.build(MATS)) g.add(m);
   return Object.assign(area('theater', 'ミュージカルの劇場', '3つのシアターで、サビを15秒ずつ', 'ジンジャーブレッドたちのミュージカル。中には3つのシアターがあって、3曲のサビを15秒ずつ見られます。シアターの下のボタンから、MVをぜんぶ見ることもできます。', null, g, { d: 12, h: 3 }, 6.3, '上映中'), { enter: () => openTheaterUI(), enterText: '劇場に入る ›' }); })();
-// 劇場の中（本人 2026-10-20「ハロウィンのギミックカードの時のように、中に入ると3つのシアター。3曲ともサビを15秒くらい。下に、MVを一曲全部見るボタン → YouTube」）
-// 動画は、押すまで読みこまない（通信量・LINE の中でも軽く）。流れている間は町の BGM を止めて、終わったら戻す。中にいる間は、町の絵を描かない（スマホで動画をなめらかに）
-// yt＝YouTube の全編。入れた曲だけ、ボタンが押せる（入れていない曲は「近日公開」）。clip が無い曲は、幕が閉じたまま「準備中」
-const SHOWS = [
-  { id: 'hiphop', name: 'Friends Around the Table', ja: 'テーブルに集まれ！', note: 'ヒップホップ｜イブの夜、仲間がつぎつぎにやってくる', clip: 'theater_hiphop.mp4', poster: 'theater_hiphop.jpg', yt: 'https://youtu.be/pEvqS5da3-s' },
-  { id: 'folk', name: 'Christmas Feels Like Being', ja: 'きみといる、それがクリスマス', note: 'フォーク｜同じイブを、家のふたりの側から', clip: 'theater_folk.mp4', poster: 'theater_folk.jpg', yt: 'https://youtu.be/Z6vJkx9_u-s' },
-  { id: 'gospel', name: 'Singing Glory', ja: 'グローリー・グローリー！', note: 'ゴスペル｜町じゅうの声が集まって、クリスマスの朝へ', clip: 'theater_gospel.mp4', poster: 'theater_gospel.jpg', yt: 'https://youtu.be/oR3KyE3Zmxo' },
-];
-const TH = { open: false, duck: false };
-function thBuild() { const L = $('thList'); if (L.childElementCount) return;
-  for (const S of SHOWS) { const c = document.createElement('div'), st = document.createElement('div'), tx = document.createElement('div'); c.className = 'th'; c.dataset.id = S.id; st.className = 'stage'; tx.className = 't';
-    if (S.clip) { const v = document.createElement('video'), b = document.createElement('button'); v.playsInline = true; v.preload = 'none'; v.poster = S.poster; v.setAttribute('disablepictureinpicture', ''); v.setAttribute('controlslist', 'nodownload');
-      b.type = 'button'; b.className = 'play'; b.setAttribute('aria-label', S.name + '（サビ15秒）を見る'); b.append(document.createElement('i'), mEl('b', null, '見る'), mEl('small', null, 'サビ 15秒'));
-      b.addEventListener('click', () => { SND.audio(); thStopAll(v); b.hidden = true; v.src = S.clip; v.setAttribute('controls', ''); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { /* 自動で始まらなくても、操作の枠から押せる */ }); });
-      v.addEventListener('play', () => { thStopAll(v); if (!TH.duck && PREF.bgm && soundStarted) { TH.duck = true; BGM.set(SND.audio(), false); } });   // 動画の音と、BGM が重ならないように
-      v.addEventListener('ended', thUnduck);
-      v.addEventListener('error', () => { if (!v.getAttribute('src')) return; thReset(v); thUnduck(); });
-      st.append(v, b); }
-    else st.append(mEl('div', 'soon', '準備中'));
-    tx.append(mEl('b', null, S.name), mEl('small', null, S.ja + '｜' + S.note));
-    let f; if (S.yt) { f = mEl('a', 'full', 'MVを一曲ぜんぶ見る ›'); f.href = S.yt; f.target = '_blank'; f.rel = 'noopener noreferrer'; } else { f = mEl('span', 'full', S.clip ? 'MVの全編は、近日公開' : '近日公開'); f.setAttribute('aria-disabled', 'true'); }
-    c.append(st, tx, f); L.append(c); } }
-function thReset(v) { v.pause(); v.removeAttribute('src'); v.removeAttribute('controls'); try { v.load(); } catch (e) { /* 読みこむものが無い */ } v.parentElement.querySelector('.play').hidden = false; }
-function thStopAll(except) { for (const v of $('thList').querySelectorAll('video')) if (v !== except && v.getAttribute('src')) thReset(v); }
-function thUnduck() { if (TH.duck && PREF.bgm) BGM.set(SND.audio(), true); TH.duck = false; }
-function openTheaterUI() { thBuild(); card.hidden = true; $('theaterUI').hidden = false; $('theaterUI').scrollTop = 0; TH.open = true; use('theater'); SND.tap(); }
-function closeTheaterUI() { if (!TH.open) return; thStopAll(null); thUnduck(); $('theaterUI').hidden = true; TH.open = false; }
-$('thBack').addEventListener('click', () => { SND.tap(); closeTheaterUI(); });
+// 劇場の中＝3つのシアター（共通/theater.js。はじめの画面の「シアターでMVを見る」と同じ画面）。中にいる間は、町の絵を描かない（スマホで動画をなめらかに）
+const TH = { open: false };
+function openTheaterUI(fromTop) { card.hidden = true; TH.open = true; use('theater'); SND.tap();
+  openTheater({ back: fromTop ? '‹ もどる' : '‹ 港町へもどる', tap: () => SND.tap(), audio: () => SND.audio(), onClose: () => { TH.open = false; if (fromTop) $('start').hidden = false; },
+    duck: (on) => { if (!on) { if (PREF.bgm) BGM.set(SND.audio(), true); return false; } if (!(PREF.bgm && soundStarted)) return false; BGM.set(SND.audio(), false); return true; } }); }
 // 郵便局（クリスマスカードへ）＋赤いポスト（豆知識）
 let POSTBOX = null;
 const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.5, rh: 1.5, roof: 'frost', shade: '#fff4e6', glass: '#ffd86a', door: true, base: 1.6 };
@@ -2109,7 +2191,7 @@ function step(f0) {
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}\n${GLDIAG.gpu.slice(0, 48)} VU${VU} D${DENT_N} shaderErr ${GLDIAG.err.length}${GLDIAG.err.length ? '\n' + GLDIAG.err[0].slice(0, 140) : ''}`; frames = 0; tf = performance.now(); }
 }
 let BATCH = null;
-if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), scene, cam, drone, counts,
+if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), frames: () => renderer.info.render.frame, scene, cam, drone, counts,
   // キャラの当たりの検査：いちばん重なっている量（負＝めり込み。行列どうしは数えない）／当たりを切る／ぶつかった回数／行列の進み
   crowdGap: () => { const A = crowdAgents(); let m = 9, who = null; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { if (A[i].k === 'luc' && A[j].k === 'luc') continue; const g = Math.hypot(A[i].x - A[j].x, A[i].z - A[j].z) - A[i].r - A[j].r; if (g < m) { m = g; who = [A[i].k, A[j].k]; } } return [+m.toFixed(3), who]; },
   crowdOff: (v) => { CROWD.off = v; }, crowdBumps: () => CROWD.bumps, lucA: () => +LUC.a.toFixed(4), lucBy: () => { const q = LUC.by; if (!q) return null; const b = q.b; return q.k === 'gb' ? ['gb', GBS.indexOf(b), b.back, +(b.wait || 0).toFixed(2)] : ['puyo', PUYOS.indexOf(b), +b.hop.toFixed(2), b.hops, +b.next.toFixed(2), b.tgt.map((v) => +v.toFixed(1)), [+b.grp.position.x.toFixed(2), +b.grp.position.z.toFixed(2)], b.home]; },
@@ -2168,7 +2250,7 @@ if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), scene, cam, drone, counts,
   toyWob: () => TOY.g.userData.wob, bgm: () => ({ on: BGM.on, track: BGM.track, ...BGM.state() }), tipList: () => TIPS.map((t) => [t.id, !!t.deep, TIP_SHOWN.has(t.id), t.done() || TIP_DONE.has(t.id)]), tipShow: (id) => showTip(TIP_OF(id)), bellSwing: () => BELL.userData.swing || 0, gbWallMax: () => GBS[0].m.geometry.attributes.aWall ? Math.max(...GBS[0].m.geometry.attributes.aWall.array.filter((v, i) => i % 4 === 3)) : 0,
   angel: (i) => { const b = PUYOS[i]; return { st: b.angel ? b.angel.st : null, y: +b.grp.position.y.toFixed(2), vis: b.grp.visible, wings: !!(b.wings && b.wings[0].visible), halo: !!(b.halo && b.halo.visible) }; }, angelT: (i, t) => { if (PUYOS[i].angel) PUYOS[i].angel.t = t; }, angelParts: (i) => { const b = PUYOS[i], w = (o) => o.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)); return { grp: w(b.grp), body: w(b.body), halo: b.halo ? w(b.halo) : null, wingL: b.wings ? w(b.wings[0]) : null, wingR: b.wings ? w(b.wings[1]) : null, scale: +b.grp.scale.x.toFixed(2) }; },
   cotAt: (t) => { cancelAnimationFrame(COT.raf); COT.t0 = performance.now() - t * 1000; cotDraw(t); },
-  cotClose: (now) => closeTrivia(now), intro: () => (INTRO.t < 0 ? null : +INTRO.t.toFixed(2)), mtn: (i) => { const S = MTN_ST[i]; return { taps: S.taps, dents: EAT.list.filter((D) => D.i === i).length, spoon: SPOON.i === i ? +SPOON.t.toFixed(1) : null, big: EAT.list.some((D) => D.i === i && D.pin), slots: EAT.list.length, dentN: DENT_N, rest: S.rest ? +S.rest.t.toFixed(1) : null, eaten: S.eaten }; }, mtnAt: (i) => { const M = MOUNTS[i]; return [M.x, M.y + M.yMax * 0.55, M.z, M.rMax, M.yMax]; }, mtnHurry: (i) => { const S = MTN_ST[i]; S.last -= 100; if (S.spoonEnd) S.spoonEnd -= 100; }, mtnN: () => MOUNTS.length, inMtn: () => MOUNTS.some((M) => Math.hypot(cam.position.x - M.x, cam.position.z - M.z) < mtnR(M, cam.position.y - M.y)), lamp: (i) => (LAMP.st[i] ? LAMP.st[i].phase : 'ok'), lampAt: (i) => { const [x, z] = LAMPS[i]; return [x, landH(x, z) + 1.3, z]; }, lampPiece: (i) => (LAMP.st[i] ? LAMP.st[i].parts.map((P) => +P.p.y.toFixed(2)) : null), lampsDown: () => LAMP.st.flatMap((S, i) => (S ? [i] : [])), lampKind: (i) => (LAMP.st[i] ? LAMP.st[i].kind + '/' + LAMP.st[i].back : null), lampKinds: () => counts.lampKinds || '', wreath: () => WR.lit, bauble: () => BAUBLE.amp, rest: () => REST.hop, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href, goText: $('go').textContent, tab: $('go').target || null }), areaCard: (id) => { focusArea(AREAS.find((a) => a.id === id)); return true; }, theater: () => ({ open: TH.open, duck: TH.duck, bgm: !!(PREF.bgm && soundStarted) }),
+  cotClose: (now) => closeTrivia(now), intro: () => (INTRO.t < 0 ? null : +INTRO.t.toFixed(2)), mtn: (i) => { const S = MTN_ST[i]; return { taps: S.taps, dents: EAT.list.filter((D) => D.i === i).length, spoon: SPOON.i === i ? +SPOON.t.toFixed(1) : null, big: EAT.list.some((D) => D.i === i && D.pin), slots: EAT.list.length, dentN: DENT_N, rest: S.rest ? +S.rest.t.toFixed(1) : null, eaten: S.eaten }; }, mtnAt: (i) => { const M = MOUNTS[i]; return [M.x, M.y + M.yMax * 0.55, M.z, M.rMax, M.yMax]; }, mtnHurry: (i) => { const S = MTN_ST[i]; S.last -= 100; if (S.spoonEnd) S.spoonEnd -= 100; }, mtnN: () => MOUNTS.length, inMtn: () => MOUNTS.some((M) => Math.hypot(cam.position.x - M.x, cam.position.z - M.z) < mtnR(M, cam.position.y - M.y)), lamp: (i) => (LAMP.st[i] ? LAMP.st[i].phase : 'ok'), lampAt: (i) => { const [x, z] = LAMPS[i]; return [x, landH(x, z) + 1.3, z]; }, lampPiece: (i) => (LAMP.st[i] ? LAMP.st[i].parts.map((P) => +P.p.y.toFixed(2)) : null), lampsDown: () => LAMP.st.flatMap((S, i) => (S ? [i] : [])), lampKind: (i) => (LAMP.st[i] ? LAMP.st[i].kind + '/' + LAMP.st[i].back : null), lampKinds: () => counts.lampKinds || '', wreath: () => WR.lit, bauble: () => BAUBLE.amp, rest: () => REST.hop, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href, goText: $('go').textContent, tab: $('go').target || null }), areaCard: (id) => { focusArea(AREAS.find((a) => a.id === id)); return true; }, theater: () => ({ open: TH.open, duck: theaterDucked(), bgm: !!(PREF.bgm && soundStarted) }),
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, p.z]; },
   where: (kind, id) => { const o = kind === 'area' ? AREAS.find((a) => a.id === id).g : kind === 'trivia' ? TRIVIA.find((T) => T.id === id).hit : kind === 'gb' ? GBS[id].m : PUYOS[id].body; return o.getWorldPosition(new THREE.Vector3()).toArray(); },
   place: (p, yaw, pitch) => { drone.p.set(...p); drone.v.set(0, 0, 0); drone.yaw = drone.tyaw = yaw; drone.pitch = drone.tpitch = pitch; auto = null; stepDrone(0, nowS()); },
@@ -2299,6 +2381,7 @@ $('menuB').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu();
 // 右上の「豆知識 ○/12」からも、豆知識の一覧へ（一度見た豆知識は、ふつうに触っても雲が出ないものがあるので、ここで読み返す）
 $('found').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu('trivia'); });
 $('menuX').addEventListener('click', () => { SND.tap(); closeMenu(); });
+$('menuTop').addEventListener('click', () => { SND.tap(); closeMenu(); $('start').hidden = false; $('start').scrollTop = 0; });   // 町はそのまま（描くのは止める）。はじめの画面から、また選べる
 $('menu').addEventListener('click', (e) => { if (e.target.id === 'menu') closeMenu(); });
 for (const b of $('tabs').children) b.addEventListener('click', () => { SND.tap(); menuTab = b.dataset.t; drawMenu(); });
 // 仕掛けの「港町へもどる」で来た時（#museum など）は、その建物の前から
@@ -2320,7 +2403,7 @@ const INTRO = (() => { const g = new THREE.Group(), L = [];
     const mat = gel(COLS[k], { glow: COLS[k], gl: 0.4, env: 1.3, rough: 0.12, cc: 1, ccr: 0.03, sheen: 0.5, sheenColor: '#ffffff' });
     const piv = new THREE.Group(), m = new THREE.Mesh(mergeGeos(geos), mat); m.position.y = 0.5; piv.add(m); g.add(piv); L.push({ piv, m, col: COLS[k] }); });   // 揺れの支点は、字の足もと
   const sc = new THREE.Scene(); sc.environment = scene.environment; sc.add(new THREE.HemisphereLight('#ffffff', '#4a3a60', 0.8)); const dl = new THREE.DirectionalLight('#fff6ee', 1.0); dl.position.set(2, 5, 6); sc.add(dl);
-  g.visible = false; sc.add(g); return { g, L, sc, t: -1, out: Infinity, hold: false, sub: 0 }; })();   // 題字は別の場面：町を描いたあとに、いちばん手前へ（手前の灯台が字にかぶった）
+  g.visible = false; sc.add(g); return { g, L, sc, t: -1, out: Infinity, sub: 0 }; })();   // 題字は別の場面：町を描いたあとに、いちばん手前へ（手前の灯台が字にかぶった）
 // ?diag：端末の描画の情報と、作れなかったシェーダーを、大きな字で画面に出す（スマホのブラウザだけで山・海・灯台・店の飴が出ない件の原因を、写真1枚で確かめる）
 function showDiag() { const gl = renderer.getContext(), P = (k) => { try { return gl.getParameter(gl[k]); } catch (e) { return '?'; } }, ext = (n) => (gl.getExtension(n) ? '○' : '×');
   const bad = renderer.info.programs.filter((p) => p.diagnostics && p.diagnostics.runnable === false).length;
@@ -2339,7 +2422,7 @@ function goSimple(tag) {
 function simpleNote() { if (simpleNote.done) return; simpleNote.done = true; const d = document.createElement('div');
   d.style.cssText = 'position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:min(92vw,420px);padding:9px 14px;border-radius:14px;background:rgba(20,24,48,.88);color:#fff;font-size:13px;line-height:1.5;text-align:center;cursor:pointer';
   d.textContent = 'この端末では動かない表現があったので、一部の動きを省いて表示しています（さわると、くわしい情報）'; d.addEventListener('pointerdown', () => { d.remove(); showDiag(); }); document.body.appendChild(d); setTimeout(() => d.remove(), 10000); }
-function startIntro() { const q2 = new URLSearchParams(location.search); if ((location.hash && !INVITE) || (q2.has('fps') && !q2.has('intro'))) { introEnd(); if (INVITE) showInvite(); return; }
+function startIntro() { const q2 = new URLSearchParams(location.search); if (START.mode === 'trivia' || (location.hash && !INVITE) || (q2.has('fps') && !q2.has('intro'))) { introEnd(); return; }   // 豆知識を読む時は、題字を出さずに一覧へ
   const two = cam.aspect < 0.9, D = 11, vh = 2 * D * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2), vw = vh * cam.aspect, rows = two ? [[0, 1, 2, 3], [4, 5]] : [[0, 1, 2, 3, 4, 5]];
   const S = Math.min((vw * 0.86) / rows[0].length, (vh * 0.42) / (rows.length * 1.15));
   rows.forEach((r, ri) => r.forEach((k, j) => { const L = INTRO.L[k]; L.home = new THREE.Vector3(j - (r.length - 1) / 2, ((rows.length - 1) / 2 - ri) * 1.15 - 0.5, 0); L.piv.position.copy(L.home); L.piv.scale.setScalar(0.001); }));
@@ -2347,18 +2430,15 @@ function startIntro() { const q2 = new URLSearchParams(location.search); if ((lo
   // 副題：題字のいちばん下の段の、すぐ下に（画面の座標へ写して置く）
   INTRO.g.updateMatrixWorld(true); cam.updateMatrixWorld(); const low = Math.min(...rows.map((r, ri) => ((rows.length - 1) / 2 - ri) * 1.15 - 0.5)), P = new THREE.Vector3(0, low - 0.12, 0).applyMatrix4(INTRO.g.matrixWorld).project(cam);
   const Z = uiZoom(), sub = $('introSub'); sub.style.top = ((-P.y * 0.5 + 0.5) * innerHeight / Z).toFixed(0) + 'px'; sub.textContent = ''; [...'はじいて、こわして、とろける。'].forEach((ch, i) => { const e = document.createElement('span'); e.textContent = ch; e.style.animationDelay = (1.15 + i * 0.06).toFixed(2) + 's'; sub.appendChild(e); }); sub.hidden = false; sub.classList.remove('bye');
-  // URLだけで開いた時は、副題の下に案内の一文（何のアプリか）。届いたカードがある時は、お知らせが出るので出さない。下に入りきらない画面（横向きのスマホなど）は、上の題の下へ
-  const subTop = (-P.y * 0.5 + 0.5) * innerHeight, lead = $('introLead'); lead.hidden = !!INVITE; lead.classList.remove('bye'); let tapTop = subTop + 54 * Z;
-  if (!INVITE) { lead.style.top = (subTop / Z + 40).toFixed(0) + 'px'; const lh = lead.offsetHeight * Z; if (subTop + (40 + 16 + 58) * Z + lh < innerHeight - 8) tapTop = subTop + 56 * Z + lh; else lead.style.top = ($('top').getBoundingClientRect().bottom / Z + 6).toFixed(0) + 'px'; }
+  const subTop = (-P.y * 0.5 + 0.5) * innerHeight, tapTop = subTop + 54 * Z;   // 「タッチしてね」は副題のすぐ下（何のアプリかの一文は、はじめの画面で読む）
   $('introTap').style.top = (tapTop / Z).toFixed(0) + 'px';
   INTRO.g.visible = true; INTRO.t = 0; $('hint').style.opacity = 0; }
-function introEnd() { INTRO.t = -1; INTRO.sc.remove(INTRO.g); for (const L of INTRO.L) { L.m.geometry.dispose(); L.m.material.dispose(); } INTRO.L.length = 0; $('introSub').hidden = true; $('introLead').hidden = true; $('introTap').hidden = true; $('hint').style.opacity = '';
-  if (CARD_GOT && !INVITE) $('inviteBtn').hidden = false; }   // このタブで前にもらったカード（カードを見てから戻った時など）は、お知らせなしで封筒のボタンだけ
+function introEnd() { INTRO.t = -1; INTRO.sc.remove(INTRO.g); for (const L of INTRO.L) { L.m.geometry.dispose(); L.m.material.dispose(); } INTRO.L.length = 0; $('introSub').hidden = true; $('introTap').hidden = true; $('hint').style.opacity = '';
+  if (CARD_GOT) $('inviteBtn').hidden = false; }   // もらったカードは、左上の封筒のボタンから（届いた時のお知らせは、はじめの画面で）
 function stepIntro(dt) { if (INTRO.t < 0) return; INTRO.t += dt; const t = INTRO.t;
-  if (INVITE && !INVITE.shown && t > 1.4) { INVITE.shown = true; INTRO.hold = true; showInvite(); }   // 字が降りそろったら、招待状のお知らせ。答えるまで、題字ははじけない
-  if ((INTRO.hold || INTRO.wait) && INTRO.out < t + 0.2) INTRO.out = t + 0.2;   // wait＝町の用意がまだ（はじけると、何もない画面になる）
-  if (INTRO.out === Infinity && !INTRO.wait && !INTRO.hold && t > 1.9 && $('introTap').hidden) $('introTap').hidden = false;   // 字が降りそろって、町の用意ができたら
-  if (t > INTRO.out - 0.25 && !INTRO.subBye) { INTRO.subBye = true; $('introSub').classList.add('bye'); $('introLead').classList.add('bye'); }
+  if (INTRO.wait && INTRO.out < t + 0.2) INTRO.out = t + 0.2;   // wait＝町の用意がまだ（はじけると、何もない画面になる）
+  if (INTRO.out === Infinity && !INTRO.wait && t > 1.9 && $('introTap').hidden) $('introTap').hidden = false;   // 字が降りそろって、町の用意ができたら
+  if (t > INTRO.out - 0.25 && !INTRO.subBye) { INTRO.subBye = true; $('introSub').classList.add('bye'); }
   INTRO.L.forEach((L, k) => { const tk = t - k * 0.14, tout = INTRO.out + k * 0.07;
     if (t >= tout) { const u = clamp((t - tout) / 0.28, 0, 1); L.piv.scale.set(1 + 0.45 * u, Math.max(0.001, 1 - u), 1 + 0.45 * u);
       if (u >= 1 && !L.popped) { L.popped = true; L.piv.visible = false; L.m.getWorldPosition(V1); const c = new THREE.Color(L.col); for (let n = 0; n < 34 && SPARKS.length < FW_N - 1; n++) { const a = Math.random() * TAU, b2 = Math.random() * Math.PI; SPARKS.push({ p: V1.clone(), v: new THREE.Vector3(Math.cos(a) * Math.sin(b2), Math.cos(b2), Math.sin(a) * Math.sin(b2)).multiplyScalar(rnd(1.5, 4)), t: 0, L: rnd(0.6, 1.3), c: n % 3 ? c : new THREE.Color('#ffffff'), tr: 0, g: 0.6 }); } SND.chime(k); }
@@ -2368,17 +2448,10 @@ function stepIntro(dt) { if (INTRO.t < 0) return; INTRO.t += dt; const t = INTRO
     L.piv.position.set(L.home.x, L.home.y + (1 - fall) * (1 - fall) * 4, 0); L.piv.scale.set(1 + 0.3 * a + idle, Math.max(0.05, 1 - 0.36 * a - idle), 1 + 0.3 * a + idle); L.piv.rotation.z = 0.06 * Math.sin(t * 2 + k * 1.3); });
   if (INTRO.L.length && INTRO.L.every((L) => L.popped)) introEnd(); }
 // 題字は自動でははじけない。「タッチしてね」（どこをさわっても）ではじけて、BGM が始まる（本人 2026-10-18。自動ではじけると、はじける音は音を出せる前に鳴っていた）
-// 最初のひとさわりは町へ渡さない。町の用意がまだの間・招待状のお知らせの間は、はじけない
-const skipIntro = (e) => { if (INTRO.hold || INTRO.wait || (e && e.target && e.target.closest && e.target.closest('#invite, #fsB'))) return; if (INTRO.t >= 0 && INTRO.t < INTRO.out) { INTRO.out = INTRO.t; $('introTap').hidden = true; if (e && e.type === 'pointerdown') e.stopPropagation(); } };
+// 最初のひとさわりは町へ渡さない。町の用意がまだの間は、はじけない（届いたカードは、はじめの画面で知らせる）
+const skipIntro = (e) => { if (INTRO.wait || (e && e.target && e.target.closest && e.target.closest('#fsB'))) return; if (INTRO.t >= 0 && INTRO.t < INTRO.out) { INTRO.out = INTRO.t; $('introTap').hidden = true; if (e && e.type === 'pointerdown') e.stopPropagation(); } };
 addEventListener('pointerdown', skipIntro, { capture: true }); addEventListener('keydown', skipIntro, { capture: true });
-// 招待状のお知らせ：「先に招待状を見る」＝カードへ／「町を見てから」＝閉じて、題字がはじけて探索。あとからは、左上の封筒のボタンで
-// グリーティングカード（k＝'g'）は「メリークリスマスが届いているよ！」「先にカードを見る」
-function showInvite() { if (!INVITE) return; const f = INVITE.f, t = INVITE.t; $('invHead').textContent = CARD_IS_G ? 'メリークリスマスが届いているよ！' : '招待状が届いているよ！'; $('invGo').textContent = CARD_IS_G ? '先にカードを見る' : '先に招待状を見る';
-  $('invFrom').textContent = f ? `${f} さんから` : ''; $('invTitle').textContent = t ? `「${t}」` : ''; $('invite').hidden = false; requestAnimationFrame(() => $('invite').classList.add('on')); SND.audio(); SND.suzu(); }
 $('inviteBtn').textContent = CARD_IS_G ? '✉ カードを見る' : '✉ 招待状を見る';
-function closeInvite() { $('invite').classList.remove('on'); setTimeout(() => { $('invite').hidden = true; }, 300); INTRO.hold = false; INTRO.out = Math.min(INTRO.out, INTRO.t + 0.4); $('inviteBtn').hidden = false; }
-$('invGo').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
-$('invLater').addEventListener('click', () => { SND.tap(); closeInvite(); });
 $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
 (async () => { applyLite(LITE.lv); stepDrone(0, nowS()); await prepare(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
   BATCH = new Batcher(scene, { meshes: renderer.capabilities.isWebGL2 }).add([...BOATS.map((b) => b.g), ...AREAS.map((A) => A.g), BAKERY.g, BIGTREE, BAUBLE.g, WR.g, REST.g, BOWL.parent, SHOE, LUCIA, ...PUYOS.filter((b) => b.grp.parent === scene).map((b) => b.grp)]).addSprites(SPR);   // 同じ材質の部品は、持ち主をまたいで1回で描く
@@ -2391,6 +2464,8 @@ $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'car
   if (!early) skyBack();
   else { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const t0 = pt; const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; sky.update(cam.position, (n - t0) / 1000); renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
   // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
-  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000); })();
+  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam); SPOON.g.visible = FORK.g.visible = false; ready = true; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
+  // はじめの画面（メニューの「はじめの画面へ」で戻った時）から選んだ時は、組み立てた町のまま。豆知識を読むで来た時は、題字を出さずに一覧を開く
+  window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true) }; if (START.mode === 'trivia') openMenu('trivia'); })();
 </script>
 </body></html>

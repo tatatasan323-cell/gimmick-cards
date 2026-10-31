@@ -27,10 +27,6 @@ main{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:calc(18px
 .kicker{margin:0;font-size:12px;font-weight:800;letter-spacing:.28em;color:var(--gold)}
 h1{margin:4px auto 0;max-width:460px;font-size:44px;line-height:1.1;font-weight:900;color:#ffe2ee}
 h1 svg{display:block;width:100%;height:auto;overflow:visible}
-h1 .gl{transform-box:fill-box;transform-origin:50% 100%;animation:gj 3.6s ease-in-out infinite;cursor:pointer}
-h1 .gl.boing{animation:gb .7s ease-out}
-@keyframes gj{0%,70%,100%{transform:scale(1,1)}76%{transform:scale(1.12,.86)}82%{transform:scale(.92,1.1)}88%{transform:scale(1.05,.95)}94%{transform:scale(.98,1.02)}}
-@keyframes gb{0%{transform:scale(1.3,.68)}30%{transform:scale(.8,1.28) translateY(-6%)}55%{transform:scale(1.12,.9)}78%{transform:scale(.96,1.05)}100%{transform:scale(1,1)}}
 @keyframes jel{0%,82%,100%{transform:scale(1,1)}86%{transform:scale(1.06,.93)}90%{transform:scale(.97,1.04)}94%{transform:scale(1.02,.98)}}
 .sub{margin:8px 0 0;font-size:15px;font-weight:800;letter-spacing:.12em;color:var(--sub)}
 /* カードの枠の上に立つ、雪の降る港町（本人 2026-10-19「ゼリーの住人は違和感」→ 吊り下げの飾りは「普通な感じ」→ 手描きの町は「もうちょっとリッチな絵がいい」）
@@ -86,6 +82,8 @@ h1 .gl.boing{animation:gb .7s ease-out}
 .chip.warn{border-color:#ffb0b8;color:var(--red)}
 .note{margin:6px 0 10px;padding:9px 11px;border-radius:12px;background:#fff1e0;font-size:12px;line-height:1.7}
 .note.copy{background:#e8fff2}
+.note.keep{background:#eaf7ff;border:1px solid #bfe3f7;margin:12px 0 0}
+#help .steps li{margin-bottom:4px}
 #editor label{display:block;margin:10px 0 0;font-size:12.5px;font-weight:800;color:#7a4a28}
 #editor input:not([type=checkbox]),#editor textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:2px solid #ecd8c0;border-radius:12px;background:#fff;color:#3a2414;font-size:16px}
 #editor textarea{resize:vertical;line-height:1.6}
@@ -210,6 +208,7 @@ h1 .gl.boing{animation:gb .7s ease-out}
       <button type="button" id="shNative" class="sbtn" hidden>ほかのアプリで送る</button>
     </div>
     <p class="tiny" id="edMsg" aria-live="polite"></p>
+    <p class="note keep">はじめは「LINEで送る」の送り先に、自分だけが見られる<b>「Keepメモ」</b>をえらんで、見た目を確かめてね。よければ、Keepメモのそのメッセージを<b>長押し →「転送」</b>で、送りたい人へ。<b>まちがいなく届けられます。</b></p>
   </div>
 </form>
 
@@ -232,12 +231,15 @@ h1 .gl.boing{animation:gb .7s ease-out}
     </ul>
   </div>
   <div id="hpMake" role="tabpanel" hidden>
-    <h4>おくりかた</h4>
-    <ol>
-      <li><b>「招待状をつくる」</b>か<b>「グリーティングカードをつくる」</b>を押します（港町のメニュー「カードをつくる」と、郵便局からも来られます）。招待状は日にち・場所・お返事つき、グリーティングカードは「メリークリスマス」のひとことを送るカードです</li>
+    <h4>つくりかた・おくりかた</h4>
+    <ol class="steps">
+      <li><b>「招待状をつくる」</b>か<b>「グリーティングカードをつくる」</b>を押します（はじめの画面の「カードをつくって送る」・港町のメニュー・郵便局からも来られます）。招待状は日にち・場所・お返事つき、グリーティングカードは「メリークリスマス」のひとことを送るカードです</li>
       <li>タイトル・日にち・ひとこと などを書きます。<b>空欄は、カードに出ません</b></li>
-      <li><b>「リンクをつくる」</b>→<b>「LINEで送る」</b>で、送る相手をえらんで送信。「リンクをコピー」なら、メールやSNSにも貼れます</li>
+      <li><b>「リンクをつくる」</b>→<b>「LINEで送る」</b>。送り先は、まず<b>「Keepメモ」</b>（自分だけが見られるトーク）をえらびます</li>
+      <li>Keepメモに届いたメッセージを開いて、<b>カードの見た目と中身を確かめます。</b>まちがいがあれば、書きなおして新しいリンクをつくります</li>
+      <li>よければ、Keepメモのそのメッセージを<b>長押し →「転送」</b>で、送りたい人をえらんで送ります。<b>確かめたものと同じカードが、まちがいなく届きます</b></li>
     </ol>
+    <p class="note keep">Keepメモに送ったカードは、そのまま<b>送った控え</b>にもなります。「リンクをコピー」なら、メールやSNSにも貼れます。</p>
     <h4>お返事をもらう</h4>
     <ul>
       <li>「参加のお返事を、LINEでもらう」にチェックすると、カードに「参加する／欠席する」が付きます</li>
@@ -264,7 +266,7 @@ h1 .gl.boing{animation:gb .7s ease-out}
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script type="module">
-import { GLYPHS } from './title_glyphs.js';
+import { titleSvg } from './title_svg.js';
 import { watchOrientation } from './orient.js';
 import { guardLeave } from './stay.js';
 guardLeave('カードを閉じますか？', '');
@@ -291,21 +293,8 @@ import { makeSound } from './sound_core.js';
       chime() { [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, f, 0.05, i * 0.09, 0.9)); },
     }; })();
 
-  // ---------- 0. 題字：ぷるぷるのグミ文字。骨組み（共通/title_glyphs.js）を、影・濃いふち・本体・つやの4層の太い線でなぞる。字ごとにキャンディの色 ----------
-  {
-    const NS2 = 'http://www.w3.org/2000/svg', COLS = [['#ff6fa8', '#c2185b', '#ffd0e2'], ['#3fd890', '#14834e', '#c8ffe0'], ['#ffc83a', '#c2780a', '#fff2b8'], ['#a07aff', '#5a32c0', '#e2d6ff'], ['#ff5468', '#b0102a', '#ffd0d6'], ['#4ac2ff', '#1468b0', '#d0f0ff']];
-    const STEP = 0.93, svg = document.createElementNS(NS2, 'svg'), defs = document.createElementNS(NS2, 'defs'); svg.setAttribute('viewBox', '-0.08 -0.04 ' + (GLYPHS.length * STEP + 0.16) + ' 1.12'); svg.setAttribute('aria-hidden', 'true'); svg.appendChild(defs);
-    const el2 = (tag, at) => { const e = document.createElementNS(NS2, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
-    const pathOf = (st) => 'M' + st.map(([x, y]) => x.toFixed(3) + ' ' + y.toFixed(3)).join('L');
-    GLYPHS.forEach((strokes, k) => { const [c, dark, light] = COLS[k % COLS.length], gid = 'gg' + k, x0 = k * STEP - 0.04;
-      const gr = el2('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }); gr.appendChild(el2('stop', { offset: 0, 'stop-color': light })); gr.appendChild(el2('stop', { offset: 0.45, 'stop-color': c })); gr.appendChild(el2('stop', { offset: 1, 'stop-color': dark })); defs.appendChild(gr);
-      const g = el2('g', { class: 'gl' }); g.style.animationDelay = (k * 0.16) + 's'; const inner = el2('g', { transform: 'translate(' + x0 + ' 0)' }); g.appendChild(inner);
-      const layer = (stroke, w, dx, dy, op) => { const L = el2('g', { fill: 'none', stroke, 'stroke-width': w, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: op, transform: 'translate(' + dx + ' ' + dy + ')' }); for (const st of strokes) L.appendChild(el2('path', { d: pathOf(st) })); inner.appendChild(L); };
-      layer('#3a0a28', 0.2, 0.012, 0.034, 0.45); layer(dark, 0.185, 0, 0, 1); layer('url(#' + gid + ')', 0.14, 0, 0, 1); layer('#ffffff', 0.036, -0.014, -0.024, 0.7);
-      g.addEventListener('click', () => { Snd.unlock(); Snd.boing(k); g.classList.remove("boing"); void g.getBoundingClientRect(); g.classList.add("boing"); });
-      svg.appendChild(g); });
-    const h = document.getElementById('brand'); h.textContent = ''; h.appendChild(svg);
-  }
+  // ---------- 0. 題字：ぷるぷるのグミ文字（共通/title_svg.js。港町のはじめの画面と同じ）。さわった字は、ぽよんと弾んで鳴る ----------
+  { const h = document.getElementById('brand'); h.textContent = ''; h.appendChild(titleSvg((k) => { Snd.unlock(); Snd.boing(k); })); }
 
   // ---------- 1. カードの中身（入力 → 検査 → リンクの中へ）は 共通/card_code.js。画面には textContent でしか出さない ----------
   function sampleCard(kind) {
@@ -400,16 +389,21 @@ import { makeSound } from './sound_core.js';
     $('#btnMake').textContent = sample ? '招待状をつくる' : '自分もカードをつくる（この内容をコピー）';
   }
   // #make-invite・#make-greet＝港町のメニュー「カードをつくる」から：その種類の見本を出して、作る画面を開く
+  // #howto＝はじめの画面の「つくりかた・おくりかた」から：見本を出して、つかいかたの「おくる人」を開く
   function loadFromHash() { const mk = /^#make-(invite|greet)$/.exec(location.hash || ''), c = PAGES ? Card.fromHash(location.hash) : null;
+    if (location.hash === '#howto') { renderCard(sampleCard(), true); if (PAGES) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* 別の枠の中 */ } } setTimeout(() => openHelp('make'), 350); return; }
     if (mk) { const k = mk[1] === 'greet' ? 'g' : ''; state.mine = false; renderCard(sampleCard(k), true); if (PAGES) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* 別の枠の中 */ } } setTimeout(() => openEditor('new', k), 350); return; }
     if (c) renderCard(c, false); else renderCard(sampleCard(), true); }
 
   // ---------- 3. 港町への入口。港町の郵便局から来た時は、左上に「港町へもどる」 ----------
   let fromTown = false;
   try { const r = document.referrer ? new URL(document.referrer) : null; fromTown = PAGES && !!r && r.origin === location.origin && r.pathname.replace(/[^/]*$/, '') === location.pathname.replace(/[^/]*$/, '') && !/card\.html$/.test(r.pathname); } catch (e) { /* 来た所が分からない時は、ふつうの入口 */ }
-  $('#goTown').href = PAGES ? (fromTown ? './#post' : './') : TOWN;
+  // 港町のはじめの画面から来た時（xmas-back が top）は、もどる先も、はじめの画面へ（本人 2026-10-31「その後、いちどTOP画面で」）
+  let fromTop = false; try { fromTop = PAGES && sessionStorage.getItem('xmas-back') === 'top'; } catch (e) { /* 覚えておけない時は、来た所で決まる */ }
+  $('#goTown').href = PAGES ? (fromTown && !fromTop ? './#post' : './') : TOWN;
   if (!PAGES) { $('#goTown').target = '_blank'; $('#goTown').rel = 'noopener'; }
-  $('#back').hidden = !fromTown;
+  $('#back').hidden = !fromTown && !fromTop;
+  if (fromTop) { $('#back').href = './'; $('#back').textContent = '‹ もどる'; $('#goTown').firstChild.nodeValue = 'はじめの画面へ '; }
   // 絵の町：さわった所から、きらきら。鈴の音は、さわった左右の位置で高さを変える
   { const tw = $('#town2'); tw.addEventListener('click', (e) => { Snd.unlock(); const r = tw.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; Snd.jingle(Math.min(5, Math.floor((x / r.width) * 6)));
       for (let i = 0; i < 9; i++) { const sp = document.createElement('i'), a = (i / 9) * 6.283 + Math.random() * 0.4, d = 16 + Math.random() * 18; sp.className = 'spark'; sp.style.left = x + 'px'; sp.style.top = y + 'px';
@@ -475,10 +469,11 @@ import { makeSound } from './sound_core.js';
 
   // ---------- 5. つかいかた・ルール・リセット ----------
   const help = $('#help'), helpBack = $('#helpBack');
-  const openHelp = () => { Snd.unlock(); Snd.tap(); openSheet(help, helpBack); };
+  const helpTab = (t) => [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([a, p]) => { const on = a === t; $('#' + a).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; });
+  function openHelp(tab) { Snd.unlock(); Snd.tap(); if (tab === 'make') helpTab('tabMake'); openSheet(help, helpBack); }
   const closeHelp = () => closeSheet(help, helpBack);
-  $('#btnHelp').addEventListener('click', openHelp); $('#btnHelpFoot').addEventListener('click', openHelp); $('#hpX').addEventListener('click', closeHelp); helpBack.addEventListener('click', closeHelp);
-  [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([t]) => $('#' + t).addEventListener('click', () => { [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([a, p]) => { const on = a === t; $('#' + a).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; }); }));
+  $('#btnHelp').addEventListener('click', () => openHelp()); $('#btnHelpFoot').addEventListener('click', () => openHelp()); $('#hpX').addEventListener('click', closeHelp); helpBack.addEventListener('click', closeHelp);
+  for (const t of ['tabRecv', 'tabMake']) $('#' + t).addEventListener('click', () => helpTab(t));
   $('#rsOpen').addEventListener('click', () => { const box = $('#rsBox'); box.hidden = !box.hidden; $('#rsOpen').setAttribute('aria-expanded', String(!box.hidden)); });
   $('#rsNo').addEventListener('click', () => { $('#rsBox').hidden = true; $('#rsOpen').setAttribute('aria-expanded', 'false'); });
   $('#rsDo').addEventListener('click', () => {
