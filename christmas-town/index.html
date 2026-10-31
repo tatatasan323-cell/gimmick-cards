@@ -152,6 +152,7 @@ body.touring #joy,body.touring .ud,body.touring #hint,body.touring #liteTag{disp
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
 </head><body><canvas id="c"></canvas>
+<script src="./wait_veil.js"></script>
 <div id="start" hidden role="dialog" aria-label="はじめの画面"><div class="st-aur" aria-hidden="true"></div>
  <div class="st-in">
   <div class="st-head">
@@ -224,17 +225,24 @@ const fresh = TOP_PAGES ? Card.fromHash(location.hash) : null;
 let hash = fresh ? location.hash : '';
 try { if (fresh) sessionStorage.setItem(KEEP, hash); else if (TOP_PAGES) { const h = sessionStorage.getItem(KEEP); if (h && Card.fromHash(h)) hash = h; } } catch (e) { /* 覚えておけない画面 */ }
 const got = hash ? Card.fromHash(hash) : null, isG = !!got && got.k === 'g';
+// 押したら、まず待ちの幕（共通/wait_veil.js）。幕が描かれてから、組み立て・ほかのページへ（本人 2026-11-01「次の画面に行くまで、固まっているように見える」）
+const veil = (m, s, bar) => (window.__veil ? window.__veil.show(m, s, { full: true, bar }) : Promise.resolve());   // 幕の部品が読めなかった時も、先へは進む
+const goPage = (url, m) => veil(m).then(() => { location.href = url; });
 // カードのページ・部屋の「もどる」は、はじめの画面へ（町から行った時は、町のその建物の前へ＝xmas-back が town）
+const CARD_MSG = { '#make-greet': 'グリーティングカードを作る画面を、ひらいています…', '#make-invite': '招待状を作る画面を、ひらいています…', '#howto': 'つくりかたを、ひらいています…' };
 const toCard = (h) => { try { sessionStorage.setItem('xmas-back', 'top'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }
-  if (TOP_PAGES) location.href = 'card.html' + h; else open(CARD_ART + h, '_blank', 'noopener'); };
+  if (TOP_PAGES) goPage('card.html' + h, CARD_MSG[h] || '届いたカードを、ひらいています…'); else open(CARD_ART + h, '_blank', 'noopener'); };
 if (fresh) { $('stGot').hidden = false; $('stLead').hidden = true; $('stGotHead').textContent = isG ? 'グリーティングカードが届いたよ！' : '招待状が届いているよ！';
   $('stGotFrom').textContent = got.f ? got.f + ' さんから' : ''; $('stGotTitle').textContent = !isG && got.t ? '「' + got.t + '」' : ''; $('stGotGo').addEventListener('click', () => toCard(hash)); }
 else if (got) { const b = $('stAgain'); b.hidden = false; b.textContent = isG ? '✉ もらったグリーティングカードを、もう一度見る' : '✉ もらった招待状を、もう一度見る'; b.addEventListener('click', () => toCard(hash)); }
 // 入口：町を回る・豆知識は、ここで初めて町を組み立てる。町がもう動いている時（メニューの「はじめの画面へ」から来た時）は、町の約束（__town）で
-const pick = (mode) => { start.hidden = true; if (window.__town) window.__town[mode](); else window.__go({ mode, top: true }); };
+//   組み立てる間は、はじめの画面を幕の下に残す（町が見えたら、町の module が消す）
+const NEXT = { town: '少し時間がかかることがあります', trivia: 'できたら、豆知識の一覧をひらきます', tour: 'できたら、町の空から案内します' };
+const pick = (mode) => { if (window.__town) { start.hidden = true; window.__town[mode](); return; }
+  veil('お菓子の港町を、組み立てています…', NEXT[mode], true).then(() => window.__go({ mode, top: true })); };
 // シアター：町を組み立てずに、同じ劇場の画面を開く。端末の「戻る」でも、はじめの画面へ
 function theater() { if (window.__town) { start.hidden = true; window.__town.theater(); return; }
-  start.hidden = true; history.pushState({ th: 1 }, ''); openTheater({ back: '‹ もどる', onBack: () => history.back(), onClose: () => { start.hidden = false; } }); }
+  veil('シアターを、ひらいています…').then(() => { start.hidden = true; history.pushState({ th: 1 }, ''); openTheater({ back: '‹ もどる', onBack: () => history.back(), onClose: () => { start.hidden = false; } }); window.__veil?.done(); }); }
 addEventListener('popstate', () => { if (!window.__town && theaterOpen()) closeTheater(); });
 for (const b of start.querySelectorAll('[data-go]')) b.addEventListener('click', () => (b.dataset.go === 'theater' ? theater() : pick(b.dataset.go)));
 for (const b of start.querySelectorAll('[data-make]')) b.addEventListener('click', () => toCard('#make-' + b.dataset.make));
@@ -242,7 +250,8 @@ $('stHowto').addEventListener('click', () => toCard('#howto'));   // つくり�
 // 部屋へまっすぐ（本人 2026-10-31「街を動きたくない人もいるので、すぐに目的のギミックに行ける」）。部屋の「もどる」は、はじめの画面へ（共通/kobo_back.js）
 // 試作の非公開ページでは、部屋は別々の置き場なので、ここからは開かない
 if (!TOP_PAGES) $('stRooms').hidden = true;
-for (const b of start.querySelectorAll('[data-room]')) b.addEventListener('click', () => { try { sessionStorage.setItem('xmas-back', 'top'); } catch (e) { /* 同上 */ } location.href = b.dataset.room + '.html'; });
+const ROOM = { glass: 'ステンドグラスの礼拝堂', museum: '宝石の美術館', ice: '氷の彫像', swim: 'ぷるぷる無重力', blocks: 'グミのつみき' };   // 部屋のページの題と同じ名前（部屋でも同じ幕が続く）
+for (const b of start.querySelectorAll('[data-room]')) b.addEventListener('click', () => { try { sessionStorage.setItem('xmas-back', 'top'); } catch (e) { /* 同上 */ } goPage(b.dataset.room + '.html', ROOM[b.dataset.room] + 'を、ひらいています…'); });
 start.classList.add('ready');   // 入口は、ここでつないでから出す（はじめの画面は部品が届く前に出るので、つなぐ前に押しても何も起きなかった）
 </script>
 <script type="module">
@@ -286,10 +295,18 @@ const START_P = window.__start.then((s) => { START = s; guardLeave('おかしな
   try { sessionStorage.setItem('xmas-back', 'town'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }   // 町からカードや部屋へ行った時の「もどる」は、町のその建物の前へ（はじめの画面から行った時は top）
   return s; });
 const onTop = () => !document.getElementById('start').hidden;
-const BG = { on: !!window.__go, t: 0, sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+//   選んだ後も、60ms ごとに手を空ける：待ちの幕（共通/wait_veil.js）の進み具合を描けるように。区切らずに急ぐと、遅いスマホで7秒止まって固まって見えた（本人 2026-11-01）
+//   幕の進み具合：家並みなどの組み立て（区切りを通った数 c ÷ その終わりの数 BG_C）で8割、飾りの用意で86%・道具で93%、題字が降り始めたら消える
+//   BG_C は数えた値（2026-11-01：組み立ての終わりで 280・題字が降り始める時に 292）。区切りを足し引きしたら、試す_はじめの画面.py の 1d で数え直す
+const BG_C = 280;
+const BG = { on: !!window.__go, t: 0, c: 0, p: 0, at: (f) => { if (START && f > BG.p) { BG.p = f; window.__veil?.set(f); } }, sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   playing: () => [...document.querySelectorAll('#thList video')].some((v) => !v.paused && !v.ended),
-  n: 0, async y() { if (!BG.on || START) return; while (BG.playing() && !START) await BG.sleep(400); if (performance.now() - BG.t < 30) return; await BG.sleep(0); BG.t = performance.now(); BG.n++; } };
-window.__bgN = () => BG.n;   // 区切りで手を空けた回数（確かめる道具が読む）
+  n: 0, async y() { BG.c++; if (!BG.on) return;
+    if (START) { if (performance.now() - BG.t < 60) return; BG.at(0.8 * Math.min(1, BG.c / BG_C)); await BG.sleep(0); BG.t = performance.now(); return; }
+    while (BG.playing() && !START) await BG.sleep(400); if (performance.now() - BG.t < 30) return; await BG.sleep(0); BG.t = performance.now(); BG.n++; } };
+window.__bgN = () => BG.n; window.__bgC = () => BG.c;   // 区切りで手を空けた回数・区切りを通った数（確かめる道具が読む）
+// 町が見えたら（題字が降り始めた時・豆知識の一覧を開く時）、はじめの画面と待ちの幕をしまう
+const shown = () => { if (!BG.on) return; document.getElementById('start').hidden = true; window.__veil?.done(); };
 if (BG.on) await Promise.race([START_P, BG.sleep(900)]);   // はじめの画面の入口が出るのを待ってから（選んだら、すぐ）
 const q = new URLSearchParams(location.search), cvs = document.getElementById('c'), TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), nowS = () => performance.now() / 1000, clamp = THREE.MathUtils.clamp, SS = THREE.MathUtils.smoothstep;
 const R0 = (() => { let s = 20261016; return () => (s = (s * 16807) % 2147483647) / 2147483647; })(), rr = (a, b) => a + R0() * (b - a);   // 町の並びは毎回同じに
@@ -2548,18 +2565,18 @@ const skipIntro = (e) => { if (INTRO.wait || (e && e.target && e.target.closest 
 addEventListener('pointerdown', skipIntro, { capture: true }); addEventListener('keydown', skipIntro, { capture: true });
 $('inviteBtn').textContent = CARD_IS_G ? '✉ カードを見る' : '✉ 招待状を見る';
 $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'card.html' + INVITE_HASH; });
-(async () => { applyLite(LITE.lv); stepDrone(0, nowS()); await BG.y(); await prepare(); await BG.y(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
+(async () => { applyLite(LITE.lv); stepDrone(0, nowS()); await BG.y(); await prepare(); BG.at(0.86); await BG.y(); scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; }); const SPR = []; scene.traverse((o) => { if (o.isSprite) SPR.push(o); });
   BATCH = new Batcher(scene, { meshes: renderer.capabilities.isWebGL2 }).add([...BOATS.map((b) => b.g), ...AREAS.map((A) => A.g), BAKERY.g, BIGTREE, BAUBLE.g, WR.g, REST.g, BOWL.parent, SHOE, LUCIA, ...PUYOS.filter((b) => b.grp.parent === scene).map((b) => b.grp)]).addSprites(SPR);   // 同じ材質の部品は、持ち主をまたいで1回で描く
-  await BG.y(); makeTools(); await BG.y();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
+  await BG.y(); makeTools(); BG.at(0.93); await BG.y();   // スプーンとフォークは開く前に作り、シェーダーも開く前の用意に入れる（開いてから裏で作ると、スマホで固まって音が飛んだ）
   // 町のシェーダーを用意する間（GPU の待ちで、画面の処理は手が空く）に、題字だけ先に用意して降らせる。町の用意ができたら、町が現れる
   // 待つ間は、夜空（星とオーロラ）だけを題字の場面へ移して、後ろに描く。黒い画面に題字だけだと、シェーダーを覚えておけない LINE の中で、長く真っ黒に見えた（本人 2026-10-18。ブラウザは覚えているので、すぐ町が出る）
   const skyBack = () => { scene.add(sky.root); INTRO.sc.background = null; };   // 町を描いた上に題字を重ねる時は、題字の場面に背景を描かない
   INTRO.sc.add(sky.root); INTRO.sc.background = scene.background;
-  let early = false; try { await renderer.compileAsync(INTRO.sc, cam); if (START) { startIntro(); early = INTRO.t >= 0; } } catch (e) { /* 古いブラウザは、町の用意のあとに */ }   // 題字は、選んでから降らせる
+  let early = false; try { await renderer.compileAsync(INTRO.sc, cam); if (START) { startIntro(); early = INTRO.t >= 0; if (early) shown(); } } catch (e) { /* 古いブラウザは、町の用意のあとに */ }   // 題字は、選んでから降らせる
   if (!early) skyBack();
   else { INTRO.wait = true; $('load').hidden = true; let pt = performance.now(); const t0 = pt; const pre = () => { if (ready) return; const n = performance.now(); stepIntro(Math.min(0.05, (n - pt) / 1000)); pt = n; sky.update(cam.position, (n - t0) / 1000); renderer.render(INTRO.sc, cam); requestAnimationFrame(pre); }; pre(); }
   // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
-  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam, BG.on && !START ? () => BG.y() : null); SPOON.g.visible = FORK.g.visible = false; ready = true; window.__built = true; await START_P; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
+  SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam, BG.on && !START ? () => BG.y() : null); SPOON.g.visible = FORK.g.visible = false; ready = true; window.__built = true; await START_P; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); shown(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
   // はじめの画面（メニューの「はじめの画面へ」で戻った時）から選んだ時は、組み立てた町のまま。豆知識を読むで来た時は、題字を出さずに一覧を開く
   window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true), tour: () => { TOUR.pend = true; } }; if (START.mode === 'trivia') openMenu('trivia'); if (START.mode === 'tour') TOUR.pend = true; })();
 </script>

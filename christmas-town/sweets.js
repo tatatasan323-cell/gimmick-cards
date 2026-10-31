@@ -24,7 +24,9 @@ export class Acc {
     for (const [key, list] of this.parts) {
       let n = 0; for (const [g] of list) n += g.attributes.position.count;
       const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = new Float32Array(n * 3); let o = 0;
-      for (const [g, c] of list) { const k = g.attributes.position.count, gc = g.attributes.color; pos.set(g.attributes.position.array.subarray(0, k * 3), o * 3); nrm.set(g.attributes.normal.array.subarray(0, k * 3), o * 3); if (g.attributes.uv) uv.set(g.attributes.uv.array.subarray(0, k * 2), o * 2); const cc = c ? new THREE.Color(c) : new THREE.Color(1, 1, 1); for (let i = 0; i < k; i++) col.set(gc ? [cc.r * gc.getX(i), cc.g * gc.getY(i), cc.b * gc.getZ(i)] : [cc.r, cc.g, cc.b], (o + i) * 3); o += k; }
+      for (const [g, c] of list) { const k = g.attributes.position.count, gc = g.attributes.color; pos.set(g.attributes.position.array.subarray(0, k * 3), o * 3); nrm.set(g.attributes.normal.array.subarray(0, k * 3), o * 3); if (g.attributes.uv) uv.set(g.attributes.uv.array.subarray(0, k * 2), o * 2); const cc = c ? new THREE.Color(c) : new THREE.Color(1, 1, 1);
+        for (let i = 0, j = o * 3; i < k; i++, j += 3) if (gc) { col[j] = cc.r * gc.getX(i); col[j + 1] = cc.g * gc.getY(i); col[j + 2] = cc.b * gc.getZ(i); } else { col[j] = cc.r; col[j + 1] = cc.g; col[j + 2] = cc.b; }   // 頂点ごとに配列を作らない（町を組み立てる時間の上位だった 2026-11-01）
+        o += k; }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       geo.computeBoundingSphere(); const mesh = new THREE.Mesh(geo, mats[key]); mesh.userData.key = key; out.push(mesh);
     }
@@ -384,22 +386,32 @@ export function gbOutline(dress = false) {
 }
 // 外形までの近さ（ふちの焼き色・端から削れる順番に使う）
 function edgeDist(p, pts) { let m = 1e9; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], ex = b.x - a.x, ey = b.y - a.y, L2 = ex * ex + ey * ey || 1e-9, t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / L2)); m = Math.min(m, Math.hypot(p.x - a.x - ex * t, p.y - a.y - ey * t)); } return m; }
+// 同じ外形・細かさの平らな形の計算（三角の割り方・外形までの近さ・側面の向き）は1回だけ。看板・そり・店の人で、同じ形を何度も計算していた（町を組み立てる時間の上位 2026-11-01）
+//   tri＝表の三角の点（手前から見て左回りにそろえた順）・te＝その点の外形までの近さ・inw＝側面の点の内向き（flatCookie の aWall）
+const CAP_PLAN = new Map();
+function capPlan(pts0, maxEdge) {
+  const key = maxEdge + '|' + pts0.map((p) => p.x + ',' + p.y).join(';'), got = CAP_PLAN.get(key); if (got) return got;
+  // 外形は左回りにそろえる（側面が外を向く）
+  const pts = THREE.ShapeUtils.isClockWise(pts0) ? pts0.slice().reverse() : pts0.slice(), tris = THREE.ShapeUtils.triangulateShape(pts, []); const out = []; const sub = (a, b, c) => { const L = [a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)], m = Math.max(...L); if (m <= maxEdge) { out.push(a, b, c); return; } if (m === L[0]) { const ab = a.clone().lerp(b, 0.5); sub(a, ab, c); sub(ab, b, c); } else if (m === L[1]) { const bc = b.clone().lerp(c, 0.5); sub(a, b, bc); sub(a, bc, c); } else { const ca = c.clone().lerp(a, 0.5); sub(a, b, ca); sub(ca, b, c); } };
+  for (const [i, j, k] of tris) sub(pts[i], pts[j], pts[k]);
+  const E = new Map(), eOf = (p) => { const key = p.x.toFixed(5) + ',' + p.y.toFixed(5); let e = E.get(key); if (e === undefined) { e = edgeDist(p, pts); E.set(key, e); } return e; };
+  // 表の三角は、手前（+z）から見て左回りに（向きが逆だと裏から照らされて黒く見えた）
+  const tri = [], te = []; for (let i = 0; i < out.length; i += 3) { let [a, b, c] = [out[i], out[i + 1], out[i + 2]]; if ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) < 0) [b, c] = [c, b]; for (const q of [a, b, c]) { tri.push(q); te.push(eOf(q)); } }
+  const n = pts.length, sn = pts.map((p, i) => { const q = pts[(i + 1) % n], ex = q.x - p.x, ey = q.y - p.y, L = Math.hypot(ex, ey) || 1; return [ey / L, -ex / L]; });
+  const inw = pts.map((p, i) => { const a = sn[(i + n - 1) % n], b = sn[i]; let mx = -(a[0] + b[0]), my = -(a[1] + b[1]); const L = Math.hypot(mx, my) || 1; mx /= L; my /= L; const k = 1 / Math.max(0.5, -(mx * b[0] + my * b[1]));
+    let t0 = 1; for (let j = 0; j < n; j++) { if (j === i || (j + 1) % n === i) continue; const a0 = pts[j], a1 = pts[(j + 1) % n], sx = a1.x - a0.x, sy = a1.y - a0.y, den = mx * sy - my * sx; if (Math.abs(den) < 1e-9) continue;
+      const t = ((a0.x - p.x) * sy - (a0.y - p.y) * sx) / den, u = ((a0.x - p.x) * my - (a0.y - p.y) * mx) / den; if (t > 1e-4 && u >= 0 && u <= 1 && t < t0) t0 = t; }
+    let ridge = 0; for (let st = 1; st <= 24; st++) { const t = (t0 * st) / 24, e = edgeDist(new THREE.Vector2(p.x + mx * t, p.y + my * t), pts); if (e > ridge) ridge = e; }   // 内へ進んで、外形からいちばん遠くなる所（そこまで削れたら、この側面は消える）
+    return [mx, my, k, ridge]; });
+  const P = { pts, tri, te, inw }; CAP_PLAN.set(key, P); return P;
+}
 // 平たい形に厚み：表と裏は三角を細かく割る（曲げても折れ目が出ないように）。extras＝頭の後ろの飾り（おだんご・おさげ）。aEdge＝外形までの近さ（側面は0）
 // aWall＝側面の点の、内向きの向き（x, y）・角の伸び（z）・内へ進んで外形からいちばん遠くなる所の深さ（w）。かじると側面が、削れたふちまで内へ寄る（寄せないと、表と裏の2枚の板だけが残って見えた）
 export function flatCookie(outline, thick = 0.09, maxEdge = 0.035, extras = []) {
   const pos = [], nrm = [], uv = [], ed = [], wl = [], NOW = [0, 0, 0, 0], put = (x, y, z, nx, ny, nz, e, w = NOW) => { pos.push(x, y, z); nrm.push(nx, ny, nz); uv.push((x + 0.45) / 0.9, (y + 0.55) / 1.1); ed.push(e); wl.push(...w); };
-  // 外形は左回りにそろえる（側面が外を向く）
-  const capOf = (pts0, z0, half) => { const pts = THREE.ShapeUtils.isClockWise(pts0) ? pts0.slice().reverse() : pts0, tris = THREE.ShapeUtils.triangulateShape(pts, []); const out = []; const sub = (a, b, c) => { const L = [a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)], m = Math.max(...L); if (m <= maxEdge) { out.push(a, b, c); return; } if (m === L[0]) { const ab = a.clone().lerp(b, 0.5); sub(a, ab, c); sub(ab, b, c); } else if (m === L[1]) { const bc = b.clone().lerp(c, 0.5); sub(a, b, bc); sub(a, bc, c); } else { const ca = c.clone().lerp(a, 0.5); sub(a, b, ca); sub(ca, b, c); } };
-    for (const [i, j, k] of tris) sub(pts[i], pts[j], pts[k]);
-    const E = new Map(), eOf = (p) => { const key = p.x.toFixed(5) + ',' + p.y.toFixed(5); let e = E.get(key); if (e === undefined) { e = edgeDist(p, pts); E.set(key, e); } return e; };
-    // 表の三角は、手前（+z）から見て左回りに（向きが逆だと裏から照らされて黒く見えた）
-    for (let i = 0; i < out.length; i += 3) { let [a, b, c] = [out[i], out[i + 1], out[i + 2]]; if ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) < 0) [b, c] = [c, b]; for (const p of [a, b, c]) put(p.x, p.y, z0 + half, 0, 0, 1, eOf(p)); for (const p of [a, c, b]) put(p.x, p.y, z0 - half, 0, 0, -1, eOf(p)); }
-    const n = pts.length, sn = pts.map((p, i) => { const q = pts[(i + 1) % n], ex = q.x - p.x, ey = q.y - p.y, L = Math.hypot(ex, ey) || 1; return [ey / L, -ex / L]; });
-    const inw = pts.map((p, i) => { const a = sn[(i + n - 1) % n], b = sn[i]; let mx = -(a[0] + b[0]), my = -(a[1] + b[1]); const L = Math.hypot(mx, my) || 1; mx /= L; my /= L; const k = 1 / Math.max(0.5, -(mx * b[0] + my * b[1]));
-      let t0 = 1; for (let j = 0; j < n; j++) { if (j === i || (j + 1) % n === i) continue; const a0 = pts[j], a1 = pts[(j + 1) % n], sx = a1.x - a0.x, sy = a1.y - a0.y, den = mx * sy - my * sx; if (Math.abs(den) < 1e-9) continue;
-        const t = ((a0.x - p.x) * sy - (a0.y - p.y) * sx) / den, u = ((a0.x - p.x) * my - (a0.y - p.y) * mx) / den; if (t > 1e-4 && u >= 0 && u <= 1 && t < t0) t0 = t; }
-      let ridge = 0; for (let st = 1; st <= 24; st++) { const t = (t0 * st) / 24, e = edgeDist(new THREE.Vector2(p.x + mx * t, p.y + my * t), pts); if (e > ridge) ridge = e; }   // 内へ進んで、外形からいちばん遠くなる所（そこまで削れたら、この側面は消える）
-      return [mx, my, k, ridge]; });
+  const capOf = (pts0, z0, half) => { const { pts, tri, te, inw } = capPlan(pts0, maxEdge), n = pts.length;
+    for (let i = 0; i < tri.length; i += 3) { const a = tri[i], b = tri[i + 1], c = tri[i + 2], ea = te[i], eb = te[i + 1], ec = te[i + 2];
+      put(a.x, a.y, z0 + half, 0, 0, 1, ea); put(b.x, b.y, z0 + half, 0, 0, 1, eb); put(c.x, c.y, z0 + half, 0, 0, 1, ec); put(a.x, a.y, z0 - half, 0, 0, -1, ea); put(c.x, c.y, z0 - half, 0, 0, -1, ec); put(b.x, b.y, z0 - half, 0, 0, -1, eb); }
     for (let i = 0; i < n; i++) { const j = (i + 1) % n, p = pts[i], q = pts[j];
       const [pi, pj] = [inw[i], inw[j]], A = [-pi[0], -pi[1]], C = [-pj[0], -pj[1]];
       put(p.x, p.y, z0 + half, A[0], A[1], 0, 0, pi); put(q.x, q.y, z0 - half, C[0], C[1], 0, 0, pj); put(q.x, q.y, z0 + half, C[0], C[1], 0, 0, pj); put(p.x, p.y, z0 + half, A[0], A[1], 0, 0, pi); put(p.x, p.y, z0 - half, A[0], A[1], 0, 0, pi); put(q.x, q.y, z0 - half, C[0], C[1], 0, 0, pj); } };
@@ -568,8 +580,8 @@ function sliceBuild(parts, wc, mats) { const keys = new Set(); parts.forEach((L)
     parts.forEach((L, k) => { const s = v; for (const [kk, geo, col] of L) if (kk === key) { const ic = geo.userData.ic, c = ic && ic.isVector3 ? ic : ic ? (geo.computeBoundingBox(), geo.boundingBox.getCenter(new THREE.Vector3())) : null;
       acc.add(key, geo, col); const n = acc.parts.get(key)[acc.parts.get(key).length - 1][0].attributes.position.count; IC.push([v, v + n, c]); v += n; } R.push([s, v]); });
     const [mesh] = acc.build({ [key]: mats[key] }), n = mesh.geometry.attributes.position.count, aw = new Float32Array(n), ac = new Float32Array(n * 3), ai = new Float32Array(n * 3);
-    R.forEach(([s, e], k) => { for (let i = s; i < e; i++) { aw[i] = k; ac.set([wc[k].x, wc[k].y, wc[k].z], i * 3); } });
-    for (const [a, b, c] of IC) for (let i = a; i < b; i++) ai.set(c ? [c.x, c.y, c.z] : [0, -1e4, 0], i * 3);
+    R.forEach(([s, e], k) => { const w = wc[k]; for (let i = s; i < e; i++) { aw[i] = k; ac[i * 3] = w.x; ac[i * 3 + 1] = w.y; ac[i * 3 + 2] = w.z; } });
+    for (const [a, b, c] of IC) { const x = c ? c.x : 0, y = c ? c.y : -1e4, z = c ? c.z : 0; for (let i = a; i < b; i++) { ai[i * 3] = x; ai[i * 3 + 1] = y; ai[i * 3 + 2] = z; } }
     mesh.geometry.setAttribute('aWedge', new THREE.BufferAttribute(aw, 1)); mesh.geometry.setAttribute('aWC', new THREE.BufferAttribute(ac, 3)); mesh.geometry.setAttribute('aIC', new THREE.BufferAttribute(ai, 3)); rng[key] = R; g.add(mesh); }
   g.userData.rng = rng; g.userData.N = parts.length; return g; }
 // 折れ線を、step ごとの点に細かくする。食べた跡は頂点を動かしてくぼませるので、側面が縦2列・上面が3つの輪のままでは、かじっても欠けなかった（2026-10-18）

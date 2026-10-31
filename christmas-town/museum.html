@@ -17,6 +17,7 @@ html,body{margin:0;height:100%;background:#05060d;overflow:hidden;font-family:"H
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
 </head><body><canvas id="c"></canvas>
+<script src="./wait_veil.js" data-veil="宝石の美術館を、ひらいています…"></script>
 <!-- 港町（町の全景）へもどる -->
 <a id="toTown" href="./#museum">‹ 港町へもどる</a>
 <div class="tx" id="top">宝石の美術館<small id="sub">じゅんびちゅう…</small></div>
@@ -1130,7 +1131,7 @@ rapierP.then(() => { world = new RAPIER.World({ x: 0, y: -9.8, z: 0 }); staticCo
   scene.traverse((o) => { const m = o.material; if (m && !Array.isArray(m) && m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true; });   // 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
   scene.traverse((o) => { const m = o.material; if (!m || Array.isArray(m)) return; if (m.transparent && m.blending === THREE.AdditiveBlending && (o.isSprite || o.isMesh) && !o.isInstancedMesh) FADERS.push(m); if (o.userData.plaque) PLAQUES.push(o); });
   try { await renderer.compileAsync(scene, cam); } catch (e) { renderer.compile(scene, cam); }
-  LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; liteApply(LITE.lv); ready = true; window.__ok = true; clock.getDelta(); startLoop({ gap: () => LITE.gap(), step, onError: () => ptrs.clear() }); setTimeout(readMoon, 1200);
+  LOADT.push(['compile', performance.now()]); document.getElementById('sub').textContent = 'そっと さわってね'; liteApply(LITE.lv); ready = true; window.__ok = true; window.__veil?.done(); clock.getDelta(); startLoop({ gap: () => LITE.gap(), step, onError: () => ptrs.clear() }); setTimeout(readMoon, 1200);
 })();
 if (fpsEl) window.__dbg = { errs: () => ERRS.slice(), ptrs: () => ptrs.size, exhibits, tree, cam, scene, renderer,
   // 宙の宝石の当たりの検査：2つを正面からぶつかるコースに置く／いちばん重なっている量（負＝めり込み）／はじき合った回数。off＝当たりを切る（判定が効くかの確かめ用）

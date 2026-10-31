@@ -22,6 +22,7 @@ html,body{margin:0;height:100%;background:#04060f;overflow:hidden;font-family:"H
 </style>
 <script type="importmap">{"imports":{"three":"../vendor/three@0.160.0/build/three.module.js","three/addons/":"../vendor/three@0.160.0/examples/jsm/"}}</script>
 </head><body><canvas id="c"></canvas>
+<script src="./wait_veil.js" data-veil="氷の彫像を、ひらいています…"></script>
 <!-- 港町（町の全景）へもどる -->
 <a id="toTown" href="./#ice">‹ 港町へもどる</a>
 <div class="tx" id="top">氷の彫像<small id="sub">じゅんびちゅう…</small></div>
@@ -504,7 +505,7 @@ let initBreaks = -1;
   }
   initBreaks = statues.reduce((s, st) => s + st.grid.findBreaks().length, 0);
   for (const st of statues) { st.gems = drawSpecs(3).map((s) => newGem(st, s)); findHomes(st, st.gems); for (const g of st.gems) seatGem(st, g); }
-  document.getElementById('sub').textContent = 'けずると、中から宝石が…'; liteApply(LITE.lv); ready = true; window.__ok = true;
+  document.getElementById('sub').textContent = 'けずると、中から宝石が…'; liteApply(LITE.lv); ready = true; window.__ok = true; window.__veil?.done();
   try { await RAPIER_P; await RAPIER.init(); } catch (e) { document.getElementById('sub').textContent = 'この画面では、物理の部品が動きませんでした'; throw e; }
   world = new RAPIER.World({ x: 0, y: -11, z: 0 }); world.createCollider(RAPIER.ColliderDesc.cuboid(30, 0.1, 30).setTranslation(0, -0.1, 0).setFriction(0.6).setRestitution(0.2).setCollisionGroups(FLOOR));
 })();

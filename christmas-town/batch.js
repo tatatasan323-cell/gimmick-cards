@@ -31,10 +31,11 @@ function unify(geos) {
   for (const g of geos) for (const [k, a] of Object.entries(g.attributes)) if (!spec.has(k)) spec.set(k, { size: a.itemSize, norm: a.normalized });
   return geos.map((g) => { const out = new THREE.BufferGeometry(), n = g.attributes.position.count;
     for (const [k, s] of spec) { const a = g.attributes[k], arr = new Float32Array(n * s.size);
-      if (a) for (let i = 0; i < n; i++) for (let c = 0; c < s.size; c++) arr[i * s.size + c] = c === 0 ? a.getX(i) : c === 1 ? a.getY(i) : c === 2 ? a.getZ(i) : a.getW(i);   // 交互に詰めた属性でも読めるように
+      if (a && !a.isInterleavedBufferAttribute && !a.normalized && a.itemSize === s.size && a.array.length >= n * s.size) arr.set(a.array.subarray(0, n * s.size));   // ふつうの属性は、まとめて写す（1つずつ読むと、町を組み立てる時間の上位だった 2026-11-01）
+      else if (a) for (let i = 0; i < n; i++) for (let c = 0; c < s.size; c++) arr[i * s.size + c] = c === 0 ? a.getX(i) : c === 1 ? a.getY(i) : c === 2 ? a.getZ(i) : a.getW(i);   // 交互に詰めた属性でも読めるように
       else if (k === 'color') arr.fill(1);
       out.setAttribute(k, new THREE.BufferAttribute(arr, s.size, s.norm)); }
-    if (g.index) out.setIndex(Array.from(g.index.array)); else out.setIndex([...Array(n).keys()]);
+    if (g.index) out.setIndex(new THREE.BufferAttribute(g.index.array.slice(), 1)); else { const ix = new Uint32Array(n); for (let i = 0; i < n; i++) ix[i] = i; out.setIndex(new THREE.BufferAttribute(ix, 1)); }
     return out; });
 }
 
