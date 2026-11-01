@@ -77,6 +77,8 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 .back2{position:fixed;inset:0;z-index:20;background:rgba(4,6,20,.55)}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:560px;margin:0 auto;max-height:90vh;overflow:auto;padding:18px 18px calc(22px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:#fffaf2;color:#3a2414;box-shadow:0 -10px 40px rgba(0,0,0,.45);transform:translateY(102%);transition:transform .36s cubic-bezier(.2,.9,.25,1.1)}
 .sheet.open{transform:none}
+.dzpick{position:fixed;right:calc(94px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));z-index:5;height:34px;padding:0 12px;border:0;border-radius:999px;background:rgba(10,10,40,.66);color:#ffe7c0;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}.dzpick[hidden]{display:none}@media (max-width:359px){.dzpick .dzm{display:none}}   /* 細い画面では短く（「もどる」に重なった） */   /* グリーティングカードの絵を、ほかの2つでも見る（上の端、♪ の左。♪ と ？ の下に置くと、題字にかかった） */
+.dzlist{display:flex;flex-direction:column;gap:8px;margin-top:8px}.dzlist button{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;font:inherit;border:2px solid #e8d2b6;border-radius:14px;padding:10px 14px;background:#fff;color:#3a2414;cursor:pointer}.dzlist b{display:block;font-size:15px;font-weight:900}.dzlist small{display:block;font-size:12px;color:#8a6a50}.dzlist .now{border-color:#ff5c9e;background:#fff0f6}.dzlist em{flex:0 0 auto;font-style:normal;font-size:11.5px;font-weight:800;color:#c2185b}
 .shead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .shead h3{margin:0;font-size:18px;font-weight:900;color:#b8203a}
 .chip{border:2px solid #e8d2b6;background:#fff;color:#3a2414;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;cursor:pointer}
@@ -142,6 +144,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 <a id="back" class="back" href="./#post" hidden>‹ 港町へもどる</a>
 <button id="btnHelp" class="help" type="button" aria-label="つかいかた・ルール">？</button>
 <button id="btnBgm" class="help bgm" type="button" aria-label="BGM を止める" aria-pressed="true" hidden>♪</button>
+<button id="btnDz" class="dzpick" type="button" aria-haspopup="dialog" aria-label="他のデザインも見てみる" hidden>他のデザイン<span class="dzm">も見てみる</span></button>
 <main>
   <div class="garland" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header class="hero">
@@ -184,7 +187,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
     <details class="terms">
       <summary>ご利用にあたって</summary>
-      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録、音の設定と聞いていた曲の位置（曲の位置はタブを閉じると消えます）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
+      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録、もらったカード（はじめの画面で知らせるため。60日まで）、音の設定と聞いていた曲の位置（曲の位置はタブを閉じると消えます）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
     </details>
     <p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
   </footer>
@@ -239,6 +242,14 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
   <a id="sgFull" class="sg-full" target="_blank" rel="noopener noreferrer">MVを一曲ぜんぶ見る ›</a>
 </section>
 
+<!-- グリーティングカードの絵を、ほかの2つでも見る（見るだけ。もらったカードは変わらない） -->
+<div id="dzBack" class="back2" hidden></div>
+<section id="dzSheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="dzH">
+  <div class="shead"><h3 id="dzH">他のデザインも見てみる</h3><button type="button" id="dzX" class="chip">とじる</button></div>
+  <div class="dzlist" id="dzList"></div>
+  <p class="tiny">見るだけです。もらったカード（リンク）の中身は変わりません。</p>
+</section>
+
 <!-- つかいかた・ルール -->
 <div id="helpBack" class="back2" hidden></div>
 <section id="help" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="hpH">
@@ -286,7 +297,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <div id="rsBox" hidden>
       <ul>
         <li>港町の記録（見つけた豆知識・行った場所）を消します</li>
-        <li>画面のカード（もらったもの・つくったもの）を外して、見本にもどします。<b>送ったリンクは、そのまま使えます</b></li>
+        <li>画面のカード（もらったもの・つくったもの）を外して、見本にもどします。はじめの画面の「もらったカード」のお知らせも消します。<b>送ったリンクは、そのまま使えます</b></li>
       </ul>
       <p style="display:flex;gap:10px;margin:10px 0 0"><button id="rsDo" class="chip warn" type="button">リセットする</button><button id="rsNo" class="chip" type="button">やめる</button></p>
     </div>
@@ -396,12 +407,13 @@ import { SHOWS } from './theater.js';
   // グリーティングカードの絵：dz が無い（開くたびにランダム）は、このページを開いている間は同じ絵に（書いている間に絵が変わらないように）
   let RND = null, G = null; const SND = (f) => (...a) => { Snd.unlock(); f(...a); };   // 絵の音は、鳴らす前に音の部屋を開ける（開いていないと鳴らなかった 本人 2026-11-01「音がない」）
   const SFX = { buzz: SND((v) => Snd.buzz(v)), jingle: SND(() => [0, 2, 4, 5].forEach((k, i) => setTimeout(() => Snd.jingle(k), i * 120))), stitch: SND((v) => Snd.stitch(v)), chime: SND(() => Snd.chime()), choir: SND((k) => Snd.choir(k)), bell: SND(() => Snd.bell()), boing: SND((k) => Snd.boing(k)), pop: SND(() => Snd.tap()) };
-  const designOf = (c) => (DZ.includes(c.dz) ? c.dz : RND || (RND = pickDesign('')));
+  let VIEW_DZ = null;   // 「他のデザインも見てみる」で選んだ絵（このカードを見ている間だけ。別のカードを出したら、もとの絵に）
+  const designOf = (c) => VIEW_DZ || (DZ.includes(c.dz) ? c.dz : RND || (RND = pickDesign('')));
   function stage(c) { const host = $('#gstage'), card = $('#card'); for (const k of DZ) card.classList.remove('dz-' + k);
     if (!isG(c)) { if (G) { G.destroy(); G = null; } host.hidden = true; return null; }
     const id = designOf(c); card.classList.add('dz-' + id); host.hidden = false; if (!G || G.id !== id) { if (G) G.destroy(); G = mountGreet(host, id, SFX); } return id; }
   function renderCard(c, sample) {
-    state.card = c; state.sample = sample; const gid = stage(c);
+    if (c !== state.card) VIEW_DZ = null; state.card = c; state.sample = sample; const gid = stage(c); $('#btnDz').hidden = !gid || state.mine;   // 自分がつくったカードは、作る画面で絵を選ぶ（ここで見かえると、送る絵が変わったと思われる）
     const g = isG(c), title = c.t || (g ? TTL_G : TTL0), len = Array.from(title).length;
     $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : ''); $('#ttl').hidden = g && title === TTL_G;   // 「Merry Christmas」は絵の中にある
     $('#card').classList.toggle('greet', g);
@@ -543,6 +555,16 @@ import { SHOWS } from './theater.js';
   const closeSong = () => { songReset(); closeSheet(song, songBack); };
   $('#sgX').addEventListener('click', () => { Snd.tap(); closeSong(); }); songBack.addEventListener('click', closeSong);
 
+  // ---------- グリーティングカードの絵を、ほかの2つでも（本人 2026-11-01「いずれのバージョンで表示されても『他のデザインも見てみる』という選択肢を画面の端に。3種類任意で見られるように」） ----------
+  const dzSheet = $('#dzSheet'), dzBack = $('#dzBack');
+  function openDz() { Snd.unlock(); Snd.tap(); const now = designOf(state.card), mine = DZ.includes(state.card.dz) ? state.card.dz : '', L = $('#dzList'); L.textContent = '';
+    for (const k of DZ) { const b = el('button', k === now ? 'now' : null), t = el('span'); b.type = 'button'; t.append(el('b', null, DESIGNS[k].name), el('small', null, DESIGNS[k].note)); b.append(t);
+      const tag = [k === mine ? 'もらった絵' : '', k === now ? 'いま見ている' : ''].filter(Boolean).join('・'); if (tag) b.append(el('em', null, tag));
+      b.addEventListener('click', () => { Snd.tap(); VIEW_DZ = k; renderCard(state.card, state.sample); closeDz(); }); L.append(b); }
+    openSheet(dzSheet, dzBack); }
+  const closeDz = () => closeSheet(dzSheet, dzBack);
+  $('#btnDz').addEventListener('click', openDz); $('#dzX').addEventListener('click', closeDz); dzBack.addEventListener('click', closeDz);
+
   // ---------- 5. つかいかた・ルール・リセット ----------
   const help = $('#help'), helpBack = $('#helpBack');
   const helpTab = (t) => [['tabRecv', 'hpRecv'], ['tabMake', 'hpMake']].forEach(([a, p]) => { const on = a === t; $('#' + a).setAttribute('aria-selected', String(on)); $('#' + p).hidden = !on; });
@@ -553,11 +575,11 @@ import { SHOWS } from './theater.js';
   $('#rsOpen').addEventListener('click', () => { const box = $('#rsBox'); box.hidden = !box.hidden; $('#rsOpen').setAttribute('aria-expanded', String(!box.hidden)); });
   $('#rsNo').addEventListener('click', () => { $('#rsBox').hidden = true; $('#rsOpen').setAttribute('aria-expanded', 'false'); });
   $('#rsDo').addEventListener('click', () => {
-    try { localStorage.removeItem(TOWN_SAVE); } catch (e) { /* 記録が使えない画面 */ }
+    try { localStorage.removeItem(TOWN_SAVE); localStorage.removeItem('xmas-cards-got'); } catch (e) { /* 記録が使えない画面 */ }   // xmas-cards-got＝はじめの画面が覚えている、もらったカード（town.html）
     if (PAGES) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* 同上 */ } }
     state.mine = false; renderCard(sampleCard(), true); $('#rsBox').hidden = true; closeHelp(); toast('はじめからにしました');
   });
-  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!help.hidden) closeHelp(); else if (!editor.hidden) closeEditor(); });
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!help.hidden) closeHelp(); else if (!dzSheet.hidden) closeDz(); else if (!editor.hidden) closeEditor(); });
   window.addEventListener('hashchange', loadFromHash);
   let tt = 0;
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400); }

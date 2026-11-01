@@ -129,7 +129,7 @@ body.touring #joy,body.touring .ud,body.touring #hint,body.touring #liteTag{disp
 .st-got button{margin-top:10px;font:inherit;font-size:17px;font-weight:900;letter-spacing:.06em;border:0;border-radius:999px;padding:11px 34px;color:#fff;background:linear-gradient(#ff95c8,#ff5c9e);box-shadow:0 4px 0 #d2407e,0 6px 14px rgba(255,92,158,.4);cursor:pointer}
 .st-got button:active,.st-b:active{transform:translateY(3px)}
 .st-again{display:block;margin:10px auto 0;font:inherit;font-size:13.5px;font-weight:800;border:0;border-radius:999px;padding:9px 16px;color:#4a2a14;background:#ffe7b0;cursor:pointer}
-.st-again[hidden]{display:none}
+.st-again[hidden],.st-agains[hidden]{display:none}#start.only-card .st-q,#start.only-card .st-list,#start.only-card .st-agains{display:none}   /* まだ見ていないカードがある間は、そのお知らせだけ */
 .st-q{margin:16px 0 8px;font-size:17px;font-weight:900;letter-spacing:.1em;color:#fff3df}
 .st-main{opacity:0;transition:opacity .35s}#start.ready .st-main{opacity:1}
 .st-list{display:flex;flex-direction:column;gap:10px;text-align:left}
@@ -165,7 +165,7 @@ body.touring #joy,body.touring .ud,body.touring #hint,body.touring #liteTag{disp
   </div>
   <div class="st-main">
    <div class="st-got" id="stGot" role="status" hidden><svg class="env" viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="6" fill="#ff5c9e"/><path d="M5 7l27 20L59 7" fill="none" stroke="#fff4fa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="27" r="5.5" fill="#ffd27a" stroke="#fff4fa" stroke-width="2"/></svg><b id="stGotHead"></b><span id="stGotFrom"></span><span id="stGotTitle"></span><button id="stGotGo" type="button">見る ›</button></div>
-   <button class="st-again" id="stAgain" type="button" hidden></button>
+   <div class="st-agains" id="stAgain" hidden></div>
    <h2 class="st-q">なにをする？</h2>
    <div class="st-list">
     <button class="st-b" type="button" data-go="town"><i class="ic ic-town" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="9" r="7"/><path d="M8.6 9a3.4 3.4 0 1 1 6.8 0 2 2 0 1 1-4 0"/><path d="M12 16v6.5"/></svg></i><span class="tx2"><b>町を食べて回る</b><small>お菓子の港町を、自由に飛んで、かじって、こわして</small></span></button>
@@ -182,9 +182,15 @@ body.touring #joy,body.touring .ud,body.touring #hint,body.touring #liteTag{disp
 <script>
 // はじめの画面を出すか：リンクだけ・カードのリンク（#c=）で開いた時。建物の前へ戻る時（#museum など）と検査（?fps。?top を付けると出す）は出さない
 // 町（下の大きな module）は、ここで選ぶまで組み立てない＝__start が決まるまで待つ。組み立ての間は画面が固まり、はじめの画面のボタンが押せない
-(function () { var h = location.hash, q = new URLSearchParams(location.search), show = (!h || /^#c=/.test(h)) && (!q.has('fps') || q.has('top'));
+// 町の中から別のページ（劇場の「MVを一曲ぜんぶ見る」の YouTube など）へ行き、端末の「戻る」で帰ってきた時は、ページが読み直されても、はじめの画面を出さずに町へ
+//   劇場の中にいたら、劇場の前で劇場を開き直す（本人 2026-11-01「マップ内から入った場合はマップにもどるように」）。どこにいたかは xmas-place（このタブの間だけ）
+//   リンク・ブックマークから開き直した時は、いつも、はじめの画面から
+(function () { var h = location.hash, q = new URLSearchParams(location.search), show = (!h || /^#c=/.test(h)) && (!q.has('fps') || q.has('top')), place = '';
+  try { var nav = performance.getEntriesByType('navigation')[0]; if (nav && (nav.type === 'back_forward' || nav.type === 'reload')) place = sessionStorage.getItem('xmas-place') || ''; } catch (e) { /* 分からない時は、はじめの画面から */ }
+  if (show && /^town/.test(place)) { window.__go = function () {}; window.__start = Promise.resolve({ mode: 'town', top: true, back: place });
+    if (window.__veil) window.__veil.show(place === 'town-theater' ? '劇場に、もどっています…' : 'お菓子の港町に、もどっています…', '', { full: true, bar: true }); return; }   // __go がある＝組み立ての間も手を空けて、幕の進み具合を描く
   window.__start = show ? new Promise(function (r) { window.__go = r; }) : Promise.resolve({ mode: 'town', top: false });
-  if (show) document.getElementById('start').hidden = false; })();
+  if (show) { document.getElementById('start').hidden = false; try { sessionStorage.setItem('xmas-place', 'top'); } catch (e) { /* 同上 */ } } })();
 </script>
 <div class="tx" id="top">おかしな港町<small id="sub">じゅんびちゅう…</small></div>
 <div id="found" role="button" tabindex="0" aria-label="見つけた豆知識の一覧">豆知識 <span id="fN">0</span> / <span id="fT">12</span> ›</div>
@@ -220,29 +226,40 @@ const $ = (id) => document.getElementById(id), start = $('start'), KEEP = 'xmas-
 if (TOP_PAGES && new URLSearchParams(location.search).has('openExternalBrowser')) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // LINE から開きなおした後は、アドレスを元に
 const CARD_ART = 'https://claude.ai/artifact/8BYtjoMnsyP5yRzrQojXfC';
 $('stTitle').textContent = ''; $('stTitle').appendChild(titleSvg(null, 'st'));
-// 届いたカード：リンクに付いて来た時は大きく知らせる。このタブで前にもらったカード（カードを見てから戻った時）は、小さく「もう一度見る」。中身は textContent でしか出さない
-const fresh = TOP_PAGES ? Card.fromHash(location.hash) : null;
-let hash = fresh ? location.hash : '';
-try { if (fresh) sessionStorage.setItem(KEEP, hash); else if (TOP_PAGES) { const h = sessionStorage.getItem(KEEP); if (h && Card.fromHash(h)) hash = h; } } catch (e) { /* 覚えておけない画面 */ }
-const got = hash ? Card.fromHash(hash) : null, isG = !!got && got.k === 'g';
+// 届いたカード（本人 2026-11-01）：グリーティングカードと招待状は、別々のリンクで届く。種類ごとに、いちばん新しい1枚を、この端末に覚える（60日）
+//   まだ見ていないカードがある間は、そのお知らせだけを出す（ほかの案内は出さない）。グリーティングカード → 招待状の順で、招待状が2枚目なら「招待状も届いているよ！」
+//   2つとも「見る」を押した後に、はじめて「なにをする？」。見たことのあるカードは、リンクから開いた時は大きなお知らせ、カードから戻った時は小さく「もう一度見る」を、案内と一緒に
+//   中身は textContent でしか出さない
+const fresh = TOP_PAGES ? Card.fromHash(location.hash) : null, GOT_KEY = 'xmas-cards-got', GOT_DAYS = 60, KIND = { g: 'グリーティングカード', i: '招待状' };
+const GOT = (() => { let o = {}; try { o = JSON.parse(localStorage.getItem(GOT_KEY) || '{}') || {}; } catch (e) { /* 覚えておけない画面・壊れた記録 */ }
+  const r = {}; for (const k of ['g', 'i']) { const x = o[k]; if (x && typeof x.h === 'string' && Card.fromHash(x.h) && Date.now() - x.t < GOT_DAYS * 864e5) r[k] = { h: x.h, t: x.t, seen: !!x.seen }; } return r; })();
+const saveGot = () => { try { localStorage.setItem(GOT_KEY, JSON.stringify(GOT)); } catch (e) { /* このページの中だけで */ } };
+if (!GOT.g && !GOT.i) { try { const h = sessionStorage.getItem(KEEP), c = h && Card.fromHash(h); if (c) GOT[c.k === 'g' ? 'g' : 'i'] = { h, t: Date.now(), seen: true }; } catch (e) { /* 同上 */ } }   // 端末に覚えておけない画面でも、このタブで見たカードは「もう一度見る」
+const freshK = fresh ? (fresh.k === 'g' ? 'g' : 'i') : '';
+if (fresh) { if (!GOT[freshK] || GOT[freshK].h !== location.hash) GOT[freshK] = { h: location.hash, t: Date.now(), seen: false }; saveGot(); }
+try { if (fresh) sessionStorage.setItem(KEEP, location.hash); } catch (e) { /* 町の郵便局の「もらったカード」は、このタブの間だけ */ }
 // 押したら、まず待ちの幕（共通/wait_veil.js）。幕が描かれてから、組み立て・ほかのページへ（本人 2026-11-01「次の画面に行くまで、固まっているように見える」）
 const veil = (m, s, bar) => (window.__veil ? window.__veil.show(m, s, { full: true, bar }) : Promise.resolve());   // 幕の部品が読めなかった時も、先へは進む
 const goPage = (url, m) => veil(m).then(() => { location.href = url; });
+const place = (p) => { try { sessionStorage.setItem('xmas-place', p); } catch (e) { /* 覚えておけない時は、戻るとはじめの画面 */ } };   // いまどこにいるか（町から別のページへ行って「戻る」で帰った時に、町へ戻すため）
 // カードのページ・部屋の「もどる」は、はじめの画面へ（町から行った時は、町のその建物の前へ＝xmas-back が town）
 const CARD_MSG = { '#make-greet': 'グリーティングカードを作る画面を、ひらいています…', '#make-invite': '招待状を作る画面を、ひらいています…', '#howto': 'つくりかたを、ひらいています…' };
 const toCard = (h) => { try { sessionStorage.setItem('xmas-back', 'top'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }
   if (TOP_PAGES) goPage('card.html' + h, CARD_MSG[h] || '届いたカードを、ひらいています…'); else open(CARD_ART + h, '_blank', 'noopener'); };
-if (fresh) { $('stGot').hidden = false; $('stLead').hidden = true; $('stGotHead').textContent = isG ? 'グリーティングカードが届いたよ！' : '招待状が届いているよ！';
-  $('stGotFrom').textContent = got.f ? got.f + ' さんから' : ''; $('stGotTitle').textContent = !isG && got.t ? '「' + got.t + '」' : ''; $('stGotGo').addEventListener('click', () => toCard(hash)); }
-else if (got) { const b = $('stAgain'); b.hidden = false; b.textContent = isG ? '✉ もらったグリーティングカードを、もう一度見る' : '✉ もらった招待状を、もう一度見る'; b.addEventListener('click', () => toCard(hash)); }
+const seeCard = (k) => { GOT[k].seen = true; saveGot(); toCard(GOT[k].h); };
+const unseen = ['g', 'i'].find((k) => GOT[k] && !GOT[k].seen), big = unseen || (freshK && GOT[freshK] ? freshK : '');
+if (big) { const c = Card.fromHash(GOT[big].h); start.classList.toggle('only-card', !!unseen); $('stGot').hidden = false; $('stLead').hidden = true;
+  $('stGotHead').textContent = big === 'g' ? 'グリーティングカードが届いたよ！' : unseen && GOT.g ? '招待状も届いているよ！' : '招待状が届いているよ！';
+  $('stGotFrom').textContent = c.f ? c.f + ' さんから' : ''; $('stGotTitle').textContent = big === 'i' && c.t ? '「' + c.t + '」' : ''; $('stGotGo').addEventListener('click', () => seeCard(big)); }
+for (const k of ['g', 'i']) if (GOT[k] && k !== big) { const b = document.createElement('button'); b.type = 'button'; b.className = 'st-again'; b.textContent = '✉ もらった' + KIND[k] + 'を、もう一度見る'; b.addEventListener('click', () => toCard(GOT[k].h)); $('stAgain').appendChild(b); $('stAgain').hidden = false; }
 // 入口：町を回る・豆知識は、ここで初めて町を組み立てる。町がもう動いている時（メニューの「はじめの画面へ」から来た時）は、町の約束（__town）で
 //   組み立てる間は、はじめの画面を幕の下に残す（町が見えたら、町の module が消す）
 const NEXT = { town: '少し時間がかかることがあります', trivia: 'できたら、豆知識の一覧をひらきます', tour: 'できたら、町の空から案内します' };
-const pick = (mode) => { if (window.__town) { start.hidden = true; window.__town[mode](); return; }
+const pick = (mode) => { if (window.__town) { start.hidden = true; place('town'); window.__town[mode](); return; }
   veil('お菓子の港町を、組み立てています…', NEXT[mode], true).then(() => window.__go({ mode, top: true })); };
 // シアター：町を組み立てずに、同じ劇場の画面を開く。端末の「戻る」でも、はじめの画面へ
 function theater() { if (window.__town) { start.hidden = true; window.__town.theater(); return; }
-  veil('シアターを、ひらいています…').then(() => { start.hidden = true; history.pushState({ th: 1 }, ''); openTheater({ back: '‹ もどる', onBack: () => history.back(), onClose: () => { start.hidden = false; } }); window.__veil?.done(); }); }
+  veil('シアターを、ひらいています…').then(() => { start.hidden = true; place('top-theater'); history.pushState({ th: 1 }, ''); openTheater({ back: '‹ もどる', onBack: () => history.back(), onClose: () => { start.hidden = false; place('top'); } }); window.__veil?.done(); }); }
 addEventListener('popstate', () => { if (!window.__town && theaterOpen()) closeTheater(); });
 for (const b of start.querySelectorAll('[data-go]')) b.addEventListener('click', () => (b.dataset.go === 'theater' ? theater() : pick(b.dataset.go)));
 for (const b of start.querySelectorAll('[data-make]')) b.addEventListener('click', () => toCard('#make-' + b.dataset.make));
@@ -285,14 +302,14 @@ import { makeLite } from './lite.js';
 import { uiZoom } from './uiscale.js';
 import { startLoop, guardContext, ERRS } from './loop.js';
 import { GEM_Q } from './gemshader.js';
-import { openTheater, theaterDucked } from './theater.js';
+import { openTheater, closeTheater, theaterOpen, theaterDucked } from './theater.js';
 // はじめの画面の間は、裏でゆっくり組み立てる（本人 2026-10-31「余計なことをやっている間に、町のデータをゆっくり読みこめばいい」）
 //   区切り（BG.y）ごとに手を空けて、はじめの画面のボタンがすぐ応えるように。シアターの動画が流れている間は待つ（映像をなめらかに）
 //   選んだら、残りは区切らずに急いで組み立てる。町を見せる・音・「出ますか？」の守りは、選んでから。建物の前へ戻る時と検査（?fps）は、はじめから急いで
 // START.mode＝town（町を回る）・trivia（豆知識を読む）。START.top＝はじめの画面から来た（届いたカードは、はじめの画面で知らせ済み）。選ぶまでは null
 let START = null;
 const START_P = window.__start.then((s) => { START = s; guardLeave('おかしな港町から出ますか？', '');
-  try { sessionStorage.setItem('xmas-back', 'town'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }   // 町からカードや部屋へ行った時の「もどる」は、町のその建物の前へ（はじめの画面から行った時は top）
+  try { sessionStorage.setItem('xmas-back', 'town'); sessionStorage.setItem('xmas-place', 'town'); } catch (e) { /* 覚えておけない時は、来た所で決まる */ }   // 町からカードや部屋へ行った時の「もどる」は、町のその建物の前へ（はじめの画面から行った時は top）。xmas-place は、はじめの画面の上の script
   return s; });
 const onTop = () => !document.getElementById('start').hidden;
 //   選んだ後も、60ms ごとに手を空ける：待ちの幕（共通/wait_veil.js）の進み具合を描けるように。区切らずに急ぐと、遅いスマホで7秒止まって固まって見えた（本人 2026-11-01）
@@ -687,20 +704,57 @@ await BG.y();
 // 大きなスプーンとフォークは、30回かじるまで出てこないので、開いてから裏で作る（開く前に作ると、安いタブレット相当で約2秒）。先に呼ばれたら、その場で作る
 const SPOON = { i: -1, t: 0 }, FORK = { i: -1, t: 0 };
 function makeTools() { if (SPOON.g) return;
-  Object.assign(SPOON, makeSpoon(renderer)); SPOON.g.visible = false; scene.add(SPOON.g); SPOON.glow = sprite('#fff4d0', 5, 0); SPOON.g.add(SPOON.glow);
+  Object.assign(SPOON, makeSpoon(renderer)); SPOON.chain = spoonChain(SPOON.g); SPOON.reach = Math.max(...SPOON.chain.map(({ c, r }) => c.length() + r)); SPOON.g.visible = false; scene.add(SPOON.g); SPOON.glow = sprite('#fff4d0', 5, 0); SPOON.g.add(SPOON.glow);
   Object.assign(FORK, makeFork(renderer, SPOON.env)); FORK.g.visible = false; scene.add(FORK.g); FORK.glow = sprite('#fff4d0', 5, 0); FORK.g.add(FORK.glow); }
-function startSpoon(i) { const M = MOUNTS[i], S = MTN_ST[i]; if (SPOON.i >= 0) return; makeTools(); S.spoon = true; SPOON.i = i; SPOON.t = 0; SPOON.dent = null;
-  const top = new THREE.Vector3(M.x, M.y + M.yMax, M.z), toCam = V1.set(cam.position.x - M.x, 0, cam.position.z - M.z).normalize(), side = new THREE.Vector3(toCam.z, 0, -toCam.x);
-  // 見ている人から見て横へ、先を下げて進みながらすくう（先＝形の −z。柄は進む向きと反対）
-  SPOON.top = top; SPOON.yaw = Math.atan2(-side.x, -side.z); SPOON.fwd = side; SPOON.big = Math.min(M.yMax * 0.55, M.R * 1.05); SPOON.size = SPOON.big * 0.85;
+// スプーンを、小さな球の集まりで表す（形の座標）。通り道で、ほかの山に当たるかを前もって見るのに使う。
+// 柄の向き（z）16 × 幅（x）4 の升ごとに1つ（柄の向きだけで分けると、細い柄まで皿の幅の玉になり、当たらない向きまで当たると見て、スプーンを小さくしすぎた）。
+// 皿の上には、すくった山盛りの分の玉を1つ足す
+function spoonChain(g) { g.updateMatrixWorld(true); const P = [], v = new THREE.Vector3(); g.traverse((o) => { if (!o.isMesh) return; const a = o.geometry.attributes.position; for (let k = 0; k < a.count; k++) P.push(v.fromBufferAttribute(a, k).applyMatrix4(o.matrixWorld).clone()); });
+  const B = new THREE.Box3().setFromPoints(P), NZ = 16, NX = 4, cells = new Map();
+  for (const p of P) { const kz = Math.min(NZ - 1, Math.floor(((p.z - B.min.z) / (B.max.z - B.min.z)) * NZ)), kx = Math.min(NX - 1, Math.floor(((p.x - B.min.x) / (B.max.x - B.min.x)) * NX)), k = kz * NX + kx; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(p); }
+  const out = [], wide = new Map(); for (const [k, b] of cells) { const c = new THREE.Vector3(); for (const p of b) c.add(p); c.divideScalar(b.length); let r = 0; for (const p of b) r = Math.max(r, p.distanceTo(c)); out.push({ c, r }); const kz = Math.floor(k / NX); wide.set(kz, (wide.get(kz) || 0) + 1); }
+  const bowl = out.filter((s, n) => wide.get(Math.floor([...cells.keys()][n] / NX)) >= 3), bc = new THREE.Vector3(); for (const s of bowl) bc.add(s.c); bc.divideScalar(Math.max(1, bowl.length));
+  out.push({ c: bc.add(new THREE.Vector3(0, 0.5, 0)), r: 0.8 }); return out; }
+// 大きなスプーンの通り道：時刻 t の位置（out に入れる）と向き。動かす時と、通り道を前もって確かめる時の両方で使う
+function spoonPose(t, T, f, sz, yMax, out) { const ease = (u) => u * u * (3 - 2 * u); let pitch = -0.7, roll = 0, sc = sz, spin = 0;
+  if (t < 1.8) { const u = ease(t / 1.8); out.copy(T).addScaledVector(f, -sz * 1.7).add(V3.set(0, 4 + (1 - u) * 55, 0)); sc = sz * (0.6 + 0.4 * u); }
+  else if (t < 3.7) { const u = (t - 1.8) / 1.9, e = ease(u); out.copy(T).addScaledVector(f, sz * (-1.7 + 3.2 * e)).add(V3.set(0, 4 - Math.sin(u * Math.PI) * (yMax * 0.5 + 3), 0)); pitch = -0.7 + 1.0 * e; }
+  else if (t < 4.8) { const u = (t - 3.7) / 1.1; out.copy(T).addScaledVector(f, sz * 1.5).add(V3.set(0, 4 + ease(u) * 7, 0)); pitch = 0.3; roll = Math.sin(u * 14) * 0.06 * (1 - u); }
+  else { const u = Math.min(1, (t - 4.8) / 2.8), a = u * Math.PI * 1.3; out.copy(T).addScaledVector(f, sz * 1.5 * Math.cos(a)).add(V3.set(0, 11 + u * u * 95, 0)).add(V3.set(-f.z, 0, f.x).multiplyScalar(sz * 1.5 * Math.sin(a))); pitch = 0.3 - 0.15 * u; spin = a; sc = sz * (1 - 0.6 * u); }
+  return { pitch, roll, sc, spin }; }
+function poseSpoon(o, pos, P, yaw) { o.position.copy(pos); o.scale.setScalar(P.sc); o.rotation.set(0, 0, 0); o.rotateY(yaw + P.spin); o.rotateX(P.pitch); o.rotateZ(P.roll); }
+// 通り道の間に、スプーン（球の連なり）が、ほかの山（ポッキー・ウエハース・器まで含めた、高さごとの半径）へ入りこむ深さの合計
+const SP_PROBE = new THREE.Object3D(), SP_P = new THREE.Vector3(), SP_W = new THREE.Vector3();
+// near＝スプーンの届く所にある山だけ。stop を超えたら、そこで打ち切る（当たらない向きを探す時は 0＝当たった所で次の向きへ）
+function spoonOverlap(i, T, f, sz, yMax, near, stop = Infinity) { const yaw = Math.atan2(-f.x, -f.z); let over = 0;
+  for (let t = 0; t < 7.6; t += 0.1) { poseSpoon(SP_PROBE, SP_P, spoonPose(t, T, f, sz, yMax, SP_P), yaw); SP_PROBE.updateMatrix(); const sc = SP_PROBE.scale.x;
+    for (const { c, r } of SPOON.chain) { SP_W.copy(c).applyMatrix4(SP_PROBE.matrix); const rr = r * sc;
+      for (const j of near) { const M = MOUNTS[j]; if (M.on === false) continue; const y = SP_W.y - M.y; if (y < -rr || y > M.yMax + rr) continue;
+        const d = Math.hypot(SP_W.x - M.x, SP_W.z - M.z) - mtnR(M, clamp(y, 0, M.yMax)) - rr; if (d < 0) { over -= d; if (over > stop) return over; } } } }
+  return over; }
+const spoonNear = (i, T, sz) => { const reach = sz * (1.7 + SPOON.reach); return MOUNTS.flatMap((M, j) => (j !== i && Math.hypot(M.x - T.x, M.z - T.z) < reach + M.rMax ? [j] : [])); };
+// すくう向き：見ている人から見て横（右か左）を先に試し、通り道でほかの山に当たらない向きを選ぶ。左右とも当たる時は30度ずつ回して探し、
+// どれも当たる時は、入りこみがいちばん浅い向き（見ている人の側だけで決めると、町の側からいちごのかき氷をすくった時、横どなりのパフェのチョコの棒を突き抜けた 2026-11-01）
+function spoonSide(M) { const toCam = V1.set(cam.position.x - M.x, 0, cam.position.z - M.z).normalize(); return new THREE.Vector3(toCam.z, 0, -toCam.x); }
+// 大きな山のすそに寄りかかった小さな山は、どの向きでも、すくう所で隣のすそにかかる。その時だけスプーンを少し小さくして探し直す（85%・70%）
+function spoonDir(i, T, side, sz0, yMax) { const dirs = [0, 180, 15, -15, 165, -165, 30, -30, 150, -150, 45, -45, 135, -135, 60, -60, 120, -120, 75, -75, 105, -105, 90, -90].map((a) => { const r = (a * Math.PI) / 180; return new THREE.Vector3(side.x * Math.cos(r) - side.z * Math.sin(r), 0, side.x * Math.sin(r) + side.z * Math.cos(r)); });
+  for (const k of [1, 0.92, 0.85, 0.7]) { const sz = sz0 * k, near = spoonNear(i, T, sz); for (const f of dirs) if (spoonOverlap(i, T, f, sz, yMax, near, 0) === 0) return { f, sz }; }
+  const near = spoonNear(i, T, sz0); let best = dirs[0], bo = Infinity;   // どの向き・大きさでも当たる時は、もとの大きさで入りこみがいちばん浅い向き
+  for (const f of dirs) { const o = spoonOverlap(i, T, f, sz0, yMax, near, bo); if (o < bo) { bo = o; best = f; } }
+  return { f: best, sz: sz0 }; }
+function startSpoon(i, raw = false) { const M = MOUNTS[i], S = MTN_ST[i]; if (SPOON.i >= 0) return; makeTools(); S.spoon = true; SPOON.i = i; SPOON.t = 0; SPOON.dent = null;
+  const top = new THREE.Vector3(M.x, M.y + M.yMax, M.z), side = spoonSide(M);
+  // 先を下げて進みながらすくう（先＝形の −z。柄は進む向きと反対）。raw＝前の作り（見ている人から見て横だけ）。検査で、直す前の作りが落ちることを確かめる時だけ
+  SPOON.top = top; SPOON.big = Math.min(M.yMax * 0.55, M.R * 1.05); SPOON.size = SPOON.big * 0.85;
+  const D = raw ? { f: side, sz: SPOON.size } : spoonDir(i, top, side, SPOON.size, M.yMax), f = D.f; SPOON.size = D.sz; SPOON.yaw = Math.atan2(-f.x, -f.z); SPOON.fwd = f;
   SPOON.setLoad(M.k === 'k' ? { base: '#eef3ff', mat: MM.ice } : { base: M.col, mat: MM.cream });   // 皿の上の山盛りの芯は、中身の色（氷・クリーム）
   SPOON.kind = pickMetal(); SPOON.setMetal(SPOON.kind); metalNote(SPOON.kind);
   SPOON.setFill(0); SPOON.glow.material.opacity = 0; SPOON.g.visible = true; SND.spoonDown(); counts.spoons++; mark('spoon'); }
 function spill(p, col, n, sp) { for (let k = 0; k < n && SPARKS.length < FW_N - 1; k++) { const a = Math.random() * TAU; SPARKS.push({ p: p.clone().add(V3.set(Math.cos(a) * rnd(0, sp), rnd(-0.3, 0.3), Math.sin(a) * rnd(0, sp))), v: new THREE.Vector3(Math.cos(a) * rnd(0.5, 2), rnd(-1, 1.5), Math.sin(a) * rnd(0.5, 2)), t: 0, L: rnd(0.9, 1.8), c: new THREE.Color(k % 3 ? '#ffffff' : col), tr: 0, g: 9 }); } }
-function stepSpoon(dt) { if (SPOON.i < 0) return; const M = MOUNTS[SPOON.i], S = MTN_ST[SPOON.i], T = SPOON.top, sz = SPOON.size, f = SPOON.fwd, ease = (u) => u * u * (3 - 2 * u); SPOON.t += dt; const t = SPOON.t, g = SPOON.g;
-  let pos, pitch = -0.7, roll = 0, sc = sz, spin = 0;
-  if (t < 1.8) { const u = ease(t / 1.8); pos = V2.copy(T).addScaledVector(f, -sz * 1.7).add(V3.set(0, 4 + (1 - u) * 55, 0)); sc = sz * (0.6 + 0.4 * u); }
-  else if (t < 3.7) { const u = (t - 1.8) / 1.9, e = ease(u); pos = V2.copy(T).addScaledVector(f, sz * (-1.7 + 3.2 * e)).add(V3.set(0, 4 - Math.sin(u * Math.PI) * (M.yMax * 0.5 + 3), 0)); pitch = -0.7 + 1.0 * e;
+function stepSpoon(dt) { if (SPOON.i < 0) return; const M = MOUNTS[SPOON.i], S = MTN_ST[SPOON.i], T = SPOON.top, sz = SPOON.size; SPOON.t += dt; const t = SPOON.t, g = SPOON.g;
+  if (t >= 7.6) { g.visible = false; SPOON.glow.material.opacity = 0; SPOON.setFill(0); dropChunk(SPOON.chunk); SPOON.chunk = null; SPOON.i = -1; S.spoon = false; S.taps = 0; S.spoonEnd = nowS(); return; }   // かじった数は0から（残すと、次の1口でまたスプーンが来た 本人 2026-10-18）
+  const pos = V2, P = spoonPose(t, T, SPOON.fwd, sz, M.yMax, pos);
+  if (t >= 1.8 && t < 3.7) { const u = (t - 1.8) / 1.9;
     if (u > 0.15 && !SPOON.dent) { const r = M.rMax * 1.5, C = new THREE.Vector3(T.x, T.y - M.yMax * 0.48 + r, T.z); SPOON.dent = addDent(SPOON.i, C, r, V2b.set(0, 1, 0), 1.2, true); SND.bigScoop();
       for (const D of EAT.list.filter((D) => D.i === SPOON.i && D !== SPOON.dent)) { const qd = Math.hypot(D.c.x - C.x, D.c.z - C.z); if (qd < r && D.c.y - D.r > C.y - Math.sqrt(r * r - qd * qd) + 0.05) dropDent(D); }   // すくった所の中のかじり跡は、もう見えないので枠を空ける   // 真上から、球の底の面まで押し下げる（球の表面へ外向きに押し出すと、山より大きい球なので、ウエハースやポッキーが空中へ引き伸ばされた 2026-10-17）
       // すくった所の形を、皿の上へ：皿の幅に合わせて縮め、底を皿のくぼみに。見ている人に向いていた面は、皿の上でもこちらを向く
@@ -711,14 +765,12 @@ function stepSpoon(dt) { if (SPOON.i < 0) return; const M = MOUNTS[SPOON.i], S =
       ch.traverse((o) => { if (!o.isMesh) return; o.geometry.applyMatrix4(X); const P = o.geometry.attributes.position; for (let k = 0; k < P.count; k++) { const y = bowlTop(P.getX(k), P.getZ(k)) + 0.015; if (P.getY(k) < y) P.setY(k, y); } o.geometry.computeBoundingSphere(); }); SPOON.tilt.add(ch); SPOON.chunk = ch; }
     const k = clamp((u - 0.2) / 0.6, 0, 1); SPOON.setFill(k * 0.8); if (SPOON.chunk) SPOON.chunk.scale.set(Math.min(1, 0.4 + 0.6 * k), Math.max(0.001, k), Math.min(1, 0.4 + 0.6 * k));
     if (u > 0.2 && u < 0.85 && Math.random() < 0.8) spill(pos, M.col, 3, sz * 0.8); }
-  else if (t < 4.8) { const u = (t - 3.7) / 1.1; pos = V2.copy(T).addScaledVector(f, sz * 1.5).add(V3.set(0, 4 + ease(u) * 7, 0)); pitch = 0.3; roll = Math.sin(u * 14) * 0.06 * (1 - u); if (t - dt < 3.7) SND.bigScoop(); }
-  else if (t < 7.6) { const u = (t - 4.8) / 2.8, a = u * Math.PI * 1.3; pos = V2.copy(T).addScaledVector(f, sz * 1.5 * Math.cos(a)).add(V3.set(0, 11 + u * u * 95, 0)); V3.set(-f.z, 0, f.x).multiplyScalar(sz * 1.5 * Math.sin(a)); pos.add(V3);
-    pitch = 0.3 - 0.15 * u; spin = a; sc = sz * (1 - 0.6 * u); if (t - dt < 4.8) SND.spoonUp();
-    if (Math.random() < 0.6 * (1 - u)) spill(pos, M.col, 2, sc * 0.9);
+  else if (t >= 3.7 && t < 4.8) { if (t - dt < 3.7) SND.bigScoop(); }
+  else if (t >= 4.8) { const u = (t - 4.8) / 2.8; if (t - dt < 4.8) SND.spoonUp();
+    if (Math.random() < 0.6 * (1 - u)) spill(pos, M.col, 2, P.sc * 0.9);
     if (Math.random() < (SPOON.kind === 'gold' ? 1 : 0.7) && SPARKS.length < FW_N - 1) SPARKS.push({ p: pos.clone(), v: new THREE.Vector3(rnd(-1, 1), rnd(-2, 0), rnd(-1, 1)), t: 0, L: rnd(0.6, 1.2), c: new THREE.Color(SPOON.kind === 'gold' ? '#ffd860' : '#fff2c0'), tr: 0, g: 0.2 });
     SPOON.glow.material.opacity = Math.max(0, (u - 0.7) * 3.3) * 0.95; }
-  else { g.visible = false; SPOON.glow.material.opacity = 0; SPOON.setFill(0); dropChunk(SPOON.chunk); SPOON.chunk = null; SPOON.i = -1; S.spoon = false; S.taps = 0; S.spoonEnd = nowS(); return; }   // かじった数は0から（残すと、次の1口でまたスプーンが来た 本人 2026-10-18）
-  g.position.copy(pos); g.scale.setScalar(sc); g.rotation.set(0, 0, 0); g.rotateY(SPOON.yaw + spin); g.rotateX(pitch); g.rotateZ(roll); }
+  poseSpoon(g, pos, P, SPOON.yaw); }
 await BG.y();
 // ---------- 大きなフォーク：ケーキの山に、空から降りてきて真上から刺し、刺さった所をごっそり持ち上げて、らせんを描いて天へ ----------
 // 歯の真ん中が、刺す所に来る。持っていく形は、刺した瞬間のケーキの形そのもの（フォークに刺さったまま動く）
@@ -1023,9 +1075,12 @@ const THEATER = (() => { const [x, z, ry] = AREAPOS.theater, g = new THREE.Group
   return Object.assign(area('theater', 'ミュージカルの劇場', '3つのシアターで、サビを15秒ずつ', 'ジンジャーブレッドたちのミュージカル。中には3つのシアターがあって、3曲のサビを15秒ずつ見られます。シアターの下のボタンから、MVをぜんぶ見ることもできます。', null, g, { d: 12, h: 3 }, 6.3, '上映中'), { enter: () => openTheaterUI(), enterText: '劇場に入る ›' }); })();
 // 劇場の中＝3つのシアター（共通/theater.js。はじめの画面の「シアターでMVを見る」と同じ画面）。中にいる間は、町の絵を描かない（スマホで動画をなめらかに）
 const TH = { open: false };
-function openTheaterUI(fromTop) { card.hidden = true; TH.open = true; use('theater'); SND.tap();
-  openTheater({ back: fromTop ? '‹ もどる' : '‹ 港町へもどる', tap: () => SND.tap(), audio: () => SND.audio(), onClose: () => { TH.open = false; if (fromTop) $('start').hidden = false; },
+// 端末の「戻る」でも、劇場だけを閉じる（履歴に1段積む。積まないと「港町から出ますか？」が出た）。閉じた先は、入った所：はじめの画面から＝はじめの画面・町の中から＝町（本人 2026-11-01）
+const setPlace = (p) => { try { sessionStorage.setItem('xmas-place', p); } catch (e) { /* 覚えておけない時は、戻るとはじめの画面 */ } };
+function openTheaterUI(fromTop) { card.hidden = true; TH.open = true; use('theater'); SND.tap(); setPlace(fromTop ? 'top-theater' : 'town-theater'); try { history.pushState({ th: 2 }, ''); } catch (e) { /* 別の枠の中 */ }
+  openTheater({ back: fromTop ? '‹ もどる' : '‹ 港町へもどる', onBack: () => history.back(), tap: () => SND.tap(), audio: () => SND.audio(), onClose: () => { TH.open = false; setPlace(fromTop ? 'top' : 'town'); if (fromTop) $('start').hidden = false; },
     duck: (on) => { if (!on) { if (PREF.bgm) BGM.set(SND.audio(), true); return false; } if (!(PREF.bgm && soundStarted)) return false; BGM.set(SND.audio(), false); return true; } }); }
+addEventListener('popstate', () => { if (TH.open && theaterOpen()) closeTheater(); });
 // 郵便局（クリスマスカードへ）＋赤いポスト（豆知識）
 let POSTBOX = null;
 await BG.y(); const POST = (() => { const [x, z, ry] = AREAPOS.post, o = { x, y: landH(x, z), z, ry, w: 2.7, d: 2.8, h: 2.5, rh: 1.5, roof: 'frost', shade: '#fff4e6', glass: '#ffd86a', door: true, base: 1.6 };
@@ -2280,6 +2335,16 @@ if (fpsEl) window.__dbg = { tour: () => ({ on: TOUR.on, i: TOUR.i, n: TOUR.list.
   shopTris: () => { let n = 0, c = 0; const L = []; SHOP.sc.traverse((o) => { if (o.isMesh && o.visible) { c++; const k = ((o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3) * (o.isInstancedMesh ? o.count : 1); n += k; L.push([Math.round(k), o.userData.key || o.material.type]); } }); L.sort((x, y) => y[0] - x[0]); return [Math.round(n), c, +(SHOP.buildMs || 0).toFixed(1), L.slice(0, 8)]; },
   fxState: () => ({ simple: GLDIAG.simple.slice(), err: GLDIAG.err.length, ok: Object.fromEntries([['eat', EATS], ['sea', [waterMat, sqMat]], ['bt', SHOP.items.map((it) => it.mat)]].map(([k, L]) => [k, L.every((m) => { const P = renderer.properties.get(m).currentProgram; return !P || !P.diagnostics || P.diagnostics.runnable !== false; })])) }),
   shopKeeperXY: () => { const K = SHOP.keeper; K.m.updateMatrixWorld(); const v = new THREE.Vector3(0, 0.12, 0.05).applyMatrix4(K.m.matrixWorld).project(SHOP.cam); return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; },
+  // 大きなスプーンの通り道で、本物のスプーンの頂点が、ほかの山（高さごとの半径）の中へ入った数。山 i を角度 ang・距離 dist から見た時。raw＝直す前の作り（見ている人から見て横だけ）
+  spoonClash: (i, ang, dist = 60, raw = false) => { if (SPOON.i >= 0) return null; makeTools(); const M = MOUNTS[i], keep = cam.position.clone(); cam.position.set(M.x + Math.cos(ang) * dist, M.y + M.yMax * 0.6, M.z + Math.sin(ang) * dist);
+    const T = new THREE.Vector3(M.x, M.y + M.yMax, M.z), side = spoonSide(M), sz0 = Math.min(M.yMax * 0.55, M.R * 1.05) * 0.85, t0 = performance.now(), D = raw ? { f: side, sz: sz0 } : spoonDir(i, T, side, sz0, M.yMax), ms = performance.now() - t0, f = D.f, sz = D.sz; cam.position.copy(keep);
+    const g = SPOON.g, was = [g.position.clone(), g.quaternion.clone(), g.scale.clone(), g.visible], yaw = Math.atan2(-f.x, -f.z), P0 = new THREE.Vector3(), w = new THREE.Vector3(), who = new Set(); let hits = 0, first = null, deep = 0; g.visible = true;
+    for (let t = 0; t < 7.6; t += 0.05) { poseSpoon(g, P0, spoonPose(t, T, f, sz, M.yMax, P0), yaw); g.updateMatrixWorld(true); let n = 0;
+      g.traverseVisible((o) => { if (!o.isMesh) return; const a = o.geometry.attributes.position; for (let k = 0; k < a.count; k += 2) { w.fromBufferAttribute(a, k).applyMatrix4(o.matrixWorld);
+        for (let j = 0; j < MOUNTS.length; j++) { const N = MOUNTS[j]; if (j === i || N.on === false) continue; const y = w.y - N.y; if (y < 0 || y > N.yMax) continue; const d = mtnR(N, y) - Math.hypot(w.x - N.x, w.z - N.z); if (d > 0) { n++; who.add(j); deep = Math.max(deep, d); } } } });
+      if (n && first === null) first = +t.toFixed(2); hits += n; }
+    g.position.copy(was[0]); g.quaternion.copy(was[1]); g.scale.copy(was[2]); g.visible = was[3]; g.updateMatrixWorld(true);
+    return { hits, first, deep: +deep.toFixed(2), who: [...who], dir: Math.round((Math.atan2(f.z, f.x) * 180) / Math.PI), side: Math.round((Math.atan2(side.z, side.x) * 180) / Math.PI), size: +(sz / sz0).toFixed(2), ms: +ms.toFixed(1) }; },
   spoonPos: () => (SPOON.i < 0 ? null : [...SPOON.g.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)), +SPOON.t.toFixed(2)]),
   shopState: () => ({ keeper: SHOP.keeper ? [+(SHOP.keeper.eat || 0).toFixed(2), !!SHOP.keeper.gone, SHOP.keeper.m.visible] : null, dc: DC.list.length, dcBox: +DC.box.w.toFixed(2), items: SHOP.items.map((it) => [it.C.id, it.st, +it.g.scale.x.toFixed(2), +(it.g.position.y - it.home.y).toFixed(2)]) }),
   shopPeek: (x, y) => { if (shopPick(x, y)) return 'candy'; const K = SHOP.keeper, d = (SHOP.sc.userData.decor || []).filter((m) => m.geometry.attributes.aDI); if (K && K.m.visible && ray.intersectObject(K.m, false).length) { const hk = ray.intersectObject(K.m, false)[0], hd = ray.intersectObjects(d, false)[0]; return !hd || hk.distance < hd.distance ? 'keeper' : 'decor'; } return ray.intersectObjects(d, false).length ? 'decor' : null; },
@@ -2565,14 +2630,14 @@ $('menuB').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu();
 // 右上の「豆知識 ○/12」からも、豆知識の一覧へ（一度見た豆知識は、ふつうに触っても雲が出ないものがあるので、ここで読み返す）
 $('found').addEventListener('click', () => { SND.audio(); SND.tap(); openMenu('trivia'); });
 $('menuX').addEventListener('click', () => { SND.tap(); closeMenu(); });
-$('menuTop').addEventListener('click', () => { SND.tap(); closeMenu(); $('start').hidden = false; $('start').scrollTop = 0; });   // 町はそのまま（描くのは止める）。はじめの画面から、また選べる
+$('menuTop').addEventListener('click', () => { SND.tap(); closeMenu(); $('start').hidden = false; $('start').scrollTop = 0; setPlace('top'); });   // 町はそのまま（描くのは止める）。はじめの画面から、また選べる
 $('menu').addEventListener('click', (e) => { if (e.target.id === 'menu') closeMenu(); });
 for (const b of $('tabs').children) b.addEventListener('click', () => { SND.tap(); menuTab = b.dataset.t; drawMenu(); });
 // 仕掛けの「港町へもどる」で来た時（#museum など）は、その建物の前から
 initColliders();   // すり抜けない壁（建物・屋台・灯台がそろってから）
 // 開いた物を、前の続きから（飴工房・ケーキの山）。そろっているのに開いていなければ、開く
 if (OPEN.shop) shopExterior(); if (OPEN.cakes) openCakes(false); checkUnlock(true);
-{ const A = AREAS.find((a) => '#' + a.id === location.hash); if (A) { A.seen = true; use(A.id); const c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; counts.flights--; } }
+{ const A = AREAS.find((a) => '#' + a.id === location.hash || (START && START.back === 'town-theater' && a.id === 'theater')); if (A) { A.seen = true; use(A.id); const c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); drone.p.copy(auto.p); drone.yaw = drone.tyaw = auto.yaw; drone.pitch = drone.tpitch = auto.pitch; auto = null; counts.flights--; } }
 queueClear();
 // 半透明で両面の材質は1回で描く（three.js は裏・表の2回に分け、そのたびに描き方を選び直すので、毎コマ重かった）
 // ---------- オープニング：空中に、立体のグミ文字「とろけて聖夜」（カードの題字と同じ骨組みを、管にしてなぞる）。上から1字ずつ降ってきて弾み、ぷるぷる揺れて、キラキラになってはじけ、探索が始まる ----------
@@ -2606,7 +2671,7 @@ function goSimple(tag) {
 function simpleNote() { if (simpleNote.done) return; simpleNote.done = true; const d = document.createElement('div');
   d.style.cssText = 'position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:min(92vw,420px);padding:9px 14px;border-radius:14px;background:rgba(20,24,48,.88);color:#fff;font-size:13px;line-height:1.5;text-align:center;cursor:pointer';
   d.textContent = 'この端末では動かない表現があったので、一部の動きを省いて表示しています（さわると、くわしい情報）'; d.addEventListener('pointerdown', () => { d.remove(); showDiag(); }); document.body.appendChild(d); setTimeout(() => d.remove(), 10000); }
-function startIntro() { const q2 = new URLSearchParams(location.search); if (START.mode === 'trivia' || (location.hash && !INVITE) || (q2.has('fps') && !q2.has('intro'))) { introEnd(); return; }   // 豆知識を読む時は、題字を出さずに一覧へ
+function startIntro() { const q2 = new URLSearchParams(location.search); if (START.mode === 'trivia' || START.back || (location.hash && !INVITE) || (q2.has('fps') && !q2.has('intro'))) { introEnd(); return; }   // 豆知識を読む時は、題字を出さずに一覧へ
   const two = cam.aspect < 0.9, D = 11, vh = 2 * D * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2), vw = vh * cam.aspect, rows = two ? [[0, 1, 2, 3], [4, 5]] : [[0, 1, 2, 3, 4, 5]];
   const S = Math.min((vw * 0.86) / rows[0].length, (vh * 0.42) / (rows.length * 1.15));
   rows.forEach((r, ri) => r.forEach((k, j) => { const L = INTRO.L[k]; L.home = new THREE.Vector3(j - (r.length - 1) / 2, ((rows.length - 1) / 2 - ri) * 1.15 - 0.5, 0); L.piv.position.copy(L.home); L.piv.scale.setScalar(0.001); }));
@@ -2650,6 +2715,6 @@ $('inviteBtn').addEventListener('click', () => { SND.tap(); location.href = 'car
   // 隠れている物（ケーキ・飴工房）のシェーダーは、出す時に用意する（readyUp・readyShop）
   SPOON.g.visible = FORK.g.visible = true; await compileVisible(renderer, scene, cam, BG.on && !START ? () => BG.y() : null); SPOON.g.visible = FORK.g.visible = false; ready = true; window.__built = true; await START_P; if (early) skyBack(); INTRO.wait = false; $('load').hidden = true; $('sub').textContent = 'クリスマスの夜'; window.__ok = true; clock.getDelta(); shown(); if (!early) startIntro(); startLoop({ gap: frameGap, step, pause: () => TH.open || !$('start').hidden, onError: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } }); if (q.has('diag')) setTimeout(showDiag, 3000);
   // はじめの画面（メニューの「はじめの画面へ」で戻った時）から選んだ時は、組み立てた町のまま。豆知識を読むで来た時は、題字を出さずに一覧を開く
-  window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true), tour: () => { TOUR.pend = true; } }; if (START.mode === 'trivia') openMenu('trivia'); if (START.mode === 'tour') TOUR.pend = true; })();
+  window.__town = { town: () => {}, trivia: () => openMenu('trivia'), theater: () => openTheaterUI(true), tour: () => { TOUR.pend = true; } }; if (START.mode === 'trivia') openMenu('trivia'); if (START.mode === 'tour') TOUR.pend = true; if (START.back === 'town-theater') openTheaterUI(false); })();
 </script>
 </body></html>
