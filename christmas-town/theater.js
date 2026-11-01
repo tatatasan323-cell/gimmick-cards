@@ -13,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 let H = {}, ducked = false, wired = false;
 function unduck() { if (ducked && H.duck) H.duck(false); ducked = false; }
-function reset(v) { v.pause(); v.removeAttribute('src'); v.removeAttribute('controls'); try { v.load(); } catch (e) { /* 読みこむものが無い */ } v.parentElement.querySelector('.play').hidden = false; }
+function reset(v) { if (v._full) v._full.classList.remove('nudged'); v.pause(); v.removeAttribute('src'); v.removeAttribute('controls'); try { v.load(); } catch (e) { /* 読みこむものが無い */ } v.parentElement.querySelector('.play').hidden = false; }
 function stopAll(except) { for (const v of $('thList').querySelectorAll('video')) if (v !== except && v.getAttribute('src')) reset(v); }
 function build() { const L = $('thList'); if (L.childElementCount) return;
   for (const S of SHOWS) { const c = mk('div', 'th'), st = mk('div', 'stage'), tx = mk('div', 't'); c.dataset.id = S.id;
@@ -21,12 +21,12 @@ function build() { const L = $('thList'); if (L.childElementCount) return;
       b.type = 'button'; b.setAttribute('aria-label', S.name + '（サビ15秒）を見る'); b.append(document.createElement('i'), mk('b', null, '見る'), mk('small', null, 'サビ 15秒'));
       b.addEventListener('click', () => { if (H.audio) H.audio(); stopAll(v); b.hidden = true; v.src = S.clip; v.setAttribute('controls', ''); const pr = v.play(); if (pr && pr.catch) pr.catch(() => { /* 自動で始まらなくても、操作の枠から押せる */ }); });
       v.addEventListener('play', () => { stopAll(v); if (!ducked && H.duck && H.duck(true)) ducked = true; });   // 動画の音と、BGM が重ならないように
-      v.addEventListener('ended', unduck);
+      v.addEventListener('ended', () => { unduck(); if (v._full) v._full.classList.add('nudged'); });   // 15秒を見終わったら、全編へ（動く指に加えて、ボタンを光らせる）
       v.addEventListener('error', () => { if (!v.getAttribute('src')) return; reset(v); unduck(); });
       st.append(v, b); }
     else st.append(mk('div', 'soon', '準備中'));
     tx.append(mk('b', null, S.name), mk('small', null, S.ja + '｜' + S.note));
-    let f; if (S.yt) { f = mk('a', 'full', 'MVを一曲ぜんぶ見る ›'); f.href = S.yt; f.target = '_blank'; f.rel = 'noopener noreferrer'; } else { f = mk('span', 'full', S.clip ? 'MVの全編は、近日公開' : '近日公開'); f.setAttribute('aria-disabled', 'true'); }
+    let f; if (S.yt) { f = mk('a', 'full', 'MVを一曲ぜんぶ見る ›'); const pt = mk('i', 'pt', '👉'); pt.setAttribute('aria-hidden', 'true'); f.prepend(pt); f.href = S.yt; f.target = '_blank'; f.rel = 'noopener noreferrer'; const v = st.querySelector('video'); if (v) v._full = f; } else { f = mk('span', 'full', S.clip ? 'MVの全編は、近日公開' : '近日公開'); f.setAttribute('aria-disabled', 'true'); }   // 全編へ、動く指で誘う（本人 2026-11-02）
     c.append(st, tx, f); L.append(c); } }
 export const theaterOpen = () => !$('theaterUI').hidden;
 export const theaterDucked = () => ducked;   // 町の BGM を止めているか（確かめる道具が読む）

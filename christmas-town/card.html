@@ -136,6 +136,12 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
 .inline button{display:block;margin:8px auto 0;padding:9px 18px;border:0;border-radius:999px;background:#06c755;color:#fff;font-size:14px;font-weight:900;cursor:pointer}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;transform:translate(-50%,20px);opacity:0;max-width:86vw;padding:10px 16px;border-radius:14px;background:rgba(20,16,40,.92);color:#fff;font-size:13.5px;font-weight:800;white-space:pre-line;text-align:center;pointer-events:none;transition:.25s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+.nudge{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));z-index:15;transform:translateX(-50%);width:min(92vw,400px);box-sizing:border-box;padding:14px 16px 12px;border-radius:20px;background:#fffaf1;color:#4a2a14;box-shadow:0 0 0 3px #ffd27a,0 12px 30px rgba(0,0,0,.45);text-align:center;animation:ngIn .45s cubic-bezier(.2,1.4,.4,1) both}.nudge[hidden]{display:none}   /* もらったグリーティングカードの誘い（下の端。絵はさわれるまま） */
+.nudge .nq{margin:0;font-size:17px;font-weight:900;color:#c2185b}.nudge small{display:block;margin-top:3px;font-size:12.5px;font-weight:700;color:#8a5a2a}.nudge .nb{display:flex;gap:8px;margin-top:10px}.nudge button{flex:1;font:inherit;font-size:15px;font-weight:900;border:0;border-radius:999px;padding:11px 8px;cursor:pointer}.nudge .nyes{background:linear-gradient(#ff95c8,#ff5c9e);color:#fff;box-shadow:0 3px 0 #d2407e}.nudge .nno{flex:0 0 32%;background:#f2e2c8;color:#5a3a1a}
+@keyframes ngIn{from{opacity:0;transform:translate(-50%,24px)}to{opacity:1;transform:translate(-50%,0)}}
+.pt{display:inline-block;margin-right:7px;font-style:normal;animation:ptGo .8s ease-in-out infinite alternate}@keyframes ptGo{from{transform:translateX(-4px)}to{transform:translateX(4px)}}   /* 全編へ誘う、動く指 */
+.sg-full.nudged{animation:ngPulse 1.2s ease-in-out infinite}@keyframes ngPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,140,60,.75)}50%{box-shadow:0 0 0 9px rgba(255,140,60,0)}}   /* 15秒が終わったら、さらに目立たせる */
+@media (prefers-reduced-motion:reduce){.pt,.sg-full.nudged,.nudge{animation:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head><body>
@@ -187,7 +193,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <p><button id="btnHelpFoot" class="linkbtn" type="button">つかいかた・ルールを見る</button></p>
     <details class="terms">
       <summary>ご利用にあたって</summary>
-      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録、もらったカード（はじめの画面で知らせるため。60日まで）、音の設定と聞いていた曲の位置（曲の位置はタブを閉じると消えます）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
+      <p>本ツールのご利用は自己責任でお願いします。入力した内容は、あなたのスマホの中だけで処理され、サーバーには保存されません。港町で見つけた豆知識や、行った場所の記録、もらったカード（港の案内所で知らせるため。60日まで）、音の設定と聞いていた曲の位置（曲の位置はタブを閉じると消えます）も、あなたのスマホの中だけに残り、どこにも送られません。ただし、作ったリンクの中には入力内容がそのまま入り、リンクを受け取った人には見えます。電話番号など、見せたくない情報は入れないでください。豆知識は公開されている資料をもとにしていますが、正確さを保証するものではありません。作ったカードを送ること、このページを人に紹介することは、ご自由にどうぞ。このページやプログラムをコピーして別の場所に置くこと、作り変えて配ることは禁止します。著作権は作者に帰属します。</p>
     </details>
     <p class="credit"><a href="https://ai-naiseika.github.io/" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
   </footer>
@@ -239,7 +245,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
   <div class="shead"><h3 id="sgH">このカードの曲</h3><button type="button" id="sgX" class="chip">とじる</button></div>
   <p class="sg-name" id="sgName"></p><p class="tiny" id="sgNote"></p>
   <div class="sg-stage" id="sgStage"><video id="sgV" playsinline preload="none" controlslist="nodownload" disablepictureinpicture></video><button type="button" id="sgPlay" class="sg-play">▶ サビ 15秒</button></div>
-  <a id="sgFull" class="sg-full" target="_blank" rel="noopener noreferrer">MVを一曲ぜんぶ見る ›</a>
+  <a id="sgFull" class="sg-full" target="_blank" rel="noopener noreferrer"><i class="pt" aria-hidden="true">👉</i>MVを一曲ぜんぶ見る ›</a>
 </section>
 
 <!-- グリーティングカードの絵を、ほかの2つでも見る（見るだけ。もらったカードは変わらない） -->
@@ -273,7 +279,7 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
   <div id="hpMake" role="tabpanel" hidden>
     <h4>つくりかた・おくりかた</h4>
     <ol class="steps">
-      <li><b>「招待状をつくる」</b>か<b>「グリーティングカードをつくる」</b>を押します（はじめの画面の「カードをつくって送る」・港町のメニュー・郵便局からも来られます）。招待状は日にち・場所・お返事つき、グリーティングカードは「メリークリスマス」のひとことを送るカードです</li>
+      <li><b>「招待状をつくる」</b>か<b>「グリーティングカードをつくる」</b>を押します（港の案内所の「カードをつくって送る」・港町のメニュー・郵便局からも来られます）。招待状は日にち・場所・お返事つき、グリーティングカードは「メリークリスマス」のひとことを送るカードです</li>
       <li>タイトル・日にち・ひとこと などを書きます。<b>空欄は、カードに出ません</b>。グリーティングカードは、<b>カードの絵</b>（ネオン・ソーイング・セロハン・開くたびにランダム）も選べます。どの絵も、さわると動きます</li>
       <li><b>「リンクをつくる」</b>→<b>「LINEで送る」</b>。送り先は、まず<b>「Keepメモ」</b>（自分だけが見られるトーク）をえらびます</li>
       <li>Keepメモに届いたメッセージを開いて、<b>カードの見た目と中身を確かめます。</b>まちがいがあれば、書きなおして新しいリンクをつくります</li>
@@ -297,13 +303,14 @@ h1 svg{display:block;width:100%;height:auto;overflow:visible}
     <div id="rsBox" hidden>
       <ul>
         <li>港町の記録（見つけた豆知識・行った場所）を消します</li>
-        <li>画面のカード（もらったもの・つくったもの）を外して、見本にもどします。はじめの画面の「もらったカード」のお知らせも消します。<b>送ったリンクは、そのまま使えます</b></li>
+        <li>画面のカード（もらったもの・つくったもの）を外して、見本にもどします。港の案内所の「もらったカード」のお知らせも消します。<b>送ったリンクは、そのまま使えます</b></li>
       </ul>
       <p style="display:flex;gap:10px;margin:10px 0 0"><button id="rsDo" class="chip warn" type="button">リセットする</button><button id="rsNo" class="chip" type="button">やめる</button></p>
     </div>
   </div>
 </section>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="nudge" class="nudge" role="dialog" aria-live="polite" aria-labelledby="nudgeQ" hidden><p class="nq" id="nudgeQ"></p><small id="nudgeS"></small><div class="nb"><button type="button" id="nudgeYes" class="nyes"></button><button type="button" id="nudgeNo" class="nno"></button></div></div>
 
 <script type="module">
 import { titleSvg } from './title_svg.js';
@@ -413,7 +420,7 @@ import { SHOWS } from './theater.js';
     if (!isG(c)) { if (G) { G.destroy(); G = null; } host.hidden = true; return null; }
     const id = designOf(c); card.classList.add('dz-' + id); host.hidden = false; if (!G || G.id !== id) { if (G) G.destroy(); G = mountGreet(host, id, SFX); } return id; }
   function renderCard(c, sample) {
-    if (c !== state.card) VIEW_DZ = null; state.card = c; state.sample = sample; const gid = stage(c); $('#btnDz').hidden = !gid || state.mine;   // 自分がつくったカードは、作る画面で絵を選ぶ（ここで見かえると、送る絵が変わったと思われる）
+    if (c !== state.card) { VIEW_DZ = null; NUDGE.seen.clear(); NUDGE.off = false; } state.card = c; state.sample = sample; const gid = stage(c); $('#btnDz').hidden = !gid || state.mine; nudgeWatch();   // 自分がつくったカードは、作る画面で絵を選ぶ（ここで見かえると、送る絵が変わったと思われる）
     const g = isG(c), title = c.t || (g ? TTL_G : TTL0), len = Array.from(title).length;
     $('#ttl').textContent = title; $('#ttl').className = 'ttl' + (len > 22 ? ' l3' : len > 14 ? ' l2' : ''); $('#ttl').hidden = g && title === TTL_G;   // 「Merry Christmas」は絵の中にある
     $('#card').classList.toggle('greet', g);
@@ -481,7 +488,7 @@ import { SHOWS } from './theater.js';
   $('#goTown').href = PAGES ? (fromTown && !fromTop ? './#post' : './') : TOWN;
   if (!PAGES) { $('#goTown').target = '_blank'; $('#goTown').rel = 'noopener'; }
   $('#back').hidden = !fromTown && !fromTop;
-  if (fromTop) { $('#back').href = './'; $('#back').textContent = '‹ もどる'; $('#goTown').firstChild.nodeValue = 'はじめの画面へ '; }
+  if (fromTop) { $('#back').href = './'; $('#back').textContent = '‹ もどる'; $('#goTown').firstChild.nodeValue = '港の案内所へ '; }
   // 絵の町：さわった所から、きらきら。鈴の音は、さわった左右の位置で高さを変える
   { const tw = $('#town2'); tw.addEventListener('click', (e) => { Snd.unlock(); const r = tw.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; Snd.jingle(Math.min(5, Math.floor((x / r.width) * 6)));
       for (let i = 0; i < 9; i++) { const sp = document.createElement('i'), a = (i / 9) * 6.283 + Math.random() * 0.4, d = 16 + Math.random() * 18; sp.className = 'spark'; sp.style.left = x + 'px'; sp.style.top = y + 'px';
@@ -547,13 +554,27 @@ import { SHOWS } from './theater.js';
 
   // ---------- このカードの曲：押した人だけ。動画は押すまで読みこまない。流れる間は BGM を止める ----------
   const song = $('#song'), songBack = $('#songBack'), sgV = $('#sgV'); let SONG = null;
-  function songReset() { sgV.pause(); sgV.removeAttribute('src'); sgV.removeAttribute('controls'); try { sgV.load(); } catch (e) { /* 読みこむものが無い */ } $('#sgPlay').hidden = !PAGES; bgmDuck(false); }
+  function songReset() { $('#sgFull').classList.remove('nudged'); sgV.pause(); sgV.removeAttribute('src'); sgV.removeAttribute('controls'); try { sgV.load(); } catch (e) { /* 読みこむものが無い */ } $('#sgPlay').hidden = !PAGES; bgmDuck(false); }
   function openSong(S) { SONG = S; $('#sgName').textContent = S.name + '｜' + S.ja; $('#sgNote').textContent = S.note; $('#sgFull').href = S.yt; songReset();
     if (PAGES) sgV.poster = S.poster; else sgV.removeAttribute('poster'); $('#sgStage').hidden = !PAGES; openSheet(song, songBack); }   // 試作の非公開ページには動画のファイルが無いので、全編のリンクだけ
   $('#sgPlay').addEventListener('click', () => { if (!SONG) return; Snd.unlock(); $('#sgPlay').hidden = true; sgV.src = SONG.clip; sgV.setAttribute('controls', ''); bgmDuck(true); const pr = sgV.play(); if (pr && pr.catch) pr.catch(() => { /* 操作の枠から押せる */ }); });
-  sgV.addEventListener('ended', () => bgmDuck(false));
+  sgV.addEventListener('ended', () => { bgmDuck(false); $('#sgFull').classList.add('nudged'); });   // 15秒を見終わったら、全編へ（本人 2026-11-02「動く指の矢印を付けて積極的に押してもらうように」）
   const closeSong = () => { songReset(); closeSheet(song, songBack); };
   $('#sgX').addEventListener('click', () => { Snd.tap(); closeSong(); }); songBack.addEventListener('click', closeSong);
+
+  // ---------- もらったグリーティングカード：絵の物語を最後まで見たら（さわらなくても45秒で）「別なデザインも見てみる？」。「いいえ」・3つとも見たら「街へ行こう！」で、はじめの画面へ（本人 2026-11-02「さらに積極的に誘ってしまおう」） ----------
+  //   見本・自分で作ったカード・招待状では誘わない。「あとで」の後は、このカードを見ている間は誘わない
+  const NUDGE = { seen: new Set(), timer: 0, poll: 0, off: false };
+  const nudgeHide = () => { $('#nudge').hidden = true; };
+  function nudgeShow(q, sub, yes, no, onYes, onNo) { $('#nudgeQ').textContent = q; $('#nudgeS').textContent = sub; $('#nudgeYes').textContent = yes; $('#nudgeNo').textContent = no;
+    $('#nudgeYes').onclick = () => { Snd.unlock(); Snd.tap(); nudgeHide(); onYes(); }; $('#nudgeNo').onclick = () => { Snd.tap(); nudgeHide(); onNo(); }; $('#nudge').hidden = false; }   // 出す時に音は鳴らさない（頼まれていない音）
+  function nudgeWatch() { clearInterval(NUDGE.poll); clearTimeout(NUDGE.timer); nudgeHide();
+    if (!isG(state.card) || state.sample || state.mine || NUDGE.off) return; NUDGE.seen.add(designOf(state.card));
+    const ask = () => { clearInterval(NUDGE.poll); clearTimeout(NUDGE.timer); const rest = DZ.filter((k) => !NUDGE.seen.has(k)); if (rest.length) askMore(rest); else askTown(true); };
+    NUDGE.timer = setTimeout(ask, 45000);
+    NUDGE.poll = setInterval(() => { if (G && G.state().done) { clearInterval(NUDGE.poll); clearTimeout(NUDGE.timer); NUDGE.timer = setTimeout(ask, 1800); } }, 500); }   // 最後のお楽しみを見てから
+  const askMore = (rest) => nudgeShow('別なデザインも見てみる？', 'ほかに「' + rest.map((k) => DESIGNS[k].name).join('」「') + '」の絵があるよ', '見てみる ›', 'いいえ', () => { VIEW_DZ = rest[0]; renderCard(state.card, state.sample); scrollTo({ top: $('#card').offsetTop - 70, behavior: 'smooth' }); }, () => askTown(false));
+  const askTown = (all) => nudgeShow(all ? '3つの絵、ぜんぶ見たね！' : '街へ行こう！', all ? 'つぎは、おかしな港町へ。はじいて、こわして、とろける時間を' : 'おかしな港町で、はじいて、こわして、とろける時間を', '街へ行こう！ ›', 'あとで', () => $('#goTown').click(), () => { NUDGE.off = true; });
 
   // ---------- グリーティングカードの絵を、ほかの2つでも（本人 2026-11-01「いずれのバージョンで表示されても『他のデザインも見てみる』という選択肢を画面の端に。3種類任意で見られるように」） ----------
   const dzSheet = $('#dzSheet'), dzBack = $('#dzBack');
