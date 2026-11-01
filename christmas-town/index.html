@@ -1564,7 +1564,7 @@ const SPARKS = (() => { const P = new Float32Array(FW_N * 3), V = new Float32Arr
 const fwG = new THREE.BufferGeometry(); fwG.setAttribute('position', new THREE.BufferAttribute(SPARKS.P, 3).setUsage(THREE.DynamicDrawUsage)); fwG.setAttribute('color', new THREE.BufferAttribute(fwCol, 3).setUsage(THREE.DynamicDrawUsage)); fwG.setDrawRange(0, 0);
 const fw = new THREE.Points(fwG, new THREE.PointsMaterial({ map: glowTex, size: 0.75, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fw.frustumCulled = false; scene.add(fw);
 // map＝「きろく」に残す回数（この端末に、ずっと足していく）
-const counts = gcount({ candyPiece: 0, boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0, cotton: 0, angels: 0, angelBack: 0, steps: 0, bells: 0, menus: 0, lamps: 0, lampBack: 0, mtnBites: 0, spoons: 0, mtnBack: 0, forks: 0, cakeBites: 0, gold: 0, silver: 0, lhBites: 0, lhDown: 0, lhBack: 0, picks: 0, pickBack: 0, flicks: 0, candyEat: 0, collide: 0 }, { bites: 'house', crunch: 'gbBite', gbGone: 'gbEat', mtnBites: 'mtn', spoons: 'spoon', cakeBites: 'cake', forks: 'fork', gold: 'gold', silver: 'silver', lhBites: 'lhBite', lhDown: 'lhDown',
+const counts = gcount({ candyPiece: 0, boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0, cotton: 0, angels: 0, angelBack: 0, steps: 0, bells: 0, menus: 0, lamps: 0, lampBack: 0, mtnBites: 0, spoons: 0, mtnBack: 0, forks: 0, cakeBites: 0, gold: 0, silver: 0, lhBites: 0, lhDown: 0, lhBack: 0, picks: 0, pickBack: 0, flicks: 0, candyEat: 0, collide: 0, housePush: 0 }, { bites: 'house', crunch: 'gbBite', gbGone: 'gbEat', mtnBites: 'mtn', spoons: 'spoon', cakeBites: 'cake', forks: 'fork', gold: 'gold', silver: 'silver', lhBites: 'lhBite', lhDown: 'lhDown',
   lamps: 'lamp', picks: 'pick', candyEat: 'candyBite', candyPiece: 'candyPiece', flicks: 'flick', steps: 'snow', shows: 'fireworks', bells: 'bell', angels: 'angel', waves: 'wave' }); let STEP_T = 0;
 // 光の波：s＝強さ（タップは1・なぞった跡は0.55）。触れるたびに花火の「たまり」が増え、たまると、ときどき盛大に上がる（毎回は上がらない）
 function seaWave(x, z, s = 1) { WAVES[wi].set(x, z, timeU.value, s); wi = (wi + 1) % WAVES.length; syncWaves(); aurBoost = Math.max(aurBoost, s); if (s >= 1) SND.wave(); else SND.ripple(); counts.waves++;
@@ -1872,7 +1872,7 @@ function shopUp(e) { const s = SHOP.ptrs.get(e.pointerId); SHOP.ptrs.delete(e.po
 // ---------- ドローン：左の丸で飛ぶ・右の▲▼で上下・なぞって見まわす・2本指で前後・タップで触る／そこへ飛ぶ ----------
 const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 600);
 const drone = { p: new THREE.Vector3(0, 9, 46), v: new THREE.Vector3(), yaw: 0, pitch: -0.14, tyaw: 0, tpitch: -0.14 };
-let auto = null;   // { p, yaw, pitch } 自動で向かう先
+let auto = null, lookT = 0;   // auto＝{ p, yaw, pitch } 自動で向かう先。lookT＝なぞって見まわした時刻（遊覧で動く物を追う時、その後2秒は向きを取らない）
 function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); cam.aspect = w / h; if (SHOP.cam) { SHOP.cam.aspect = w / h; SHOP.cam.fov = w / h < 0.8 ? 64 : 50; SHOP.cam.updateProjectionMatrix(); } cam.fov = w / h < 0.8 ? 66 : 54; cam.updateProjectionMatrix(); const ls = w / h < 0.8 ? 0.72 : 1; for (const A of AREAS) A.label.scale.set(A.label.userData.sz[0] * ls, A.label.userData.sz[1] * ls, 1); sqMat.uniforms.uScale.value = h * DPR * 0.5; }
 addEventListener('resize', size); watchOrientation(size);
 const fwd = () => V2.set(-Math.sin(drone.yaw), 0, -Math.cos(drone.yaw)), right = () => V3.set(Math.cos(drone.yaw), 0, -Math.sin(drone.yaw));
@@ -1882,7 +1882,7 @@ const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ptrs = new Map(); let pinch = null; ray.layers.enable(HIDDEN);
 const hideHint = () => { $('hint').style.opacity = 0; };
 let repOK = false;
-addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k || onTop()) return; e.preventDefault(); const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code; auto = null; hideHint(); });
+addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k || onTop()) return; e.preventDefault(); const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code; auto = null; lookT = nowS(); hideHint(); });
 addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
 addEventListener('blur', () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); });
 guardContext(cvs, { onLost: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } });
@@ -1900,10 +1900,10 @@ cvs.addEventListener('pointerdown', (e) => { if (SHOP.on) { shopDown(e); return;
 // なぞった所の海の点（水面だけを見る。町の形には当てない＝軽い）
 function seaPoint(x, y) { const r = cvs.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); if (ray.ray.direction.y >= -0.01) return null; const p = ray.ray.origin.clone().addScaledVector(ray.ray.direction, (WATER_Y - ray.ray.origin.y) / ray.ray.direction.y); return inWater(p.x, p.z) ? p : null; }
 cvs.addEventListener('pointermove', (e) => { if (SHOP.on) { shopMove(e); return; } const s = ptrs.get(e.pointerId); if (!s) return; if (e.pointerType === 'mouse' && e.buttons === 0) { ptrs.delete(e.pointerId); return; } s.x = e.clientX; s.y = e.clientY; if (Math.hypot(s.x - s.x0, s.y - s.y0) > 8) s.moved = true; if (!s.moved) return;
-  const all = [...ptrs.values()]; if (all.length >= 2) { const [a, b] = all, d = Math.hypot(a.x - b.x, a.y - b.y); if (!pinch) pinch = { d }; const k = (d - pinch.d) * 0.05; pinch.d = d; drone.p.addScaledVector(V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)), k); auto = null; return; }
+  const all = [...ptrs.values()]; if (all.length >= 2) { const [a, b] = all, d = Math.hypot(a.x - b.x, a.y - b.y); if (!pinch) pinch = { d }; const k = (d - pinch.d) * 0.05; pinch.d = d; drone.p.addScaledVector(V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)), k); auto = null; lookT = nowS(); return; }
   if (s.grab) { const P = planeHit(s.x, s.y, s.g0, s.pn); if (P) { const T = TEDDY.userData.k, d = T.worldToLocal(P.clone()).sub(T.worldToLocal(s.g0.clone())); if (d.length() > 1.4) d.setLength(1.4); PULL.uPull.value.copy(d); TEDDY.userData.pull = true; PULL_V.set(0, 0, 0); } return; }
   if (s.trace) { const p = seaPoint(s.x, s.y); if (p && (p.distanceTo(s.lp) > 2.2 || nowS() - s.lt > 0.25)) { seaWave(p.x, p.z, 0.55); s.lp.copy(p); s.lt = nowS(); counts.traces++; } return; }
-  auto = null; drone.tyaw = s.yaw - (s.x - s.x0) * 0.005; drone.tpitch = clamp(s.pitch - (s.y - s.y0) * 0.004, -1.35, 1.0); });   // なぞった方へ、カメラが向く（本人 2026-10-17。前は、景色をつかんで回す向き）
+  auto = null; lookT = nowS(); drone.tyaw = s.yaw - (s.x - s.x0) * 0.005; drone.tpitch = clamp(s.pitch - (s.y - s.y0) * 0.004, -1.35, 1.0); });   // なぞった方へ、カメラが向く（本人 2026-10-17。前は、景色をつかんで回す向き）
 function up(e) { if (SHOP.on) { shopUp(e); return; } const s = ptrs.get(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!s) return; if (s.grab && TEDDY.userData.pull) { TEDDY.userData.pull = false; SND.boing(2.5); counts.pulls++; use('teddy'); } if (!s.moved && nowS() - s.t0 < 0.5) tapAt(e.clientX, e.clientY); }
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, up));
 cvs.addEventListener('wheel', (e) => { if (SHOP.on) { SHOP.biteT = 0; SHOP.tdist = clamp(SHOP.tdist + Math.sign(e.deltaY) * 0.25, 1.2, 4.2); e.preventDefault(); return; } drone.p.addScaledVector(V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)), -Math.sign(e.deltaY) * 2); auto = null; e.preventDefault(); }, { passive: false });
@@ -2140,11 +2140,11 @@ function stepDrone(dt, now) {
   const kf = keyOn('f') - keyOn('b') - joy.y, ks = keyOn('r') - keyOn('l') + joy.x, ku = keyOn('u') - keyOn('d') + ud.v; drone.tyaw += (keyOn('tl') - keyOn('tr')) * dt * 1.5;
   const sp = 9 + drone.p.y * 0.15, acc = V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)).multiplyScalar(clamp(kf, -1, 1) * sp).addScaledVector(right(), clamp(ks, -1, 1) * sp); acc.y += clamp(ku, -1, 1) * 6;   // 見ている向きへ（上を見て進めば上がる）
   if (Math.abs(kf) > 0.05 || Math.abs(ks) > 0.05 || ku) auto = null;
-  if (auto) { const d = V2.copy(auto.p).sub(drone.p), L = d.length(); if (L < 0.15) auto = null; else { acc.copy(d).multiplyScalar(Math.min(14, 1.8 + L * 1.6) / L); const dy = ((auto.yaw - drone.tyaw + Math.PI * 3) % TAU) - Math.PI; drone.tyaw += dy * Math.min(1, dt * 3); drone.tpitch += (auto.pitch - drone.tpitch) * Math.min(1, dt * 3); } }
+  if (auto) { const d = V2.copy(auto.p).sub(drone.p), L = d.length(); if (L < 0.15 && !auto.soft) auto = null; else { acc.copy(d).multiplyScalar(auto.soft ? Math.min(14, L * 3) / Math.max(L, 1e-4) : Math.min(14, 1.8 + L * 1.6) / L); const dy = ((auto.yaw - drone.tyaw + Math.PI * 3) % TAU) - Math.PI; drone.tyaw += dy * Math.min(1, dt * 3); drone.tpitch += (auto.pitch - drone.tpitch) * Math.min(1, dt * 3); } }   // soft＝遊覧で眺める間：その場にとどまる・動く物を追う（近くで速さを落とし、行き過ぎて揺れない）
   drone.v.lerp(acc, 1 - Math.exp(-dt * (auto ? 4 : 5))); drone.p.addScaledVector(drone.v, dt);
   // 地面・家の上に。町から離れすぎない
   const floor = (inWater(drone.p.x, drone.p.z) ? WATER_Y : landH(drone.p.x, drone.p.z)) + 1.2; if (drone.p.y < floor) { drone.p.y = floor; drone.v.y = Math.max(0, drone.v.y); }
-  for (const H of HOUSES) { if (H.away) continue; const dx = drone.p.x - H.x, dz = drone.p.z - H.z, d = Math.hypot(dx, dz); if (d < H.r + 0.6 && drone.p.y < H.top) { const k = (H.r + 0.6 - d) / Math.max(d, 0.01); drone.p.x += dx * k; drone.p.z += dz * k; } }
+  for (const H of HOUSES) { if (H.away) continue; const dx = drone.p.x - H.x, dz = drone.p.z - H.z, d = Math.hypot(dx, dz); if (d < H.r + 0.6 && drone.p.y < H.top) { const k = (H.r + 0.6 - d) / Math.max(d, 0.01); drone.p.x += dx * k; drone.p.z += dz * k; counts.housePush++; } }
   for (const M of MOUNTS) { if (M.on === false) continue; let dx = drone.p.x - M.x, dz = drone.p.z - M.z, d = Math.hypot(dx, dz); if (d > M.rMax + 1.5) continue; const lim = mtnR(M, drone.p.y - M.y) + 1.2; if (lim > 1.2 && d < lim) { if (d < 0.05) { dx = -M.x; dz = 5 - M.z; d = Math.hypot(dx, dz); } const k = lim / d; drone.p.x = M.x + dx * k; drone.p.z = M.z + dz * k; } }   // 山の中に入りこまない
   for (const C of COLL) collide(C);
   drone.p.y = Math.min(drone.p.y, 48); const rad = Math.hypot(drone.p.x, drone.p.z - 5); if (rad > 85) { drone.p.x *= 85 / rad; drone.p.z = 5 + (drone.p.z - 5) * (85 / rad); }
@@ -2152,14 +2152,14 @@ function stepDrone(dt, now) {
   cam.position.copy(drone.p); cam.rotation.set(drone.pitch, drone.yaw, 0, 'YXZ');
   if (drone.p.distanceToSquared(SANTA.g.position) < 196) mark('deer');   // そりのトナカイを近くで見た
   if (!card.hidden && cardAt && !auto && drone.p.distanceTo(cardAt) > 12) card.hidden = true;
-  if (COT.open && !auto && drone.p.distanceTo(COT.at) > 12) closeTrivia();   // 札の所から離れたら、たたむ
+  if (COT.open && !auto && !(TOUR.on && TOUR.mv) && drone.p.distanceTo(COT.at) > 12) closeTrivia();   // 札の所から離れたら、たたむ（遊覧で動く物を追っている間は、たたまない）
 }
 // コマの間隔：指で触る端末（スマホ・タブレット）は毎秒30コマ、ほかは60コマまで。眺めているだけの時（指・キー・スティック・上下のボタンを離して3秒・自動で飛んでいない・題字の間でない）は、どちらも30コマ
 // 何もしない時も毎秒60コマで描き続け、遅いスマホでは CPU を使いっぱなしだった（本人 2026-10-19「無用な負荷がかからないように」）。さわっている間も60コマだと、CPU4倍遅くで主スレッドが9割を超え、波→花火で画面がカクつき、音が飛んだ（2026-10-25）
 // 間引き方：requestAnimationFrame は毎回受け、まだ早いコマは何もせずに返す（画面の切りかえの拍子にそろう）。setTimeout で待ってから頼む形も試したが、町を描きつづける間は
 //   時計の知らせが後回しにされ（CPU を遅くしない時でも、95%で61ms・最大95ms遅れた）、コマの間が80〜116ms空いてカクついた（2026-10-25）。劇場の中は町を描かないので、0.25秒おきに見るだけ
 let idleAt = 0; for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel']) addEventListener(ev, () => { idleAt = performance.now(); }, { passive: true, capture: true });
-const resting = () => performance.now() - idleAt > 3000 && !auto && INTRO.t < 0 && joy.id == null && !ud.v && !held.size && !ptrs.size;
+const resting = () => performance.now() - idleAt > 3000 && (!auto || (auto.soft && !TOUR.mv)) && INTRO.t < 0 && joy.id == null && !ud.v && !held.size && !ptrs.size;
 const frameGap = () => LITE.gap();   // かるい表示の段で、さらに下げる（50%は毎秒20コマ）
 // 1コマの中身。次のコマを先に頼む・まだ早いコマは何もしない・1コマのエラーで止めない・劇場の中は0.25秒おきに見るだけ・GPU を取り上げられたら開き直しの案内は、共通/loop.js
 function step(f0) {
@@ -2252,7 +2252,7 @@ function step(f0) {
   frames++; if (performance.now() - tf > 1000) { if (fpsEl) fpsEl.textContent = `${frames}fps x${DPR} calls ${renderer.info.render.calls} tris ${renderer.info.render.triangles} houses ${HOUSES.length}\n${GLDIAG.gpu.slice(0, 48)} VU${VU} D${DENT_N} shaderErr ${GLDIAG.err.length}${GLDIAG.err.length ? '\n' + GLDIAG.err[0].slice(0, 140) : ''}`; frames = 0; tf = performance.now(); }
 }
 let BATCH = null;
-if (fpsEl) window.__dbg = { tour: () => ({ on: TOUR.on, i: TOUR.i, n: TOUR.list.length, phase: TOUR.phase, paused: TOUR.paused, arrived: TOUR.arrived, t: TOUR.t, name: TOUR.list[TOUR.i] ? TOUR.list[TOUR.i].name : '', auto: !!auto }), tourK: (k) => { TOUR.k = k; }, tourStart: () => startTour(), errs: () => ERRS.slice(), frames: () => renderer.info.render.frame, scene, cam, drone, counts,
+if (fpsEl) window.__dbg = { tour: () => ({ on: TOUR.on, i: TOUR.i, n: TOUR.list.length, phase: TOUR.phase, paused: TOUR.paused, arrived: TOUR.arrived, t: TOUR.t, name: TOUR.list[TOUR.i] ? TOUR.list[TOUR.i].name : '', auto: !!auto }), tourK: (k) => { TOUR.k = k; }, tourStart: () => startTour(), tourList: () => TOUR.list, THREE, errs: () => ERRS.slice(), frames: () => renderer.info.render.frame, scene, cam, drone, counts,
   // キャラの当たりの検査：いちばん重なっている量（負＝めり込み。行列どうしは数えない）／当たりを切る／ぶつかった回数／行列の進み
   crowdGap: () => { const A = crowdAgents(); let m = 9, who = null; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { if (A[i].k === 'luc' && A[j].k === 'luc') continue; const g = Math.hypot(A[i].x - A[j].x, A[i].z - A[j].z) - A[i].r - A[j].r; if (g < m) { m = g; who = [A[i].k, A[j].k]; } } return [+m.toFixed(3), who]; },
   crowdOff: (v) => { CROWD.off = v; }, crowdBumps: () => CROWD.bumps, lucA: () => +LUC.a.toFixed(4), lucBy: () => { const q = LUC.by; if (!q) return null; const b = q.b; return q.k === 'gb' ? ['gb', GBS.indexOf(b), b.back, +(b.wait || 0).toFixed(2)] : ['puyo', PUYOS.indexOf(b), +b.hop.toFixed(2), b.hops, +b.next.toFixed(2), b.tgt.map((v) => +v.toFixed(1)), [+b.grp.position.x.toFixed(2), +b.grp.position.z.toFixed(2)], b.home]; },
@@ -2328,8 +2328,67 @@ const WHERE = { bauble: '広場の奥の、ガラス玉の屋台', wreath: '礼�
 //   札の字を書きかえるのは、次の行き先へ飛び立つ時だけ。飛ぶ間・眺める間は、進み具合の線を CSS で伸ばすだけ（動いている間に重い書きかえをしない）
 //   遊覧の間は飛ぶ丸と上下のボタンを隠す（お任せなので）。なぞって見まわすのはそのまま。指やキーで飛んだ・メニューを開いた＝止める
 //   見た豆知識は「見つけた」に数える。飴工房の開店（12そろった時）は、遊覧を終えてから（途中でカメラを取らない）
-const TOUR = { on: false, pend: false, list: [], i: -1, phase: '', t: 0, dwell: 0, paused: false, goal: null, arrived: 0, k: 1, el: $('tour') };
+const TOUR = { on: false, pend: false, list: [], i: -1, phase: '', t: 0, dwell: 0, paused: false, goal: null, arrived: 0, k: 1, el: $('tour'), view: { p: new THREE.Vector3(), look: new THREE.Vector3() }, path: [], leg: 0, mv: null, lift: 0, liftT: 0, chk: 0, pausedAt: 0, goT: 0 };
 const T_READ = 8, T_LOOK = 3.5, T_FLYMAX = 12;   // 1秒に読む字・眺める間・飛ぶ時間の上限（家に当たって着かない時）
+// 眺める所（本人 2026-11-01「その豆知識のキチンと正面に回らないので、家越しに近づいたりして、きちんと案内できていない」「多少遠くても正面から」）
+//   前は、いまいる向きから一直線に寄るだけで、家の裏から・屋根ごしに着いていた（13か所中6か所で、物が家にさえぎられていた）
+//   物の正面（建物・屋台に付いた物は、その建物の表＝+Z）から75°以内で、さえぎる物（家・建物・山・地面）の無い所を、正面に近い・近い・低い順に探す
+//   間に家や建物があれば、家並みの上を山なりに越えてから降りる（家に押し戻されながら寄らない）
+//   動く物（空を走るそり・光の冠の行列）は、着いた後も前の斜めから追いかけ続ける（本人「サンタを追いかけても目の前にサンタがいないなんてのもざら」「サンタは追い続けなきゃいけない」）
+const VIEW_D = { tree: 12, silent: 7.5, yule: 4.6 };   // 寄る距離：ツリーは全体が入るように、鐘は鐘楼の柱の間から、靴は小さいので近く（ほかは 6.5・シアターは名所の決まり）
+const TV = new THREE.Vector3(), TV2 = new THREE.Vector3(), TV3 = new THREE.Vector3(), TV4 = new THREE.Vector3();
+function solidAt(x, y, z, pad, skip, lamps) {   // そこに家・建物・山・地面があるか（当たりの形は stepDrone と同じ）。lamps＝街灯も数える（眺める所から物までの間。灯りの光が小さな物を隠した）
+  if (y < (inWater(x, z) ? WATER_Y : landH(x, z)) + 0.3) return true;
+  for (const H of HOUSES) if (!H.away && y < H.top + pad && Math.hypot(x - H.x, z - H.z) < H.r + pad) return true;
+  for (const M of MOUNTS) { if (M.on === false) continue; const d = Math.hypot(x - M.x, z - M.z); if (d > M.rMax + pad) continue; const r = mtnR(M, y - M.y); if (r > 0 && d < r + pad) return true; }
+  if (lamps) for (const [lx, lz] of LAMPS) { const d = Math.hypot(x - lx, z - lz); if (d > 0.6) continue; const gy = landH(lx, lz); if ((d < 0.12 + pad && y > gy && y < gy + 2.2) || Math.hypot(d, y - gy - 2.28) < 0.45 + pad) return true; }
+  TV.set(x, y, z);
+  for (const C of COLL) { if ((skip && skip.has(C)) || (C.when && !C.when())) continue;
+    if (C.kind === 'cyl') { if (y > C.y0 - pad && y < C.y1 + pad && Math.hypot(x - C.x, z - C.z) < C.r + pad) return true; }
+    else if (C.kind === 'ball' || C.dyn) { if (TV.distanceTo(C.c) < C.r + pad) return true; }   // 回る空のテーブルは、回っても角がはみ出さない球で
+    else if (TV.distanceToSquared(C.c) < (C.r + pad + 1) ** 2) { const L = TV2.copy(TV).applyMatrix4(C.inv), m = pad / C.s, b = C.b; if (L.x > b.min.x - m && L.x < b.max.x + m && L.y > b.min.y - m && L.y < b.max.y + m && L.z > b.min.z - m && L.z < b.max.z + m) return true; } }
+  return false; }
+function clearLine(a, b, pad, skip, nearB, nearA = 0, lamps = false) { const L = a.distanceTo(b), n = Math.max(2, Math.ceil(L / 0.35));   // a から b まで、何にもさえぎられないか（端の近くは見ない）
+  for (let i = 1; i < n; i++) { const k = i / n; if (k * L < nearA) continue; if ((1 - k) * L < nearB) break; TV3.lerpVectors(a, b, k); if (solidAt(TV3.x, TV3.y, TV3.z, pad, skip, lamps)) return false; } return true; }
+const angGap = (a, b) => Math.abs(((a - b + Math.PI * 3) % TAU) - Math.PI);
+function viewSpot(x, out) {   // 動かない物の眺める所（out.p）と見る所（out.look）。見つからなければ false
+  const o = x.kind === 'trivia' ? x.T.obj : x.A.g, id = x.kind === 'trivia' ? x.T.id : x.A.id, look = meshMid(o, out.look);   // 見る所＝物の形のまん中（足もとから決まった高さでは、看板が画面の下へずれた）
+  const d0 = VIEW_D[id] || (x.kind === 'trivia' ? 6.5 : x.A.view.d), fz = o.getWorldDirection(TV4), fa = Math.atan2(fz.x, fz.z), front = id !== 'tree', here = Math.atan2(drone.p.x - look.x, drone.p.z - look.z);
+  const skip = new Set(), at = o.getWorldPosition(new THREE.Vector3()); for (const C of COLL) { if (C.kind === 'box') { for (let q = o; q; q = q.parent) if (q === C.g) skip.add(C); } else if (C.kind === 'cyl' && Math.hypot(C.x - at.x, C.z - at.z) < 0.5) skip.add(C); }   // 物が乗っている建物・屋台の箱と、物そのものの筒（ツリー）は、手前の壁として数えない（表の側から見るので、裏ごしにはならない）
+  const cand = [];
+  [1, 1.3, 1.7, 2.2].forEach((dk) => [0.22, 0.36, 0.52].forEach((e, ei) => { for (let k = 0; k < 24; k++) { const a = fa + (k / 24) * TAU, da = angGap(a, fa); if (front && da > 1.31) continue; cand.push([(dk - 1) * 3 + ei * 0.8 + (front ? da * 5 : angGap(a, here) * 0.8), a, d0 * dk, e]); } }));
+  cand.sort((u, v) => u[0] - v[0]);
+  for (const [, a, d, e] of cand) { const p = out.p.set(look.x + Math.sin(a) * d, look.y + Math.tan(e) * d, look.z + Math.cos(a) * d);
+    if (p.y > 46 || Math.hypot(p.x, p.z - 5) > 83 || p.y < (inWater(p.x, p.z) ? WATER_Y : landH(p.x, p.z)) + 1.4 || solidAt(p.x, p.y, p.z, 1.2, null) || !clearLine(p, look, 0.12, skip, 0.8, 0, true)) continue;   // 1.2＝とどまる間の小さな揺れでも、ツリーや家に触れない
+    return true; }
+  return false; }
+function meshMid(o, out) { o.updateMatrixWorld(true); const b = new THREE.Box3(), bb = new THREE.Box3(); o.traverseVisible((m) => { if (m.isMesh) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b.union(bb.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld)); } }); return b.isEmpty() ? o.getWorldPosition(out) : b.getCenter(out); }
+let SANTA_MID = null;
+function moverView(id, out, dt) {   // 動く物を、前の斜めから見る所。さえぎる物があれば、少しずつ上へ（0.3秒ごとに確かめる）
+  if (id === 'norad') { const g = SANTA.g;
+    if (!SANTA_MID) SANTA_MID = g.worldToLocal(meshMid(g, new THREE.Vector3()));
+    out.look.copy(SANTA_MID).applyMatrix4(g.matrixWorld); const f = TV4.set(1, 0, 0).transformDirection(g.matrixWorld).setY(0).normalize(), sx = out.look.x, sz = out.look.z - 2, sl = Math.hypot(sx, sz) || 1;   // そりは +X へ走る。町の外側から（そりの向こうに町が見える）
+    out.p.copy(out.look).addScaledVector(f, 7); out.p.x += (sx / sl) * 7; out.p.z += (sz / sl) * 7; out.p.y += 3; }
+  else { const g = LUCIA, f = TV4.set(0, 0, 1).transformDirection(g.matrixWorld).setY(0).normalize(); g.getWorldPosition(out.look).addScaledVector(f, -0.9); out.look.y += 0.7;   // 行列は +Z へ歩く。先頭の少し後ろを、行列の外側の前から
+    const sx = out.look.x - SQ[0], sz = out.look.z - SQ[1], sl = Math.hypot(sx, sz) || 1; out.p.copy(out.look).addScaledVector(f, 4.0); out.p.x += (sx / sl) * 3.4; out.p.z += (sz / sl) * 3.4; out.p.y += 4.5; }   // 少し上から（広場の屋台の屋根を越えて、行列の全体を）
+  if ((TOUR.chk -= dt) <= 0) { TOUR.chk = 0.3; const P = out.p, hit = (h) => solidAt(P.x, P.y + h, P.z, 0.9, null) || !clearLine(TV2.set(P.x, P.y + h, P.z).clone(), out.look, 0.12, null, 0.8);
+    if (hit(TOUR.liftT)) TOUR.liftT = Math.min(6, TOUR.liftT + 1.2); else if (TOUR.liftT > 0 && !hit(TOUR.liftT - 1.2)) TOUR.liftT -= 1.2; }
+  TOUR.lift += (TOUR.liftT - TOUR.lift) * Math.min(1, dt * 1.5); out.p.y += TOUR.lift; }
+function tourRoute(to, look) {   // いまいる所から to へ。間に家や建物があれば、家並みの上を山なりに越え、最後は物の正面の側から降りてくる
+  const s = drone.p.clone(), s0 = solidAt(s.x, s.y, s.z, 1.0, null), ok = (a, b) => clearLine(a, b, 1.0, null, 0, a === s && s0 ? 1.5 : 0); if (ok(s, to)) return [to];   // いまいる所が家のすぐそばなら、離れるまでは見ない
+  const bx = to.x - look.x, bz = to.z - look.z, bl = Math.hypot(bx, bz) || 1;   // 眺める所の後ろ（物と反対の側）
+  for (let k = 1; k <= 12; k++) { const y = Math.max(s.y, to.y) + k * 1.5; if (y > 46) break;
+    const A = s.clone().lerp(to, 0.25).setY(y), B = s.clone().lerp(to, 0.75).setY(y); if (ok(s, A) && ok(A, B) && ok(B, to)) return [A, B, to];
+    const A2 = s.clone().lerp(to, 0.15).setY(y), B2 = new THREE.Vector3(to.x + (bx / bl) * 6, Math.min(y, to.y + 5), to.z + (bz / bl) * 6); if (ok(s, A2) && ok(A2, B2) && ok(B2, to)) return [A2, B2, to]; }   // 物の真上を越えてから降りると、物の建物にかかった（パン屋の看板）
+  return [to]; }
+const aimGap = () => { const d = TV2.copy(TOUR.view.look).sub(drone.p); return angGap(drone.yaw, Math.atan2(-d.x, -d.z)) + Math.abs(drone.pitch - Math.atan2(d.y, Math.hypot(d.x, d.z))); };   // いまの向きと、物の方とのずれ
+function tourAim(look) { const d = TV2.copy(look).sub(drone.p); auto.yaw = Math.atan2(-d.x, -d.z); auto.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); }   // 飛ぶ間も、行き先の物を見ながら
+function tourFollow() {   // 眺める間：その場にとどまって物を見る・動く物は追う。着いた後に流れて向きがずれ、細い画面の外に物が出ていた
+  if (held.size || joy.id != null || ud.v || ptrs.size >= 2) return;   // キー・指2本で飛んでいる間はしない
+  if (auto && !auto.tour) { lookT = nowS(); return; }   // 地面や名所をさわって飛んでいる間は、その飛び方のまま（自分で動かした、に数える）
+  if (!TOUR.mv && lookT > TOUR.goT) return;   // 動かない物は、自分で見まわしたら、もう場所も向きも取らない（動く物は2秒後に向きを戻す）
+  if (!auto) auto = { p: TOUR.view.p, yaw: drone.tyaw, pitch: drone.tpitch, tour: true }; auto.p = TOUR.view.p; auto.soft = true;
+  if (nowS() - lookT > 2 && !(TOUR.paused && lookT > TOUR.pausedAt) && ![...ptrs.values()].some((s) => s.moved)) tourAim(TOUR.view.look); else { auto.yaw = drone.tyaw; auto.pitch = drone.tpitch; } }
 function tourStops() {
   const S = [...TRIVIA.map((T) => ({ kind: 'trivia', T, name: T.name, sub: WHERE[T.id], text: T.text })), ...AREAS.filter((A) => A.id === 'theater').map((A) => ({ kind: 'area', A, name: A.name, sub: A.sub, text: A.text }))];
   const at = (x) => (x.kind === 'trivia' ? x.T.obj : x.A.g).getWorldPosition(new THREE.Vector3()), out = []; let p = drone.p.clone();
@@ -2342,16 +2401,18 @@ function tourGo(i) {   // i 番目へ飛び立つ（札の字は、ここで1回
   $('trN').textContent = `${i + 1} / ${TOUR.list.length}`; $('trName').textContent = x.name; $('trSub').textContent = x.sub || ''; $('trText').textContent = x.text; $('trText').scrollTop = 0;
   $('trMore').textContent = x.kind === 'area' ? 'シアターへ' : 'くわしく';
   TOUR.el.classList.add('fly'); tourBar(0, 0); TOUR.phase = 'fly'; TOUR.t = 0; TOUR.dwell = ([...x.text].length / T_READ + T_LOOK) / TOUR.k;
-  if (x.kind === 'trivia') { const T = x.T, c = T.obj.getWorldPosition(new THREE.Vector3()); flyTo(c, c, T.big ? 13 : 6.5, T.big ? 3 : 2.4); T.pop = 1; }
-  else { const A = x.A, c = A.g.getWorldPosition(new THREE.Vector3()), look = c.clone().setY(c.y + A.view.h * 0.4); flyTo(look, look, A.view.d, A.view.h); }
-  TOUR.goal = auto.p.clone();
+  const id = x.kind === 'trivia' ? x.T.id : x.A.id, V = TOUR.view; TOUR.mv = id === 'norad' || id === 'lucia' ? id : null; TOUR.lift = TOUR.liftT = TOUR.chk = 0; TOUR.goT = nowS(); if (x.kind === 'trivia') x.T.pop = 1;
+  if (TOUR.mv) moverView(TOUR.mv, V, 0);
+  else if (!viewSpot(x, V)) { const c = (x.kind === 'trivia' ? x.T.obj : x.A.g).getWorldPosition(new THREE.Vector3()); flyTo(c, c, 6.5, 2.4); V.p.copy(auto.p); V.look.copy(c); counts.flights--; }   // 見つからない時は、前と同じ寄り方
+  TOUR.path = tourRoute(V.p, V.look); TOUR.leg = 0; auto = { p: TOUR.path[0], yaw: 0, pitch: 0, tour: true }; tourAim(V.look); counts.flights++;
+  TOUR.goal = V.p;
 }
 function tourArrive() { const x = TOUR.list[TOUR.i]; TOUR.phase = 'read'; TOUR.t = 0; TOUR.arrived++;
   if (x.kind === 'trivia' && !found.has(x.T.id)) { found.add(x.T.id); x.T.pop = 1; updateFound(); saveProgress(); }
   if (x.kind === 'area') x.A.seen = true;
   TOUR.el.classList.remove('fly'); tourBar(1, TOUR.dwell); }
 function tourNext(d = 1) { const i = TOUR.i + d; if (i < 0) return; if (i >= TOUR.list.length) { tourDone(); return; } if (TOUR.paused) tourPlay(true); tourGo(i); }
-function tourPause() { if (!TOUR.on || TOUR.paused || TOUR.phase === 'end') return; TOUR.paused = true; TOUR.el.classList.add('paused'); if (TOUR.phase === 'fly') auto = null;
+function tourPause() { if (!TOUR.on || TOUR.paused || TOUR.phase === 'end') return; TOUR.paused = true; TOUR.pausedAt = nowS(); TOUR.el.classList.add('paused'); if (TOUR.phase === 'fly' || !TOUR.mv) auto = null;
   tourBar(TOUR.phase === 'read' ? Math.min(1, TOUR.t / TOUR.dwell) : 0, 0); $('trPlay').textContent = '▶ 続ける'; }   // 線を今の長さで止める
 function tourPlay(quiet) { if (!TOUR.paused) return; TOUR.paused = false; TOUR.el.classList.remove('paused'); $('trPlay').textContent = '⏸ 止める'; if (quiet) return;
   if (TOUR.phase === 'fly' || drone.p.distanceTo(TOUR.goal) > 2) tourGo(TOUR.i); else tourBar(1, TOUR.dwell - TOUR.t); }   // 指で離れていたら、その所へ飛びなおす
@@ -2362,9 +2423,20 @@ function tourDone() { TOUR.phase = 'end'; TOUR.paused = false; TOUR.el.classList
 function tourEnd() { TOUR.on = false; TOUR.phase = ''; TOUR.el.hidden = true; document.body.classList.remove('touring'); auto = null; TOUR.paused = false; checkUnlock(); }   // 12そろっていたら、ここで飴工房が開く
 function tourStep(dt) {
   if (!TOUR.on) { if (TOUR.pend && INTRO.t < 0) startTour(); return; }
-  if (TOUR.paused || TOUR.phase === 'end') return; TOUR.t += dt;
-  if (TOUR.phase === 'fly') { if (auto && TOUR.t < T_FLYMAX) return; if (auto) auto = null; else if (drone.p.distanceTo(TOUR.goal) > 1.2) { tourPause(); return; }   // 指やキーで飛んだ＝止める
-    tourArrive(); return; }
+  if (TOUR.phase === 'end') return;
+  if (TOUR.mv) moverView(TOUR.mv, TOUR.view, dt);
+  if (TOUR.paused) { if (TOUR.mv && TOUR.phase === 'read') tourFollow(); return; }   // 止めていても、動く物は目の前に（止めた後に見まわしたら、その向きのまま）
+  TOUR.t += dt;
+  if (TOUR.phase === 'fly') { const near = drone.p.distanceTo(TOUR.goal);
+    if (auto && !auto.tour) { const a = auto; tourPause(); auto = a; return; }   // 飛んでいる途中に地面や名所をさわった＝止める（さわった所へは、そのまま飛ぶ）
+    if (!auto) { if (near > 1.2) { tourPause(); return; } if (lookT > TOUR.goT) { tourArrive(); return; }   // auto を消すのは、指・キーで飛んだ時と、着いた時だけ。指やキーで飛んだ＝止める
+      auto = { p: TOUR.view.p, yaw: drone.tyaw, pitch: drone.tpitch, soft: true, tour: true }; }   // 着いたけれど、まだ物の方を向ききっていない：その場で向くのを待つ（短い飛び方だと、物が画面の外のまま着いていた）
+    const last = TOUR.leg === TOUR.path.length - 1;
+    if (!last && drone.p.distanceTo(TOUR.path[TOUR.leg]) < 2.5) TOUR.leg++;   // 山なりの途中の点は、止まらずに次へ
+    auto.p = TOUR.path[TOUR.leg]; tourAim(TOUR.view.look);
+    if (TOUR.t >= T_FLYMAX || (last && near < (TOUR.mv ? 1.5 : 0.3) && aimGap() < 0.2)) tourArrive();
+    return; }
+  tourFollow();
   if (TOUR.t >= TOUR.dwell) tourNext(1);
 }
 $('trPrev').addEventListener('click', () => { SND.tap(); tourNext(-1); });
