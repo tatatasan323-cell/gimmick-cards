@@ -360,12 +360,15 @@ import { SHOWS } from './theater.js';
     const KEY = 'xmas-town-sound', P = (() => { const d = { bgm: true, track: 'jingle', medley: false, bgmVol: 70 }; try { return Object.assign(d, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return d; } })();
     BGM.setTrack(P.track); BGM.setMedley(!!P.medley); BGM.setVolume((Number.isFinite(Number(P.bgmVol)) ? Number(P.bgmVol) : 70) / 100);
     const btn = $('#btnBgm'), show = () => { btn.hidden = false; btn.classList.toggle('off', !P.bgm); btn.setAttribute('aria-pressed', String(!!P.bgm)); btn.setAttribute('aria-label', P.bgm ? 'BGM を止める' : 'BGM を鳴らす'); };
-    let started = false; const go = (e) => { if (started || (e && e.target && e.target.closest && e.target.closest('#btnBgm'))) return; started = true; BGM.set(Snd.ctx(), P.bgm); };
+    let started = false; const go = (e) => { if (started || (e && e.target && e.target.closest && e.target.closest('#btnBgm, #btnReopen'))) return; started = true; BGM.set(Snd.ctx(), P.bgm); };   // 「いつものブラウザで開きなおす」では始めない（押した瞬間に鳴りはじめ、裏に残った LINE の中のページが鳴りつづけた 2026-11-05）
     addEventListener('click', go, { capture: true }); addEventListener('keydown', go, { capture: true });   // タップで始める（押し下げでは、iPhone が音を出させない）
-    btn.addEventListener('click', () => { P.bgm = !P.bgm; try { const all = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; all.bgm = P.bgm; localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) { /* その場かぎり */ } started = true; BGM.set(Snd.ctx(), P.bgm); show(); });
+    btn.addEventListener('click', () => { if (!started && P.bgm) { started = true; BGM.set(Snd.ctx(), true); show(); return; }   // まだ鳴らす前の最初の ♪ は、「鳴らす」（前は、鳴っていない曲を「止める」にした）
+      P.bgm = !P.bgm; try { const all = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; all.bgm = P.bgm; localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) { /* その場かぎり */ } started = true; BGM.set(Snd.ctx(), P.bgm); show(); });
     const hush = () => { const ac = Snd.raw(); if (!ac) return; try { if (document.hidden) ac.suspend(); else ac.resume(); } catch (e) { /* 音が出なくても使える */ } };
     bgmDuck = (on) => { if (started && P.bgm) BGM.set(Snd.ctx(), !on); };
     document.addEventListener('visibilitychange', hush); addEventListener('pagehide', () => { const ac = Snd.raw(); if (ac) { try { ac.suspend(); } catch (e) { /* 同上 */ } } });
+    // 戻るで、取っておかれたこのページへ戻った時は、港町で変えたオン・オフを読み直す（前は、港町で止めても、ここへ戻ると鳴り直した）
+    addEventListener('pageshow', (e) => { if (!e.persisted) return; try { const v = (JSON.parse(localStorage.getItem(KEY) || '{}') || {}).bgm; if (typeof v === 'boolean' && v !== P.bgm) { P.bgm = v; show(); if (started) BGM.set(Snd.ctx(), v); } } catch (er) { /* 同上 */ } });
     show();
   }
 
@@ -412,7 +415,7 @@ import { SHOWS } from './theater.js';
   }
   const ext = (a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; };
   // グリーティングカードの絵：dz が無い（開くたびにランダム）は、このページを開いている間は同じ絵に（書いている間に絵が変わらないように）
-  let RND = null, G = null; const SND = (f) => (...a) => { Snd.unlock(); f(...a); };   // 絵の音は、鳴らす前に音の部屋を開ける（開いていないと鳴らなかった 本人 2026-11-01「音がない」）
+  let RND = null, G = null; const SND = (f) => (...a) => { if (document.hidden) return; Snd.unlock(); f(...a); };   // 見えていない間（押した後の予約の音）は鳴らさない＝止めた音の部屋を起こさない   // 絵の音は、鳴らす前に音の部屋を開ける（開いていないと鳴らなかった 本人 2026-11-01「音がない」）
   const SFX = { buzz: SND((v) => Snd.buzz(v)), jingle: SND(() => [0, 2, 4, 5].forEach((k, i) => setTimeout(() => Snd.jingle(k), i * 120))), stitch: SND((v) => Snd.stitch(v)), chime: SND(() => Snd.chime()), choir: SND((k) => Snd.choir(k)), bell: SND(() => Snd.bell()), boing: SND((k) => Snd.boing(k)), pop: SND(() => Snd.tap()) };
   let VIEW_DZ = null;   // 「他のデザインも見てみる」で選んだ絵（このカードを見ている間だけ。別のカードを出したら、もとの絵に）
   const designOf = (c) => VIEW_DZ || (DZ.includes(c.dz) ? c.dz : RND || (RND = pickDesign('')));
@@ -549,7 +552,7 @@ import { SHOWS } from './theater.js';
   });
   $('#shNative').addEventListener('click', () => { const c = lastCard || state.card || {}; if (navigator.share) navigator.share({ title: c.t || (isG(c) ? TTL_G : TTL0), text: shareText(c).split('\n').slice(1).join('\n'), url: $('#edUrl').value }).catch(() => {}); });
   // LINE の中で開いている時：いつものブラウザで開きなおす（LINE は、アドレスに openExternalBrowser=1 が付いたページを、外のブラウザで開く）
-  if (/Line\//i.test(navigator.userAgent) && PAGES) { $('#lineBox').hidden = false; $('#btnReopen').addEventListener('click', () => { Snd.unlock(); Snd.tap(); const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.href = u.href; }); }
+  if (/Line\//i.test(navigator.userAgent) && PAGES) { $('#lineBox').hidden = false; $('#btnReopen').addEventListener('click', () => { BGM.halt(); Snd.unlock(); Snd.tap(); const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.href = u.href; }); }
   if (PAGES && /[?&]openExternalBrowser=1/.test(location.search)) { try { const u = new URL(location.href); u.searchParams.delete('openExternalBrowser'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ } }   // 開きなおした後は、アドレスを元に
 
   // ---------- このカードの曲：押した人だけ。動画は押すまで読みこまない。流れる間は BGM を止める ----------
@@ -559,6 +562,9 @@ import { SHOWS } from './theater.js';
     if (PAGES) sgV.poster = S.poster; else sgV.removeAttribute('poster'); $('#sgStage').hidden = !PAGES; openSheet(song, songBack); }   // 試作の非公開ページには動画のファイルが無いので、全編のリンクだけ
   $('#sgPlay').addEventListener('click', () => { if (!SONG) return; Snd.unlock(); $('#sgPlay').hidden = true; sgV.src = SONG.clip; sgV.setAttribute('controls', ''); bgmDuck(true); const pr = sgV.play(); if (pr && pr.catch) pr.catch(() => { /* 操作の枠から押せる */ }); });
   sgV.addEventListener('ended', () => { bgmDuck(false); $('#sgFull').classList.add('nudged'); });   // 15秒を見終わったら、全編へ（本人 2026-11-02「動く指の矢印を付けて積極的に押してもらうように」）
+  // 見終わった後に動画の ▶ でもう一度流しても、BGM と重ねない・見えなくなったら動画も止める・全編（別のアプリ・タブ）へ出る時は、その場で止める（戻ってさわると BGM は続きから）
+  sgV.addEventListener('play', () => bgmDuck(true)); document.addEventListener('visibilitychange', () => { if (document.hidden && !sgV.paused) sgV.pause(); });
+  $('#sgFull').addEventListener('click', () => { sgV.pause(); BGM.park(); });
   const closeSong = () => { songReset(); closeSheet(song, songBack); };
   $('#sgX').addEventListener('click', () => { Snd.tap(); closeSong(); }); songBack.addEventListener('click', closeSong);
 
@@ -569,7 +575,7 @@ import { SHOWS } from './theater.js';
   function nudgeShow(q, sub, yes, no, onYes, onNo) { $('#nudgeQ').textContent = q; $('#nudgeS').textContent = sub; $('#nudgeYes').textContent = yes; $('#nudgeNo').textContent = no;
     $('#nudgeYes').onclick = () => { Snd.unlock(); Snd.tap(); nudgeHide(); onYes(); }; $('#nudgeNo').onclick = () => { Snd.tap(); nudgeHide(); onNo(); }; $('#nudge').hidden = false; }   // 出す時に音は鳴らさない（頼まれていない音）
   function nudgeWatch() { clearInterval(NUDGE.poll); clearTimeout(NUDGE.timer); nudgeHide();
-    if (!isG(state.card) || state.sample || state.mine || NUDGE.off) return; NUDGE.seen.add(designOf(state.card));
+    if (!isG(state.card) || state.sample || state.mine || NUDGE.off || !$('#editor').hidden) return; NUDGE.seen.add(designOf(state.card));   // 作る画面で書いている間の見本の絵には、誘いを出さない
     const ask = () => { clearInterval(NUDGE.poll); clearTimeout(NUDGE.timer); const rest = DZ.filter((k) => !NUDGE.seen.has(k)); if (rest.length) askMore(rest); else askTown(true); };
     NUDGE.timer = setTimeout(ask, 45000);
     NUDGE.poll = setInterval(() => { if (G && G.state().done) { clearInterval(NUDGE.poll); clearTimeout(NUDGE.timer); NUDGE.timer = setTimeout(ask, 1800); } }, 500); }   // 最後のお楽しみを見てから

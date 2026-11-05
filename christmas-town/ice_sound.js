@@ -32,7 +32,8 @@ export const grindStart = safe(() => {
 });
 export const grindLevel = safe((k) => { if (!mach) return; const t = ac.currentTime, v = Math.min(1, k); mach.o1.frequency.setTargetAtTime(92 + v * 70, t, 0.08); mach.o2.frequency.setTargetAtTime(185.5 + v * 140, t, 0.08); mach.lp.frequency.setTargetAtTime(1100 + v * 1500, t, 0.08); mach.g.gain.setTargetAtTime(0.06 + v * 0.06, t, 0.06); mach.ng.gain.setTargetAtTime(0.0001 + v * 0.12, t, 0.04); });
 export const grinding = () => !!mach;   // 検査用：機械の音が鳴っているか
-export function grindStop() { if (!mach || !ac) return; const m = mach, t = ac.currentTime; mach = null; try { m.g.gain.setTargetAtTime(0.0001, t, 0.06); m.ng.gain.setTargetAtTime(0.0001, t, 0.04); m.o1.frequency.setTargetAtTime(60, t, 0.15); m.nodes.forEach((n) => n.stop(t + 0.4)); } catch (e) { /* 同上 */ } }
+// 隠れている時は、出口から外してすぐ止める（音の部屋は止まっていて、消えていく尾が、戻った時に鳴ってしまう 2026-11-05）
+export function grindStop() { if (!mach || !ac) return; const m = mach, t = ac.currentTime; mach = null; try { if (document.hidden) { m.g.disconnect(); m.ng.disconnect(); m.nodes.forEach((n) => n.stop()); return; } m.g.gain.setTargetAtTime(0.0001, t, 0.06); m.ng.gain.setTargetAtTime(0.0001, t, 0.04); m.o1.frequency.setTargetAtTime(60, t, 0.15); m.nodes.forEach((n) => n.stop(t + 0.4)); } catch (e) { /* 同上 */ } }
 export const carve = safe((amount = 1) => { const now = performance.now(); if (now - lastCarve < 70) return; lastCarve = now; const t = ac.currentTime; for (let i = 0; i < 2; i++) partial(r(3500, 6500), r(0.008, 0.016) * Math.min(1.3, 0.6 + amount), t + r(0, 0.05), r(0.03, 0.07)); });   // 機械で削れている時のチリチリ
 export const pop = safe(() => { const t = ac.currentTime; glide(r(380, 460), r(820, 940), 0.09, t, 0.16); hiss(0.05, t, 0.05, 'highpass', 5000); [1568, 2349].forEach((f, i) => partial(f, 0.03, t + 0.05 + i * 0.07, 0.8, 0.01)); });   // 宝石が外れる：ポロッ（キラン）
 // 大理石に落ちる：まずドスン（重さ）、硬さ（1〜10）で高さと澄み方が変わるカツーン。strength＝ぶつかる勢い（0〜1）

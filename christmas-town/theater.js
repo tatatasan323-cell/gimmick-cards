@@ -1,7 +1,7 @@
 // 劇場の中＝3つのシアター（本人 2026-10-20「ハロウィンのギミックカードの時のように、中に入ると3つのシアター。3曲ともサビを15秒くらい。下に、MVを一曲全部見るボタン → YouTube」）
 // 港町の劇場からも、はじめの画面の「シアターでMVを見る」からも、同じ画面（#theaterUI）を開く。開いた側が約束（hooks）を渡す：
 //   back＝もどるボタンの字 / onBack＝もどるボタンで閉じる代わりにすること（はじめの画面からは、端末の「戻る」と同じ履歴で）
-//   tap・audio＝音 / duck(true)＝町の BGM を止めたら true を返す・duck(false)＝戻す / onClose＝閉じた後
+//   tap・audio＝音 / duck(true)＝町の BGM を止めたら true を返す・duck(false)＝戻す / leave＝全編へ出る前（BGM をその場で止める） / onClose＝閉じた後
 // 動画は、押すまで読みこまない（通信量・LINE の中でも軽く）。流れている間は町の BGM を止めて、終わったら戻す
 // yt＝YouTube の全編。入れた曲だけ、ボタンが押せる（入れていない曲は「近日公開」）。clip が無い曲は、幕が閉じたまま「準備中」
 export const SHOWS = [
@@ -13,6 +13,8 @@ const $ = (id) => document.getElementById(id);
 const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 let H = {}, ducked = false, wired = false;
 function unduck() { if (ducked && H.duck) H.duck(false); ducked = false; }
+// MV の全編（YouTube・別のタブやアプリ）へ出る時：その場で動画と町の BGM を止める（見えなくなった知らせが来ない画面で、全編と重なった 2026-11-05）
+function leave() { for (const v of $('thList').querySelectorAll('video')) v.pause(); if (H.leave) H.leave(); }
 function reset(v) { if (v._full) v._full.classList.remove('nudged'); v.pause(); v.removeAttribute('src'); v.removeAttribute('controls'); try { v.load(); } catch (e) { /* 読みこむものが無い */ } v.parentElement.querySelector('.play').hidden = false; }
 function stopAll(except) { for (const v of $('thList').querySelectorAll('video')) if (v !== except && v.getAttribute('src')) reset(v); }
 function build() { const L = $('thList'); if (L.childElementCount) return;
@@ -27,7 +29,7 @@ function build() { const L = $('thList'); if (L.childElementCount) return;
     else st.append(mk('div', 'soon', '準備中'));
     tx.append(mk('b', null, S.name), mk('small', null, S.ja + '｜' + S.note));
     let f; if (S.yt) { f = mk('a', 'full', 'MVを一曲ぜんぶ見る ›'); const pt = mk('i', 'pt', '👉'); pt.setAttribute('aria-hidden', 'true'); f.prepend(pt); f.href = S.yt; f.target = '_blank'; f.rel = 'noopener noreferrer'; const v = st.querySelector('video'); if (v) v._full = f; } else { f = mk('span', 'full', S.clip ? 'MVの全編は、近日公開' : '近日公開'); f.setAttribute('aria-disabled', 'true'); }   // 全編へ、動く指で誘う（本人 2026-11-02）
-    c.append(st, tx, f); L.append(c); } }
+    if (S.yt) f.addEventListener('click', leave); c.append(st, tx, f); L.append(c); } }
 export const theaterOpen = () => !$('theaterUI').hidden;
 export const theaterDucked = () => ducked;   // 町の BGM を止めているか（確かめる道具が読む）
 export function openTheater(hooks) { H = hooks || {}; build(); $('thBack').textContent = H.back || '‹ もどる'; $('theaterUI').hidden = false; $('theaterUI').scrollTop = 0;

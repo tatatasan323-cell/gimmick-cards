@@ -379,6 +379,8 @@ function endPtr(e) { const s = ptrs.get(e.pointerId); if (s && s.machine) SND.gr
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => cvs.addEventListener(t, endPtr)); 
 // 最初の1本目が触れた＝ほかの指はもう離れている。前の指の記録が残っていたら捨てる（スマホで「離した」の知らせが来ない時があり、機械の音が止まらなくなった）。画面が隠れた時も（共通/pointers.js）
 guardPointers(cvs, ptrs, () => { ptrs.clear(); SND.grindStop(); });
+// 隠れた時は、指の記録が残っていなくても機械の音を止める（毎コマの見張りは、隠れている間は動かない 2026-11-05）
+document.addEventListener('visibilitychange', () => { if (document.hidden) SND.grindStop(); }); addEventListener('pagehide', () => SND.grindStop());
 cvs.addEventListener('wheel', (e) => { tDist = Math.max(3, Math.min(18, tDist * (1 + Math.sign(e.deltaY) * 0.08))); e.preventDefault(); }, { passive: false });
 
 // ---------- 拾う：名前の札・あつめた数（この端末の中だけに覚える） ----------

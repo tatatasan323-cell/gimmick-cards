@@ -25,11 +25,14 @@ export function makeSound({ gain = 0.9, limiter = null, cap = Infinity, maxF = 1
       end.connect(ac.destination);
       if (meter) { mPre = ac.createAnalyser(); mPre.fftSize = 2048; out.connect(mPre); mPost = ac.createAnalyser(); mPost.fftSize = 2048; end.connect(mPost); }
     }
-    if (ac.state !== 'running') ac.resume();
+    if (ac.state !== 'running' && !document.hidden) ac.resume();
     return ac;
   }
-  const kick = () => { if (ac && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* 音が出なくても遊べる */ } } };
+  const kick = () => { if (ac && ac.state !== 'running' && !document.hidden) { try { ac.resume(); } catch (e) { /* 音が出なくても遊べる */ } } };
   for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, kick, { capture: true, passive: true });
+  // 画面が隠れたら音の部屋を止め、見えたら動かす（部屋のページは止めておらず、予約した音の尾が裏で鳴った。隠れている間に鳴らす音は、上で部屋を起こさない 2026-11-05）
+  const hush = () => { if (!ac) return; try { if (document.hidden) ac.suspend(); else ac.resume(); } catch (e) { /* 同上 */ } };
+  document.addEventListener('visibilitychange', hush); addEventListener('pageshow', hush); addEventListener('pagehide', () => { if (ac) { try { ac.suspend(); } catch (e) { /* 同上 */ } } });
   const S = {
     audio, running, room, track, live: () => running() && room(), voices: () => act,
     get ac() { return ac; }, get out() { return out; },

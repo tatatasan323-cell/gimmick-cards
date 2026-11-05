@@ -495,7 +495,7 @@ for (let i = 0; i < MAXF; i++) { FR.setMatrixAt(i, ZERO); FR.setColorAt(i, WHITE
 // 台座はなし（本人 2026-10-17：台が大きすぎて、横のベンチとの間が通れなかった）。両端のとがった六角の水晶が、床から浮いてゆっくり回る
 // 触ると、新しい色が下から上へ流れて全体が染まり、内側がふわっと光って、ワルツが静かに1節。しばらくすると上から透明へ戻る（触るたびに次の色）
 // なかなか割れない（4回つづけて触っても平気）。長く押し続けると軋み、床へ落ちて砕ける＝衝撃で、まわりの展示もツリーも崩れる。しばらくすると、かけらが宙へ集まってよみがえる
-const CRY = { x: 0, z: -2.4, y0: 0.75, top: 0.4, h: 2.05, state: 'ok', stress: 0, taps: [], pressing: false, rot: 0, t: 0, glow: 0, notes: 0, falls: 0, restores: 0, quake: 0, lastTap: -99, auto: 0, creakK: 0, vy: 0, tilt: 0, dir: new THREE.Vector3(),
+const CRY = { x: 0, z: -2.4, y0: 0.75, top: 0.4, h: 2.05, state: 'ok', stress: 0, taps: [], pressing: false, rot: 0, t: 0, glow: 0, notes: 0, falls: 0, restores: 0, quake: 0, lastTap: -99, auto: 0, autoN: 0, creakK: 0, vy: 0, tilt: 0, dir: new THREE.Vector3(),
   ci: -1, from: new THREE.Color(1, 1, 1), to: new THREE.Color(1, 1, 1), front: 9, up: true, hold: 0 };
 const cryG = new THREE.Group(), cryPivot = new THREE.Group(), crySpin = new THREE.Group(); cryG.position.set(CRY.x, 0, CRY.z); scene.add(cryG); cryG.add(cryPivot); cryPivot.add(crySpin); cryPivot.position.y = CRY.y0;
 // 水晶：下の先 → 六角の柱（少しふくらむ）→ 上の先。面は平ら（光が面で折れて、中で跳ね返る）。色は頂点ごと（流れる色に使う）
@@ -556,8 +556,9 @@ function stepCrystal(dt, now) {
     if (CRY.pressing) { CRY.stress += dt * 0.16; for (const th of [0.5, 0.65, 0.8, 0.92]) if (CRY.stress >= th && CRY.creakK < th) { CRY.creakK = th; SND.creakBig(th); } if (CRY.stress >= 1) { crystalTopple(); for (const s of ptrs.values()) if (s.crystal) s.mode = 'none'; } }
     else { CRY.stress = Math.max(0, CRY.stress - dt * 0.04); if (CRY.stress < 0.45) CRY.creakK = 0; }
     CRY.rot += dt * 0.12; cryPivot.position.y = CRY.y0 + Math.sin(now * 0.8) * 0.05; crySpin.rotation.set(Math.sin(now * 23) * 0.012 * CRY.stress * CRY.stress, CRY.rot, Math.sin(now * 19) * 0.012 * CRY.stress * CRY.stress);
-    // 近くにいると、ひとりでに小さく奏でる（触ってからしばらくは、触った曲のまま）
-    if (Math.hypot(cam.position.x - CRY.x, cam.position.z - CRY.z) < 5 && now - CRY.lastTap > 8 && (CRY.auto -= dt) <= 0) { CRY.auto = 7; SND.crystalPhrase(0.35); CRY.glow = Math.max(CRY.glow, 0.35); }
+    // 近くにいると、ひとりでに小さく奏でる（触ってからしばらくは、触った曲のまま）。近づくたびに2節まで（前は7秒ごとに終わりなく続き、4節の曲がくり返して BGM が止まらないように聞こえた 本人 2026-11-05）。離れたら数え直す
+    const cryD = Math.hypot(cam.position.x - CRY.x, cam.position.z - CRY.z); if (cryD > 6.5) { CRY.autoN = 0; CRY.auto = 0; }
+    if (cryD < 5 && CRY.autoN < 2 && now - CRY.lastTap > 8 && (CRY.auto -= dt) <= 0) { CRY.auto = 7; CRY.autoN++; SND.crystalPhrase(0.35); CRY.glow = Math.max(CRY.glow, 0.35); }
     // 色の流れ：上へ流れきったら、しばらくそのまま → 上から透明へ戻る
     if (CRY.front < CRY.h + 0.4) { CRY.front += dt * (CRY.up ? 2.2 : 1.1); tintCrystal(); if (CRY.front >= CRY.h + 0.4 && !CRY.up) { CRY.from.copy(CRY.to); CRY.front = 9; } }
     else if (CRY.hold > 0 && (CRY.hold -= dt) <= 0) { cryNow(CRY.from); CRY.to.setRGB(1, 1, 1); CRY.up = false; CRY.front = -0.4; }
@@ -891,10 +892,12 @@ function stepCandles(dt, now) {
 }
 // ---------- 照明（4）ときどき、宝石が自分で光り輝く（ふくらんで、ゆらいで、消える。となりの宝石へ光がうつることも） ----------
 const GLOW_L = new THREE.PointLight('#ffffff', 0, 3.6, 1.6); scene.add(GLOW_L);
-const GLOW = { next: 2.5, on: [], n: 0 };
+const GLOW = { next: 2.5, on: [], n: 0 }, GLOW_P = new THREE.Vector3();
+let ACT_T = 0; for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { ACT_T = nowS(); }, { capture: true, passive: true });   // 最後にさわった時刻（ひとりでに鳴る音は、さわってから20秒まで）
 function startGlow(ex, hops) { if (!document.hidden) gdone('gemGlow');
   if (!ex || ex.state !== 'ok' || ex.glowT != null || !ex.gem.group.visible) return; ex.glowT = 0; ex.glowHops = hops; ex.glowPassed = false; GLOW.on.push(ex); GLOW.n++;
-  ex.glowC = ex.glowC || new THREE.Color(GLOWC[ex.spec.id] || ex.spec.color).lerp(WHITE, 0.2); SND.shimmer();
+  ex.glowC = ex.glowC || new THREE.Color(GLOWC[ex.spec.id] || ex.spec.color).lerp(WHITE, 0.2);
+  if (holderW(ex, GLOW_P).distanceTo(cam.position) < 5 && nowS() - ACT_T < 20) SND.shimmer();   // 音は近くの宝石・さわってから20秒の時だけ（ホールのどこにいても4〜8秒ごとに鳴りつづけた 2026-11-05）。光は続ける
 }
 function stepGlow(dt) {
   if ((GLOW.next -= dt) <= 0) { GLOW.next = rnd(4, 8); const c = exhibits.filter((e) => e.state === 'ok' && e.glowT == null && e.gem.group.visible); if (c.length) startGlow(c[(Math.random() * c.length) | 0], Math.random() < 0.45 ? 2 : 0); }
@@ -1032,7 +1035,7 @@ function stepFly(dt) {
     const J = Math.max(-vn * 0.9, 0.7); P.v.addScaledVector(N, -J); Q.v.addScaledVector(N, J);   // はじき合う（ゆっくりでも、見て分かる強さで）
     for (const F of [P, Q]) for (let k = 0; k < 3; k++) F.ph[k] += rnd(0.25, 0.45) * (Math.random() < 0.5 ? -1 : 1);   // 軌道がずれる（同じ所でまたぶつからない）
     FLYB.n++; A.copy(P.p).lerp(Q.p, 0.5); for (let k = 0; k < 6; k++) put(GLINT, V1.copy(A).add(V2.set(rnd(-0.15, 0.15), rnd(-0.15, 0.15), rnd(-0.15, 0.15))), WHITE, 0.9);
-    SND.clink(Math.max(a.spec.hard, b.spec.hard), Math.min(1, 0.35 + -vn * 0.25)); }
+    if (performance.now() - (FLYB.ct || 0) > 150 && nowS() - ACT_T < 20) { FLYB.ct = performance.now(); SND.clink(Math.max(a.spec.hard, b.spec.hard), Math.min(1, 0.35 + -vn * 0.25)); } }   // 鳴らすのは0.15秒に1回まで・さわってから20秒まで（宝石は宙を回りつづけ、軌道が交わるたびに鳴りつづけた 2026-11-05）
   for (const ex of L) ex.grp.position.copy(ex.fly.p);
 }
 // 1コマの中身。次のコマを先に頼む・早いコマは返す・1コマのエラーで止めない（つかんだ指を片付けて立て直す）は、共通/loop.js

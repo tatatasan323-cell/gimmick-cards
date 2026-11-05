@@ -36,10 +36,14 @@ export function mountGreet(host, id, sfx = {}) {
   const loop = (now) => { if (!alive) return; if (slow && now - last < 31) { raf = requestAnimationFrame(loop); return; } last = now; paint(now); raf = D.busy(now / 1000) ? requestAnimationFrame(loop) : 0; };
   const kick = () => { if (!raf && alive) raf = requestAnimationFrame(loop); };
   const fit = () => { const w = host.clientWidth || W; dpr = Math.min(2, devicePixelRatio || 1); k = w / W; cv.width = Math.round(w * dpr); cv.height = Math.round((w * H / W) * dpr); cv.style.height = Math.round((w * H) / W) + 'px'; paint(performance.now()); };
-  const tap = () => { if (!ready) return; D.tap(performance.now() / 1000, sfx); hint.classList.add('bye'); kick(); };   // MV の人物を読み終えるまでは進めない
+  // 音は、この絵が出ている間・見えている間だけ（押した後の予約の音が、別の絵に切りかえた後や、隠れた後にも鳴った 2026-11-05）
+  const sx = {}; for (const n of Object.keys(sfx)) sx[n] = (...a) => { if (alive && !document.hidden) sfx[n](...a); };
+  // ときどきの動きの音は、さわってから25秒のうちに3回まで。光の動きは続ける（ネオンの「ジジッ」が、開いている限り鳴りつづけた）
+  let tapT = -1e9, ambN = 0; const ax = {}; for (const n of Object.keys(sfx)) ax[n] = (...a) => { if (ambN < 3 && performance.now() - tapT < 25000) { ambN++; sx[n](...a); } };
+  const tap = () => { if (!ready) return; tapT = performance.now(); ambN = 0; D.tap(performance.now() / 1000, sx); hint.classList.add('bye'); kick(); };   // MV の人物を読み終えるまでは進めない
   cv.addEventListener('click', tap); cv.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(); } });
   const ro = new ResizeObserver(fit); ro.observe(host); fit();
   if (D.ready) D.ready.then(() => { ready = true; if (alive) kick(); }, () => { ready = true; });   // 読めない時も、人物なしで進められるように
-  const amb = D.ambient ? setInterval(() => { if (alive && ready && !document.hidden && D.ambient(performance.now() / 1000, sfx)) kick(); }, 500) : 0;   // 止まっている間の、ときどきの動き（ネオンのまたたき・雪 など）
+  const amb = D.ambient ? setInterval(() => { if (alive && ready && !document.hidden && D.ambient(performance.now() / 1000, ax)) kick(); }, 500) : 0;   // 止まっている間の、ときどきの動き（ネオンのまたたき・雪 など）
   return { id, tap, state: () => ({ id, ready, step: D.S.step, total: D.S.total, done: D.S.done }), destroy() { alive = false; cancelAnimationFrame(raf); clearInterval(amb); ro.disconnect(); host.textContent = ''; } };
 }

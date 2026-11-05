@@ -31,7 +31,10 @@ function player() {
   el.addEventListener('timeupdate', () => { if (el.currentTime + 1 < lastT) loops++; lastT = el.currentTime; });
   el.addEventListener('ended', () => { if (wanted && medley) next(); });
   return el; }
-const play = () => { if (!el || !wanted) return; const p = el.play(); if (p && p.catch) p.catch(() => { /* さわった時に、もう一度 */ }); };
+// 見えていない間は鳴らさない（メドレーの次の曲・動画の後の戻り・効果音が音の部屋を起こした時に、裏で鳴りだした 2026-11-05）
+// refused＝再生を断られた（スマホの自動再生の決まり）・parked＝別のタブやアプリへ出る前に止めた。どちらも、次にさわった時に鳴らし直す
+let refused = false, parked = false;
+const play = () => { if (!el || !wanted || document.hidden) return; refused = parked = false; const p = el.play(); if (p && p.catch) p.catch(() => { refused = true; }); };
 // 曲を頭から鳴らす（0.3秒で大きくなる＝合成の版と同じ入り方）
 function begin(id, at = 0, n = 0) { player(); cur = id; gen++; loops = n; lastT = at; switching = false; const src = `bgm_${id}.m4a`;
   if (!el.src.endsWith(src)) el.src = src; el.currentTime = at;   // 読みこむ前に入れても、読みこんだ所から
@@ -45,13 +48,23 @@ function stop() { if (el && live) resume = { id: cur, t: el.currentTime, loops }
   live = false; gen++; switching = false; if (watch) { clearInterval(watch); watch = null; } if (!el) return; const g = gen; ramp(0, 0.45, () => { if (g === gen && !wanted) el.pause(); }); }
 // 音の部屋（AudioContext）が止まった時（見えていない・ほかの港町の画面が鳴りはじめた）は、BGM も止める。動きだしたら続きから
 function follow() { if (!ctx || !el) return; if (ctx.state === 'running') { if (wanted && el.paused && !switching) play(); } else if (!el.paused) el.pause(); }
-// 一度止められた再生（スマホの自動再生の決まり）は、次にさわった時に、もう一度
-addEventListener('pagehide', () => { if (!el || !live) return; try { sessionStorage.setItem(KEEP, JSON.stringify({ id: cur, t: +el.currentTime.toFixed(2), loops })); } catch (e) { /* 同上 */ } });
-addEventListener('pointerup', () => { if (wanted && el && el.paused && !switching && (!ctx || ctx.state === 'running')) play(); }, { capture: true });
+// 隠れた・ページを離れる・凍る時は、その場で再生器を止める（音の部屋が止まった知らせは後から来る。Android は再生器が Web Audio を通らないので、知らせの前に凍ると鳴りつづけうる）。見えたら続きから
+const quiet = () => { if (el && !el.paused) el.pause(); };
+const wake = () => { if (!document.hidden && wanted && live && !parked && el && el.paused && !switching && (!ctx || ctx.state === 'running')) play(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) quiet(); else wake(); });
+addEventListener('freeze', quiet); addEventListener('pageshow', (e) => { if (e.persisted) wake(); });
+// ページをまたぐ位置：止めていた時も、止めた所を書く（前は鳴っている時だけ書き、止めてから移ると、前に書いた古い位置から聞き直した）
+addEventListener('pagehide', () => { quiet(); if (!el) return; const v = live ? { id: cur, t: +el.currentTime.toFixed(2), loops } : resume; if (!v) return; try { sessionStorage.setItem(KEEP, JSON.stringify(v)); } catch (e) { /* 同上 */ } });
+// 鳴らし直すのは、断られた時と、出る前に止めた時だけ（端末が止めた時＝通知・イヤホンを抜いた等は、さわっても勝手に鳴らさない）
+addEventListener('pointerup', () => { if ((refused || parked) && wanted && live && el && el.paused && !switching && !document.hidden && (!ctx || ctx.state === 'running')) { parked = false; play(); } }, { capture: true });
 export const BGM = {
   tracks: Object.keys(TRACKS).map((id) => ({ id, name: TRACKS[id].name, desc: TRACKS[id].desc })),
   // ac＝効果音と同じ音の部屋（最初のタップで作られる。iPhone の音量と、止める・動かすを合わせるのに使う）。on＝鳴らすか
-  set(ac, on) { if (ac && ac !== ctx) { ctx = ac; ctx.addEventListener('statechange', follow); } wanted = !!on; if (on) { if (ctx && ctx.state !== 'running') ctx.resume(); start(); } else stop(); },
+  set(ac, on) { if (ac && ac !== ctx) { ctx = ac; ctx.addEventListener('statechange', follow); } wanted = !!on; if (on) { if (ctx && ctx.state !== 'running' && !document.hidden) ctx.resume(); start(); } else stop(); },
+  // 別のブラウザで開きなおす前：その場で止め、このページでは鳴らさない（LINE の中のページは裏に残り、開きなおした先で止めても鳴りつづけた 2026-11-05）
+  halt() { wanted = false; stop(); quiet(); },
+  // 別のタブ・アプリへ出るリンク（MV の全編）：その場で止め、戻って次にさわった時に続きから（見えなくなった知らせが来ない画面がある）
+  park() { if (!wanted || !el || el.paused) return; parked = true; quiet(); },
   get on() { return wanted; }, get track() { return cur; },
   get volume() { return vol; }, setVolume(v) { vol = Math.max(0, Math.min(1.5, v)); level(); },
   // メドレー（オンにすると、曲が終わるたびに、ほかの曲へランダムに変わる）。onChange＝曲が変わった時に呼ぶ（メニューの表示を合わせる）

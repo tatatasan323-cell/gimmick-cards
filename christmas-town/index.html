@@ -852,7 +852,11 @@ await BG.y(); const SWIRL_N = 420, swirlPos = new Float32Array(SWIRL_N * 3), swi
 const swirlG = new THREE.BufferGeometry(); swirlG.setAttribute('position', new THREE.BufferAttribute(swirlPos, 3)); swirlG.setAttribute('color', new THREE.BufferAttribute(swirlCol, 3));
 const SWIRL = new THREE.Points(swirlG, new THREE.PointsMaterial({ map: glowTex, size: 1.1, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); SWIRL.frustumCulled = false; SWIRL.visible = false; scene.add(SWIRL);
 let RESTORING = -1;
-function startRestore(i) { const S = MTN_ST[i], M = MOUNTS[i]; S.rest = { t: 0, order: EAT.list.filter((D) => D.i === i).sort((a, b) => a.c.y - b.c.y), slices: M.cake ? M.back.splice(0) : [], grown: 0 }; RESTORING = i; SND.mtnRestore(); SWIRL.visible = true; for (const F of FLAKES) F.visible = true; }
+// 戻る時の上がっていく旋律は、見えている時・さわってから20秒のうち・前の旋律から30秒あいた時だけ。ほかは光と渦だけ（かじった山の数だけ同じ旋律が続けて鳴り、BGM がくり返して止まらないように聞こえた 2026-11-05）
+let RESTORE_SND = -99; const SEEN_P = new THREE.Vector3();
+const seen = (x, y, z) => { SEEN_P.set(x, y, z).project(cam); return SEEN_P.z < 1 && Math.abs(SEEN_P.x) < 1.1 && Math.abs(SEEN_P.y) < 1.1; };
+function restoreSound(x, y, z) { const n = nowS(); if (!seen(x, y, z) || n - ACT_T > 20 || n - RESTORE_SND < 30) return false; RESTORE_SND = n; SND.mtnRestore(); return true; }
+function startRestore(i) { const S = MTN_ST[i], M = MOUNTS[i]; S.rest = { t: 0, order: EAT.list.filter((D) => D.i === i).sort((a, b) => a.c.y - b.c.y), slices: M.cake ? M.back.splice(0) : [], grown: 0 }; RESTORING = i; S.rest.snd = restoreSound(M.x, M.y + M.yMax * 0.5, M.z); SWIRL.visible = true; for (const F of FLAKES) F.visible = true; }
 function stepRestore(dt, now) {
   if (RESTORING < 0) { for (let i = 0; i < MTN_ST.length; i++) { const S = MTN_ST[i]; if (!S.eaten || S.spoon || SPOON.i === i) continue; if (now - Math.max(S.last, S.spoonEnd || -99) > (S.spoonEnd > S.last ? 9 : 16)) { startRestore(i); break; } } return; }
   const i = RESTORING, M = MOUNTS[i], S = MTN_ST[i], R = S.rest, n = R.order.length, ease = (u) => u * u * (3 - 2 * u); R.t += dt; const t = R.t, front = clamp((t - 0.3) / 5.6, 0, 1);
@@ -868,7 +872,7 @@ function stepRestore(dt, now) {
   FLAKES.forEach((F, k) => { const t0 = 0.2 + k * 0.75, u = clamp((t - t0) / 1.6, 0, 1), yRel = (k / (FLAKES.length - 1)) * M.yMax * 0.95, a = k * 2.3; F.position.set(M.x + Math.cos(a) * (mtnR(M, yRel) + 2.5), M.y + yRel + 1, M.z + Math.sin(a) * (mtnR(M, yRel) + 2.5));
     F.scale.setScalar((3 + M.R * 0.25) * (0.4 + 0.6 * ease(Math.min(1, u * 2)))); F.material.rotation = t * 0.8 + k; F.material.opacity = Math.sin(u * Math.PI) * 0.95; });
   if (t > 7) { for (const D of EAT.list.filter((D) => D.i === i)) dropDent(D); EAT.on[i] = EAT.list.some((D) => D.i === i) ? 1 : 0; for (const k of R.slices) M.ws[k] = M.wsT[k] = 1;
-    S.rest = null; S.taps = 0; S.eaten = false; S.spoonEnd = 0; RESTORING = -1; SWIRL.visible = false; for (const F of FLAKES) { F.visible = false; F.material.opacity = 0; } counts.mtnBack++; SND.chime(5); } }
+    S.rest = null; S.taps = 0; S.eaten = false; S.spoonEnd = 0; RESTORING = -1; SWIRL.visible = false; for (const F of FLAKES) { F.visible = false; F.material.opacity = 0; } counts.mtnBack++; if (R.snd) SND.chime(5); } }
 function stepMtn(dt) { const now = nowS();
   for (const D of EAT.list) { D.t += dt; const g = D.grow > 0 ? Math.min(1, D.t / D.grow) : 1; EAT.dent[D.slot].set(D.c.x, D.c.y, D.c.z, D.r * g * D.k); } packEat();
   stepSpoon(dt); stepFork(dt); stepCakes(); stepRestore(dt, now); }
@@ -1091,7 +1095,7 @@ const TH = { open: false };
 const setPlace = (p) => { try { sessionStorage.setItem('xmas-place', p); } catch (e) { /* 覚えておけない時は、戻るとはじめの画面 */ } };
 function openTheaterUI(fromTop) { card.hidden = true; TH.open = true; use('theater'); SND.tap(); setPlace(fromTop ? 'top-theater' : 'town-theater'); try { history.pushState({ th: 2 }, ''); } catch (e) { /* 別の枠の中 */ }
   openTheater({ back: fromTop ? '‹ もどる' : '‹ 港町へもどる', onBack: () => history.back(), tap: () => SND.tap(), audio: () => SND.audio(), onClose: () => { TH.open = false; setPlace(fromTop ? 'top' : 'town'); if (fromTop) $('start').hidden = false; },
-    duck: (on) => { if (!on) { if (PREF.bgm) BGM.set(SND.audio(), true); return false; } if (!(PREF.bgm && soundStarted)) return false; BGM.set(SND.audio(), false); return true; } }); }
+    duck: (on) => { if (!on) { if (PREF.bgm) BGM.set(SND.audio(), true); return false; } if (!(PREF.bgm && soundStarted)) return false; BGM.set(SND.audio(), false); return true; }, leave: () => BGM.park() }); }
 addEventListener('popstate', () => { if (TH.open && theaterOpen()) closeTheater(); });
 // 郵便局（クリスマスカードへ）＋赤いポスト（豆知識）
 let POSTBOX = null;
@@ -1265,7 +1269,7 @@ function stepPicks(dt) { const ease = (u) => u * u * (3 - 2 * u);
       for (const o of [P.g, P.pk]) { o.position.set(H.x, (o === P.g ? H.o.y : P.y0) + up, H.z); } P.g.rotation.y = P.spin * u * 3; P.pk.rotation.y += dt * P.spin * 3 * (u < 1 ? 1 : 0); P.g.scale.setScalar(sc); P.pk.scale.setScalar(P.s * sc);
       if (Math.random() < 0.5 * (1 - u)) crumbs(V4.set(H.x, H.o.y + up + rnd(0, H.o.h), H.z), 2, null, H.r * 0.5);
       if (u >= 1) { P.st = 'gone'; SND.skyBite(); spill(V4.set(H.x, H.o.y + up + 2, H.z), '#fff2c0', 40, 3); scene.remove(P.pk); P.g.visible = false; } }
-    else if (P.st === 'gone') { if (t > 24) { P.st = 'back'; P.tb = 0; P.g.visible = true; P.g.rotation.set(0, 0, 0); P.g.position.set(H.x, H.o.y, H.z); P.g.scale.setScalar(0.01); SND.mtnRestore(); } }
+    else if (P.st === 'gone') { if (t > 24) { P.st = 'back'; P.tb = 0; P.g.visible = true; P.g.rotation.set(0, 0, 0); P.g.position.set(H.x, H.o.y, H.z); P.g.scale.setScalar(0.01); restoreSound(H.x, H.o.y, H.z); } }
     else { P.tb += dt; const u = Math.min(1, P.tb / 1.6), e = 1 - Math.exp(-6 * u) * Math.cos(u * 14);   // ぷるんと元の大きさへ
       P.g.scale.set(Math.max(0.01, e), Math.max(0.01, e * (1 + 0.15 * Math.sin(u * 20) * (1 - u))), Math.max(0.01, e)); if (Math.random() < 0.6) spill(V4.set(H.x + rnd(-H.r, H.r), H.o.y + rnd(0, H.o.h + H.o.rh), H.z + rnd(-H.r, H.r)), '#fff2c0', 1, 0.2);
       if (u >= 1) { houseRestore(H); P.g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); }); scene.remove(P.g); H.away = false; PICKS.splice(i, 1); SND.chime(4); counts.pickBack++; } } } }
@@ -1484,7 +1488,8 @@ function puyoAway(q, nx, nz, push) { const b = q.b, P = b.grp.position; P.x += n
     if (Math.hypot(tx - b.home[0], tz - b.home[1]) < far && !inWater(tx, tz) && clearAt(b, tx, tz, b.r)) { b.tgt = [tx, tz]; b.hops = 1; b.next = Math.min(b.next, 0.25); return true; } }
   return false; }
 function gbTurn(b, now) { if (now - (b.turned || -9) < 1.5) return; b.turned = now; b.back = !b.back; b.shake = Math.max(b.shake, 0.5); }
-function bumpSound(x, z, kind) { const now = performance.now(); if (now - CROWD.snd < 250 || Math.hypot(x - cam.position.x, z - cam.position.z) > 14) return; CROWD.snd = now; if (kind === 'gb') SND.tap(); else SND.boing(0.5); }
+// 住人は歩きつづけるので、ぶつかる音を鳴らすのは、さわってから20秒まで（2026-11-05）
+function bumpSound(x, z, kind) { const now = performance.now(); if (now - CROWD.snd < 250 || Math.hypot(x - cam.position.x, z - cam.position.z) > 14 || nowS() - ACT_T > 20) return; CROWD.snd = now; if (kind === 'gb') SND.tap(); else SND.boing(0.5); }
 function crowd(dt) { if (CROWD.off) return; const A = crowdAgents(), now = timeU.value, lead = A.find((q) => q.k === 'luc');
   // 行列の先頭の前（進む向きに0.7m）がつかえていたら、止まって待つ。つかえた相手は道を空ける
   if (lead) { const a = LUC.a; LUC_DIR.set(-Math.sin(a) * 3.6, Math.cos(a) * 3.0).normalize(); const fx = lead.x + LUC_DIR.x * 0.7, fz = lead.z + LUC_DIR.y * 0.7;
@@ -1496,7 +1501,7 @@ function crowd(dt) { if (CROWD.off) return; const A = crowdAgents(), now = timeU
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { const a = A[i], b = A[j]; if (a.k === 'luc' && b.k === 'luc') continue;
     const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), R = a.r + b.r; if (d >= R) continue; const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0, o = R - d;   // n＝a から b へ
     const key = a.b.id ?? (a.b.id = Math.random()), key2 = b.b.id ?? (b.b.id = Math.random()), pair = key < key2 ? key + '|' + key2 : key2 + '|' + key, fresh = !(CROWD.touch && CROWD.touch.has(pair)); (CROWD.next || (CROWD.next = new Set())).add(pair);
-    if (fresh) { CROWD.bumps++; bumpSound((a.x + b.x) / 2, (a.z + b.z) / 2, a.k === 'gb' && b.k === 'gb' ? 'gb' : 'puyo'); }
+    if (fresh) { CROWD.bumps++; const pt = CROWD.pt || (CROWD.pt = new Map()), ms = performance.now(); if (ms - (pt.get(pair) || -1e9) > 1200) { pt.set(pair, ms); bumpSound((a.x + b.x) / 2, (a.z + b.z) / 2, a.k === 'gb' && b.k === 'gb' ? 'gb' : 'puyo'); } }   // 同じ組は1.2秒あける（触れては離れるをくり返すと、ぽよんが鳴りつづけうる 2026-11-05）
     if (a.k === 'luc' || b.k === 'luc') { const q = a.k === 'luc' ? b : a, L = q === b ? a : b, s = q === b ? 1 : -1; LUC.wait = Math.max(LUC.wait, 0.35);   // 行列は動かない。相手がよける
       if (q.k === 'puyo') puyoAway(q, nx * s, nz * s, o);
       // 住人は、行列から遠ざかる向きへ急いで歩く。ほかの住人やぷよのせいで「待ち」になっていても、行列が先（引き返すだけでは、待ちのまま触れ続けて、行列と住人が互いに待って止まった 2026-10-18）
@@ -1632,7 +1637,9 @@ const fwG = new THREE.BufferGeometry(); fwG.setAttribute('position', new THREE.B
 const fw = new THREE.Points(fwG, new THREE.PointsMaterial({ map: glowTex, size: 0.75, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fw.frustumCulled = false; scene.add(fw);
 // map＝「きろく」に残す回数（この端末に、ずっと足していく）
 const counts = gcount({ candyPiece: 0, boing: 0, crunch: 0, chime: 0, focus: 0, waves: 0, flights: 0, teddy: 0, santa: 0, rockets: 0, shows: 0, bites: 0, gbGone: 0, gbBack: 0, traces: 0, treeTaps: 0, pulls: 0, tips: 0, tipGo: 0, heals: 0, cotton: 0, angels: 0, angelBack: 0, steps: 0, bells: 0, menus: 0, lamps: 0, lampBack: 0, mtnBites: 0, spoons: 0, mtnBack: 0, forks: 0, cakeBites: 0, gold: 0, silver: 0, lhBites: 0, lhDown: 0, lhBack: 0, picks: 0, pickBack: 0, flicks: 0, candyEat: 0, collide: 0, housePush: 0 }, { bites: 'house', crunch: 'gbBite', gbGone: 'gbEat', mtnBites: 'mtn', spoons: 'spoon', cakeBites: 'cake', forks: 'fork', gold: 'gold', silver: 'silver', lhBites: 'lhBite', lhDown: 'lhDown',
-  lamps: 'lamp', picks: 'pick', candyEat: 'candyBite', candyPiece: 'candyPiece', flicks: 'flick', steps: 'snow', shows: 'fireworks', bells: 'bell', angels: 'angel', waves: 'wave' }); let STEP_T = 0;
+  lamps: 'lamp', picks: 'pick', candyEat: 'candyBite', candyPiece: 'candyPiece', flicks: 'flick', steps: 'snow', shows: 'fireworks', bells: 'bell', angels: 'angel', waves: 'wave' }); let STEP_T = 0; const STEP_P = new THREE.Vector3(NaN, 0, 0);   // 前のコマの位置（はじめは無し＝NaN で、最初のコマは鳴らさない）
+// 最後にさわった時刻。降りつづける飴の雨の「カツッ」は、さわってから20秒まで（飴工房を開いた後は、ずっと鳴りつづけた 2026-11-05）。飴は降りつづける
+let ACT_T = 0; for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { ACT_T = nowS(); }, { capture: true, passive: true });
 // 光の波：s＝強さ（タップは1・なぞった跡は0.55）。触れるたびに花火の「たまり」が増え、たまると、ときどき盛大に上がる（毎回は上がらない）
 function seaWave(x, z, s = 1) { WAVES[wi].set(x, z, timeU.value, s); wi = (wi + 1) % WAVES.length; syncWaves(); aurBoost = Math.max(aurBoost, s); if (s >= 1) SND.wave(); else SND.ripple(); counts.waves++;
   fwEnergy += s; if (fwEnergy >= FW.need && timeU.value - lastShow > 12 && Math.random() < FW.chance) { fwEnergy = 0; lastShow = timeU.value; grandShow(x, z); } }
@@ -1705,7 +1712,7 @@ function stepRain(dt, t) {
     for (let i = R.list.length - 1; i >= 0; i--) { const c = R.list[i]; c.t += dt; const wl = c.w.length(); if (wl > 1e-4 && c.st === 'fall') c.q.premultiply(QQ2.setFromAxisAngle(V2.copy(c.w).multiplyScalar(1 / wl), wl * dt));
       const wet = inWater(c.p.x, c.p.z), g = (wet ? WATER_Y + waveH(c.p.x, c.p.z, t) : surfaceAt(c.p.x, c.p.z)) + c.s * R.half * (wet ? 0.3 : 1);
       if (c.st === 'fall') { c.v.y = Math.max(c.v.y - 7 * dt, -6); c.p.addScaledVector(c.v, dt);
-        if (c.p.y < g) { c.p.y = g; if (c.v.y < -1.5 && !wet) { c.v.y = -c.v.y * 0.3; c.v.x *= 0.5; c.v.z *= 0.5; c.w.multiplyScalar(0.5); if (cam.position.distanceToSquared(c.p) < 200) SND.candyClack(0.35); } else { c.st = 'rest'; c.t = 0; c.v.set(0, 0, 0); c.wet = wet; } } }
+        if (c.p.y < g) { c.p.y = g; if (c.v.y < -1.5 && !wet) { c.v.y = -c.v.y * 0.3; c.v.x *= 0.5; c.v.z *= 0.5; c.w.multiplyScalar(0.5); if (cam.position.distanceToSquared(c.p) < 200 && nowS() - ACT_T < 20) SND.candyClack(0.35); } else { c.st = 'rest'; c.t = 0; c.v.set(0, 0, 0); c.wet = wet; } } }
       else if (c.st === 'rest') { c.p.y = g; const a = V2.copy(R.thin).applyQuaternion(c.q); if (a.y < 0) a.negate(); c.q.premultiply(QQ2.setFromUnitVectors(a, V3.copy(a).lerp(V4.set(0, 1, 0), 1 - Math.exp(-dt * 6)).normalize()));   // 薄い向きを上へ（横に寝る）
         if (c.wet) c.p.x += Math.sin(t * 0.7 + i) * dt * 0.2; if (c.t > (c.wet ? 6 : c.life)) { c.st = 'melt'; c.t = 0; } }
       else if (c.t > 3) { R.list.splice(i, 1); continue; } }
@@ -1951,7 +1958,8 @@ const hideHint = () => { $('hint').style.opacity = 0; };
 let repOK = false;
 addEventListener('keydown', (e) => { const k = KEYMAP[e.code]; if (!k || onTop()) return; e.preventDefault(); const h = held.get(e.code); if (e.repeat || h) repOK = true; held.set(e.code, { k, t: nowS(), rep: !!h || e.repeat }); lastKey = e.code; auto = null; lookT = nowS(); hideHint(); });
 addEventListener('keyup', (e) => { held.delete(e.code); if (lastKey === e.code) lastKey = null; });
-addEventListener('blur', () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); });
+{ const letGo = () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); };   // 窓を離れた・画面が隠れた・ページを離れる時は、スティックと指を放す（隠れる間に離した知らせが落ちると、戻った後も飛びつづけた 2026-11-05）
+  addEventListener('blur', letGo); addEventListener('pagehide', letGo); document.addEventListener('visibilitychange', () => { if (document.hidden) letGo(); }); }
 guardContext(cvs, { onLost: () => { held.clear(); joy.x = joy.y = 0; ud.v = 0; ptrs.clear(); } });
 const keyOn = (k) => { for (const v of held.values()) if (v.k === k) return 1; return 0; };
 { const J = $('joy'), K = $('knob'), setK = (x, y) => { K.style.transform = `translate(${x * 39}px, ${y * 39}px)`; };
@@ -2207,6 +2215,8 @@ function stepDrone(dt, now) {
   const kf = keyOn('f') - keyOn('b') - joy.y, ks = keyOn('r') - keyOn('l') + joy.x, ku = keyOn('u') - keyOn('d') + ud.v; drone.tyaw += (keyOn('tl') - keyOn('tr')) * dt * 1.5;
   const sp = 9 + drone.p.y * 0.15, acc = V1.set(-Math.sin(drone.yaw) * Math.cos(drone.pitch), Math.sin(drone.pitch), -Math.cos(drone.yaw) * Math.cos(drone.pitch)).multiplyScalar(clamp(kf, -1, 1) * sp).addScaledVector(right(), clamp(ks, -1, 1) * sp); acc.y += clamp(ku, -1, 1) * 6;   // 見ている向きへ（上を見て進めば上がる）
   if (Math.abs(kf) > 0.05 || Math.abs(ks) > 0.05 || ku) auto = null;
+  // 着けない行き先（家・山の当たりの中）へ向かう自動の飛行は、1.5秒近づけなければ打ち切る（押し戻されたまま止まり、雪を踏む音が鳴りつづけた 2026-11-05）。遊覧は自分の打ち切りを持つ
+  if (auto && !auto.tour) { const L = V2.copy(auto.p).sub(drone.p).length(); if (auto.best == null || L < auto.best - 0.05) { auto.best = L; auto.stuck = 0; } else if ((auto.stuck += dt) > 1.5) auto = null; }
   if (auto) { const d = V2.copy(auto.p).sub(drone.p), L = d.length(); if (L < 0.15 && !auto.soft) auto = null; else { acc.copy(d).multiplyScalar(auto.soft ? Math.min(14, L * 3) / Math.max(L, 1e-4) : Math.min(14, 1.8 + L * 1.6) / L); const dy = ((auto.yaw - drone.tyaw + Math.PI * 3) % TAU) - Math.PI; drone.tyaw += dy * Math.min(1, dt * 3); drone.tpitch += (auto.pitch - drone.tpitch) * Math.min(1, dt * 3); } }   // soft＝遊覧で眺める間：その場にとどまる・動く物を追う（近くで速さを落とし、行き過ぎて揺れない）
   drone.v.lerp(acc, 1 - Math.exp(-dt * (auto ? 4 : 5))); drone.p.addScaledVector(drone.v, dt);
   // 地面・家の上に。町から離れすぎない
@@ -2299,7 +2309,8 @@ function step(f0) {
   if (TEDDY.userData.k) { TEDDY.userData.squish = Math.max(0, (TEDDY.userData.squish || 0) - dt * 0.5); const sq = TEDDY.userData.squish, w = Math.sin(t * 2.2) * 0.04 + Math.sin(t * 14) * 0.18 * sq; TEDDY.scale.set(1 - w * 0.5, 1 + w, 1 - w * 0.5); }
   BELL.rotation.z = Math.sin(t * 1.4) * 0.05 + (BELL.userData.swing || 0) * Math.sin(t * 9) * 0.4; BELL.userData.swing = Math.max(0, (BELL.userData.swing || 0) - dt * 0.4);
   BAKERY_SIGN.rotation.z = Math.sin(t * 1.1) * 0.08; fillClear(1);
-  { const hv = Math.hypot(drone.v.x, drone.v.z), up = drone.p.y - surfaceAt(drone.p.x, drone.p.z); if (up < 3.2 && hv > 0.8 && !inWater(drone.p.x, drone.p.z)) { if ((STEP_T -= dt * Math.min(2.2, hv / 2.2)) <= 0) { STEP_T = 0.42; SND.snowStep(clamp(1.4 - up * 0.3, 0.4, 1)); counts.steps++; } } else STEP_T = 0.1; }   // 低く飛ぶと、雪を踏む音（歩く速さで）
+  // 足音の速さは、実際に動いた量から（押し戻されて止まっている間も、残った速さで鳴りつづけた 2026-11-05）
+  { const hv = dt > 1e-4 ? Math.hypot(drone.p.x - STEP_P.x, drone.p.z - STEP_P.z) / dt : 0; STEP_P.copy(drone.p); const up = drone.p.y - surfaceAt(drone.p.x, drone.p.z); if (up < 3.2 && hv > 0.8 && !inWater(drone.p.x, drone.p.z)) { if ((STEP_T -= dt * Math.min(2.2, hv / 2.2)) <= 0) { STEP_T = 0.42; SND.snowStep(clamp(1.4 - up * 0.3, 0.4, 1)); counts.steps++; } } else STEP_T = 0.1; }   // 低く飛ぶと、雪を踏む音（歩く速さで）
   { const W = TOY.g.userData; if (W.base == null) W.base = TOY.g.scale.x; if (W.wob > 0) { W.wob = Math.max(0, W.wob - dt * 0.55); const w = Math.sin(t * 12) * 0.045 * W.wob; TOY.g.scale.set(W.base * (1 - w * 0.6), W.base * (1 + w), W.base * (1 - w * 0.6)); for (const m of GUMMY_HOUSE.all) m.userData.U.uWob.value = W.wob * 0.5; } }   // グミの店：触ると、建物ごとぷるんぷるん
   // かじり跡は、45秒たつと少しずつふさがる
   for (let k = 0; k < 32; k++) { const B = SW.BITES[k]; if (B.w <= 0) continue; const age = t - BITE_T[k];
@@ -2403,7 +2414,7 @@ if (fpsEl) window.__dbg = { tour: () => ({ on: TOUR.on, i: TOUR.i, n: TOUR.list.
   cotClose: (now) => closeTrivia(now), intro: () => (INTRO.t < 0 ? null : +INTRO.t.toFixed(2)), mtn: (i) => { const S = MTN_ST[i]; return { taps: S.taps, dents: EAT.list.filter((D) => D.i === i).length, spoon: SPOON.i === i ? +SPOON.t.toFixed(1) : null, big: EAT.list.some((D) => D.i === i && D.pin), slots: EAT.list.length, dentN: DENT_N, rest: S.rest ? +S.rest.t.toFixed(1) : null, eaten: S.eaten }; }, mtnAt: (i) => { const M = MOUNTS[i]; return [M.x, M.y + M.yMax * 0.55, M.z, M.rMax, M.yMax]; }, mtnHurry: (i) => { const S = MTN_ST[i]; S.last -= 100; if (S.spoonEnd) S.spoonEnd -= 100; }, mtnN: () => MOUNTS.length, inMtn: () => MOUNTS.some((M) => Math.hypot(cam.position.x - M.x, cam.position.z - M.z) < mtnR(M, cam.position.y - M.y)), lamp: (i) => (LAMP.st[i] ? LAMP.st[i].phase : 'ok'), lampAt: (i) => { const [x, z] = LAMPS[i]; return [x, landH(x, z) + 1.3, z]; }, lampPiece: (i) => (LAMP.st[i] ? LAMP.st[i].parts.map((P) => +P.p.y.toFixed(2)) : null), lampsDown: () => LAMP.st.flatMap((S, i) => (S ? [i] : [])), lampKind: (i) => (LAMP.st[i] ? LAMP.st[i].kind + '/' + LAMP.st[i].back : null), lampKinds: () => counts.lampKinds || '', wreath: () => WR.lit, bauble: () => BAUBLE.amp, rest: () => REST.hop, found: () => [...found], areas: () => AREAS.map((a) => a.id), trivia: () => TRIVIA.map((T) => T.id), houses: () => HOUSES.length, card: () => (card.hidden ? null : { name: $('cName').textContent, go: $('go').hidden ? null : $('go').href, goText: $('go').textContent, tab: $('go').target || null }), areaCard: (id) => { focusArea(AREAS.find((a) => a.id === id)); return true; }, theater: () => ({ open: TH.open, duck: theaterDucked(), bgm: !!(PREF.bgm && soundStarted) }),
   screenOf: (v) => { cam.updateMatrixWorld(); const p = new THREE.Vector3(...v).project(cam); return [(p.x * 0.5 + 0.5) * innerWidth, (-p.y * 0.5 + 0.5) * innerHeight, p.z]; },
   where: (kind, id) => { const o = kind === 'area' ? AREAS.find((a) => a.id === id).g : kind === 'trivia' ? TRIVIA.find((T) => T.id === id).hit : kind === 'gb' ? GBS[id].m : PUYOS[id].body; return o.getWorldPosition(new THREE.Vector3()).toArray(); },
-  place: (p, yaw, pitch) => { drone.p.set(...p); drone.v.set(0, 0, 0); drone.yaw = drone.tyaw = yaw; drone.pitch = drone.tpitch = pitch; auto = null; stepDrone(0, nowS()); },
+  flyInto: (i) => { const H = HOUSES[i]; flyTo(new THREE.Vector3(H.x, landH(H.x, H.z), H.z), new THREE.Vector3(H.x, H.top, H.z), 0.2, 0.8); return [H.x, H.z, H.r, H.top, landH(H.x, H.z)]; }, place: (p, yaw, pitch) => { drone.p.set(...p); drone.v.set(0, 0, 0); drone.yaw = drone.tyaw = yaw; drone.pitch = drone.tpitch = pitch; auto = null; stepDrone(0, nowS()); },
   look: (v) => { const d = new THREE.Vector3(...v).sub(drone.p); drone.yaw = drone.tyaw = Math.atan2(-d.x, -d.z); drone.pitch = drone.tpitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); stepDrone(0, nowS()); },
   rayFull: (on) => { RAY_FULL = !!on; }, tap: (x, y) => { const r = tapAt(x, y); return r ? [r.kind, r.id ?? null] : null; }, peek: (x, y) => { const h = pickAt(x, y); return h ? [h.kind, h.o ? h.o.id ?? h.id ?? null : null] : null; }, pos: () => drone.p.toArray(), aur: () => sky.mat.uniforms.uAur.value, auto: () => !!auto, sparks: () => SPARKS.length, gbLimb: (i) => GBS[i].U.uLimb.value.toArray(), gbInfo: (i) => { const m = GBS[i].m, g = m.geometry; g.computeBoundingBox(); return { n: g.attributes.position.count, box: [g.boundingBox.min.toArray(), g.boundingBox.max.toArray()], wp: m.getWorldPosition(new THREE.Vector3()).toArray(), sc: m.scale.x, vis: m.visible, mats: Array.isArray(m.material) }; }, voices: SND.voices, inWater, landH,
   bites: () => SW.BITES.filter((b) => b.w > 0).length, gb: (i) => ({ state: GBS[i].state, eat: GBS[i].eat, vis: GBS[i].m.visible }), crumbs: () => CRUMBS.length, puyos: () => PUYOS.map((b) => [b.grp.position.x, b.grp.position.z, b.hop]),
@@ -2540,6 +2551,8 @@ const savePref = () => { try { localStorage.setItem(SOUND_KEY, JSON.stringify(PR
 BGM.setTrack(PREF.track); BGM.setMedley(!!PREF.medley); BGM.setVolume(PREF.bgmVol / 100); SND.setVolume(PREF.seVol / 100); SND.setMute(!PREF.se); BGM.onChange = () => { if (!$('menu').hidden && menuTab === 'sound') drawMenu(); };
 // 音は、最初に画面にさわった時から（スマホは、さわる前に音を出せない）。港町の中だけ鳴る（仕掛けのページには BGM がない）
 let soundStarted = false; const startSound = () => { if (soundStarted || onTop()) return; soundStarted = true; BGM.set(SND.audio(), PREF.bgm); };
+// 戻るで、取っておかれたこのページへ戻った時は、カードのページで変えたオン・オフを読み直す（前は古い設定のまま鳴り直し、次に保存する時にカードの「止める」を上書きした 2026-11-05）
+addEventListener('pageshow', (e) => { if (!e.persisted) return; try { const v = (JSON.parse(localStorage.getItem(SOUND_KEY) || '{}') || {}).bgm; if (typeof v === 'boolean' && v !== PREF.bgm) { PREF.bgm = v; if (soundStarted) BGM.set(SND.audio(), v); } } catch (er) { /* その場かぎり */ } });
 addEventListener('pointerdown', startSound, { capture: true }); addEventListener('keydown', startSound, { capture: true });
 // スマホのブラウザは、指が触れた瞬間（押し下げ）では音を出させず、離した瞬間（押し上げ・タップ）に許す。押し下げで予約した BGM・はじける音は、離した時に音の時計を動かして鳴らす
 // （押し下げだけで始めていた時は、「タッチしてね」で風船がはじけても音楽が始まらず、もう1回さわる必要があった 本人 2026-10-18）
@@ -2615,7 +2628,8 @@ function screenRows(P) { P.append(mEl('div', 'hd', '画面を広く'));
   else P.append(mRow('画面の向き', IOS ? 'スマホを横にすると横画面に。ならない時は、コントロールセンターの「画面縦向きのロック」を切ってください' : 'スマホを横にすると横画面に。ならない時は、端末の「画面の自動回転」をオンに'));
   if (IN_LINE) P.append(mRow('LINE の下の枠は、消せません', 'いつものブラウザで開きなおすと、画面を広くできます（右上の「…」→「ブラウザで開く」でも。記録は別になります）', mBtn('ブラウザで開きなおす', reopenBrowser, 'go'))); }
 // LINE の中のブラウザで開いている時：いつものブラウザで開きなおす（LINE は、アドレスに openExternalBrowser=1 が付いたページを、外のブラウザで開く）。届いたカードも一緒に
-function reopenBrowser() { const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); if (!u.hash && INVITE_HASH) u.hash = INVITE_HASH; location.href = u.href; }
+//   LINE の中のページは裏に残るので、出る前に音を止める（開きなおした先からは止められず、BGM が鳴りつづけた 2026-11-05）
+function reopenBrowser() { BGM.halt(); SND.pause(true); const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); if (!u.hash && INVITE_HASH) u.hash = INVITE_HASH; location.href = u.href; }
 // スマホに入れる（ホーム画面に追加）：開いている所ごとに、やり方を1つだけ（本人 2026-10-18「ショートカットやアプリとして登録できるように、その案内も」）
 function homeRows(P) { P.append(mEl('div', 'hd', 'スマホに入れる（ホーム画面に追加）'));
   if (IN_LINE) P.append(mRow('LINE の中で開いています', 'いつものブラウザで開きなおすと、ホーム画面に追加できます（遊んだ記録は、LINE の中とは別になります）', mBtn('ブラウザで開きなおす', reopenBrowser, 'go')));

@@ -19,7 +19,7 @@ export function loadMV(files, take = {}, data = {}) {
     if (LOADED.has(f)) return LOADED.get(f);
     if (window.V && data) Object.assign(window.V.S.data, data);
     const q = new Promise((ok, ng) => { const s = document.createElement('script'); s.src = new URL('./mv/' + f, import.meta.url).href; s.onload = () => ok(take[f] ? window[take[f]] : true); s.onerror = () => ng(new Error('読めない: ' + f)); document.head.appendChild(s); });
-    LOADED.set(f, q); return q;
+    LOADED.set(f, q); q.catch(() => { LOADED.delete(f); }); return q;   // 読めなかった時は覚えない（次に開いた絵で、もう一度読む。前は失敗を覚えたまま、人物なしの絵になった）
   });
   return p.then(() => Promise.all(['v.js', ...files].map((f) => LOADED.get(f)))).then((r) => { const out = {}; files.forEach((f, i) => { if (take[f]) out[take[f]] = r[i + 1]; }); return out; });
 }
