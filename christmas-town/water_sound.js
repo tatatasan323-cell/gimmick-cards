@@ -3,7 +3,7 @@
 // どれも短い音を、その場で合成する。音源ファイルなし
 import { makeSound, r } from './sound_core.js';
 // 音の部屋・出口・同時に鳴る数は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.9・抑える部品なし（前のまま）・同時に鳴る部品は160まで（港町と同じ）
-const SC = makeSound({ gain: 0.9, cap: 160 });
+const SC = makeSound({ gain: 0.9, cap: 160, leave: 'close' });
 let ac = null, out = null, nextBubble = 0;
 
 export function audio() { ac = SC.audio(); out = SC.out; return ac; }

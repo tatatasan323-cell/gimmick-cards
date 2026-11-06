@@ -4,7 +4,7 @@
 // 重なった音の合計が大きすぎると、音が割れて「ぶつぶつ」と鳴った（本人）。最後に音量をならす部品（リミッター）を通し、重なるほど1つ1つを小さくする
 import { makeSound, r } from './sound_core.js';
 // 音の部屋・出口・音割れを抑える部品・同時に鳴る数・雑音は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.85・抑える部品（-14dB・12:1）・上限は下の arrive／done が数で間引く
-const SC = makeSound({ gain: 0.85, limiter: { threshold: -14, knee: 8, ratio: 12, attack: 0.002, release: 0.25 }, meter: true });
+const SC = makeSound({ gain: 0.85, limiter: { threshold: -14, knee: 8, ratio: 12, attack: 0.002, release: 0.25 }, meter: true, leave: 'close' });
 let ac = null, out = null, lastK = 0, lastA = 0, lastC = 0, lastD = 0;
 const track = SC.track, live = SC.running;
 export const voices = SC.voices;

@@ -12,17 +12,19 @@ export function readPref() {
 
 // gain＝出口の大きさ（効果音100%の時）／limiter＝{ threshold, knee, ratio, attack, release } のうち変える物／cap＝同時に鳴る部品の上限（数か、数を返す関数）
 // maxF＝これより高い音は鳴らさない（聞こえる範囲の外。警告が出た）／meter＝検査用に、ならす前と後の振れ幅を見る
-export function makeSound({ gain = 0.9, limiter = null, cap = Infinity, maxF = 16000, meter = false } = {}) {
-  const P = readPref(); let ac = null, out = null, noise = null, act = 0, muted = !P.se, vol = P.seVol, mPre = null, mPost = null;
+// leave＝ページを離れる・凍る時：'close'＝出口から外して音の部屋を閉じる（仕掛けの部屋。戻ったら次にさわった時に作り直す）／'suspend'＝止めるだけ（港町・カード＝BGM が同じ部屋を使う）
+//   止めるだけだった時、ステンドグラスで遊んでから部屋を出ると、効果音が鳴りやまなくなった（本人 2026-11-06。出たページを取っておく端末で、止める知らせが届く前に凍ったと見ている）
+export function makeSound({ gain = 0.9, limiter = null, cap = Infinity, maxF = 16000, meter = false, leave = 'suspend' } = {}) {
+  const P = readPref(); let ac = null, out = null, endN = null, noise = null, act = 0, gen = 0, muted = !P.se, vol = P.seVol, mPre = null, mPost = null;
   const capNow = typeof cap === 'function' ? cap : () => cap, outGain = () => (muted ? 0 : gain * vol);
   const running = () => !!ac && ac.state === 'running', room = () => act < capNow();
-  const track = (n) => { act++; n.onended = () => { act--; }; };
+  const track = (n) => { act++; const g = gen; n.onended = () => { if (g === gen) act--; }; };   // 閉じた部屋の部品が後から終わっても、数をくずさない
   const peakOf = (a) => { if (!a) return 0; const d = new Float32Array(a.fftSize); a.getFloatTimeDomainData(d); let m = 0; for (const v of d) m = Math.max(m, Math.abs(v)); return m; };
   function audio() {
     if (!ac) {
       ac = new (window.AudioContext || window.webkitAudioContext)(); out = ac.createGain(); out.gain.value = outGain(); let end = out;
       if (limiter) { const L = ac.createDynamicsCompressor(); for (const k of Object.keys(limiter)) L[k].value = limiter[k]; out.connect(L); end = L; }
-      end.connect(ac.destination);
+      end.connect(ac.destination); endN = end;
       if (meter) { mPre = ac.createAnalyser(); mPre.fftSize = 2048; out.connect(mPre); mPost = ac.createAnalyser(); mPost.fftSize = 2048; end.connect(mPost); }
     }
     if (ac.state !== 'running' && !document.hidden) ac.resume();
@@ -32,7 +34,9 @@ export function makeSound({ gain = 0.9, limiter = null, cap = Infinity, maxF = 1
   for (const ev of ['pointerup', 'touchend', 'click']) addEventListener(ev, kick, { capture: true, passive: true });
   // 画面が隠れたら音の部屋を止め、見えたら動かす（部屋のページは止めておらず、予約した音の尾が裏で鳴った。隠れている間に鳴らす音は、上で部屋を起こさない 2026-11-05）
   const hush = () => { if (!ac) return; try { if (document.hidden) ac.suspend(); else ac.resume(); } catch (e) { /* 同上 */ } };
-  document.addEventListener('visibilitychange', hush); addEventListener('pageshow', hush); addEventListener('pagehide', () => { if (ac) { try { ac.suspend(); } catch (e) { /* 同上 */ } } });
+  const shut = () => { if (!ac) return; const c = ac; try { endN.disconnect(); } catch (e) { /* 同上 */ } ac = out = endN = noise = mPre = mPost = null; act = 0; gen++; try { c.close().catch(() => {}); } catch (e) { /* 同上 */ } };
+  const away = () => { if (leave === 'close') shut(); else if (ac) { try { ac.suspend(); } catch (e) { /* 同上 */ } } };
+  document.addEventListener('visibilitychange', hush); addEventListener('pageshow', hush); addEventListener('pagehide', away); addEventListener('freeze', away);
   const S = {
     audio, running, room, track, live: () => running() && room(), voices: () => act,
     get ac() { return ac; }, get out() { return out; },

@@ -5,7 +5,7 @@ import { makeSound, r } from './sound_core.js';
 // 同時に鳴っている音の数を数え、多すぎる時は新しい音を省く（大クリスタルが倒れると、崩れた展示が一斉に戻って700近く重なり、スマホでは途中から無音になった）
 // ふだんの音は CAP まで。大クリスタルの音（軋む・砕ける・よみがえる・旋律）は優先して、その倍まで鳴らす
 let HI = 0; const CAP = 150;
-const SC = makeSound({ gain: 0.85, limiter: { threshold: -8, ratio: 8, attack: 0.003, release: 0.25 }, cap: () => (HI ? CAP * 2 : CAP), maxF: 15000 });
+const SC = makeSound({ gain: 0.85, limiter: { threshold: -8, ratio: 8, attack: 0.003, release: 0.25 }, cap: () => (HI ? CAP * 2 : CAP), maxF: 15000, leave: 'close' });
 let ac = null, out = null;
 export function audio() { ac = SC.audio(); out = SC.out; return ac; }
 const live = SC.running, room = SC.room, go = SC.track, partial = SC.partial, hiss = SC.hissAt;

@@ -1,7 +1,7 @@
 // グミの積み木の音：ぶつかる「ぽよん」・はじく「ぷるっ」・持つ「とぷ」・出てくる「ぽんっ」。どれも短い音を合成し、鳴りっぱなしにしない
 import { makeSound, r } from './sound_core.js';
 // 音の部屋・出口・同時に鳴る数は共通の土台（共通/sound_core.js）。この部屋は：大きさ0.9・抑える部品なし（前のまま）・同時に鳴る部品は160まで（港町と同じ）
-const SC = makeSound({ gain: 0.9, cap: 160 });
+const SC = makeSound({ gain: 0.9, cap: 160, leave: 'close' });
 let ac = null, out = null, last = 0;
 export function audio() { ac = SC.audio(); out = SC.out; return ac; }
 export const voices = SC.voices;
